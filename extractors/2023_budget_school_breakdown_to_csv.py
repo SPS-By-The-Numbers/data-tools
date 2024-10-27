@@ -81,14 +81,94 @@ def get_nums(line, start, num, breaks):
     return x
 
 
+def find_fields(rows):
+    filled = [False] * max(len(r) for r in rows)
+    # Overlap all the rows to find non-spaces.
+    for row in rows:
+        for i in range(0, len(row)):
+            filled[i] |= row[i] != ' '
+
+    mask_string = ''.join(['c' if x else ' ' for x in filled])
+    char_patterns = [x.strip()
+                     for x in re.sub(r'\s\s+', '\t', mask_string).split('\t')]
+    pattern_regex = r'\s+'.join([f'({pattern})' for pattern in char_patterns])
+    matches = re.search(pattern_regex, mask_string)
+    header_splits = [(matches.start(i), matches.end(i))
+                     for i in range(1, len(char_patterns) + 1)]
+
+    first_header = [rows[0][s[0]:s[1]].strip() for s in header_splits]
+    second_header = [rows[1][s[0]:s[1]].strip() for s in header_splits]
+    headers = [' '.join([a, b]).strip()
+               for a, b in zip(first_header, second_header)]
+
+    splits = []
+    last_end = 0
+    for i in range(0, len(header_splits)):
+        if i + 1 < len(header_splits):
+            # Normally choose the 2/3 point between start ane end
+            next_start = header_splits[i + 1][0]
+            cur_end = header_splits[i][1]
+            delta = next_start - cur_end
+            end = header_splits[i][1] + int(delta * 0.666)
+        else:
+            end = -1
+        splits.append((last_end, end))
+        last_end = end
+
+    return headers, splits
+
+
+def parse_school_funded_staff(rows, school_info):
+    headers, field_splits = find_fields(rows[0:2])
+
+    all_fields = []
+    for row in rows[2:]:
+        fields = []
+        all_fields.append(fields)
+        for split in field_splits:
+            fields.append(row[split[0]:split[1]].strip())
+
+    for fields in all_fields:
+        parse_school_funded_staff_fields(headers, fields, school_info)
+
+
+def get_school_funded_staff_fields(output, value_headers,
+                                   value_fields):
+    """Each column is the Funding type for staff allocated.,
+
+    Examples are General Education, Bilingual Education, Seattle Ed Levy,
+    State LAP, Special Ecuation, Federl Title I and a Total column.
+    """
+    for h, v in zip(value_headers, [normalize_num(x) for x in value_fields]):
+        if h not in output:
+            output[h] = []
+        output[h].append(v)
+
+
+def parse_school_funded_staff_fields(headers, fields, school_info):
+    match fields[0]:
+        case ('Bilingual Education Teachers'
+              'Total School Funded Staff' |
+              'Specialists & Intv. Teachers' |
+              'Special Education Teachers' |
+              'School Administrator' |
+              'Classroom Teachers' |
+              'Instructional Assistants' |
+              'Clerical Support' |
+              'Other Certificated Staff' |
+              'Preschool Teachers'):
+            label = f'staff_type - {fields[0]}'
+            school_info[label] = {'headers': headers}
+
+            get_school_funded_staff_fields(school_info[label], headers[1:],
+                                           fields[1:])
+
+
 def parse_page(page):
     school_info = {}
     mode = Mode.SchoolName
 
-    # Used to put together 2 line headers.
-    first_header_line = None
-    row_bitmap = [False] * MAX_LINE_LENGTH
-    num_fields = 0
+    row_cache = None
 
     for raw_line in page.split('\n'):
         line = normalize_line(raw_line.strip())
@@ -101,7 +181,7 @@ def parse_page(page):
                 if 'name' not in school_info:
                     # Example:
                     #  Adams Elementary      A.
-                    x = re.sub(r"\s\s*", "\t", line)
+                    x = re.sub(r"\s\s+", "\t", line)
                     school_info['name'] = x.split('\t')[0]
                 else:
                     if line == 'Enrollment and Demographics':
@@ -174,66 +254,26 @@ def parse_page(page):
 
                 elif line.startswith('School Funded Staff'):
                     mode = Mode.SchoolFundedStaff
-                    first_header_line = None
+                    row_cache = []
 
             case Mode.SchoolFundedStaff:
-                FIELD_SIZE = 16
                 # The header is hard to parse. Just hard coding it.
-                if line.startswith('General'):
-                    # Every 15 chars is a column
-                    if first_header_line is not None:
-                        raise ValueError(first_header_line)
-                    first_header_line = line
-
-                if line.startswith('Staff Type'):
-                    headers, header_matches = get_header_ranges(line)
-                    first_headers, first_header_matches = get_header_ranges(
-                        first_header_line)
-                    print(line, headers, header_matches)
-
-                    for i in range(len(headers)):
-                        if i < len(first_header_line) and first_header_line[i]:
-                            headers[i] = (first_header_line[i] + " " +
-                                          headers[i])
-                    school_info['staff'] = {}
-                    school_info['staff']['headers'] = headers
-                    num_fields = len(headers)
-                    header_breaks = [0]
-                    header_breaks.extend(
-                        [x + 48 for x in range(0, num_fields * FIELD_SIZE,
-                                               FIELD_SIZE)])
-                elif line.startswith('Bilingual Education Teachers'):
-                    school_info['funding']['bi_ling'] = get_nums(
-                        line, 1, num_fields, header_breaks)
-                elif line.startswith('Classroom Teachers'):
-                    school_info['funding']['classroom'] = get_nums(
-                        line, 1, num_fields, header_breaks)
-                elif line.startswith('Instructional Assistants'):
-                    school_info['funding']['ia'] = get_nums(
-                        line, 1, num_fields, header_breaks)
-                elif line.startswith('Clerical Support'):
-                    school_info['funding']['office'] = get_nums(
-                        line, 1, num_fields, header_breaks)
-                elif line.startswith('Other Certificated Staff'):
-                    school_info['funding']['other_cert'] = get_nums(
-                        line, 1, num_fields, header_breaks)
-                elif line.startswith('Preschool Teachers'):
-                    school_info['funding']['preschool'] = get_nums(
-                        line, 1, num_fields, header_breaks)
-                elif line.startswith('School Administrator'):
-                    school_info['funding']['admins'] = get_nums(
-                        line, 1, num_fields, header_breaks)
-                elif line.startswith('Special Education Teachers'):
-                    print(line, header_breaks)
-                    school_info['funding']['spec_ed'] = get_nums(
-                        line, 1, num_fields, header_breaks)
-                elif line.startswith('Specialists & Intv. Teachers'):
-                    school_info['funding']['specialists'] = get_nums(
-                        line, 1, num_fields, header_breaks)
-                elif line.startswith('Total School Funded Staff'):
-                    school_info['funding']['total_fte'] = get_nums(
-                        line, 1, num_fields, header_breaks)
+                if line.startswith('Total School Funded Staff'):
+                    row_cache.append(raw_line)
+                    parse_school_funded_staff(row_cache, school_info)
                     mode = Mode.OtherData
+                elif (line.startswith('General') or
+                      line.startswith('Staff Type') or
+                      line.startswith('Bilingual Education Teachers') or
+                      line.startswith('Classroom Teachers') or
+                      line.startswith('Instructional Assistants') or
+                      line.startswith('Clerical Support') or
+                      line.startswith('Other Certificated Staff') or
+                      line.startswith('Preschool Teachers') or
+                      line.startswith('School Administrator') or
+                      line.startswith('Special Education Teachers') or
+                      line.startswith('Specialists & Intv. Teachers')):
+                    row_cache.append(raw_line)
 
             case Mode.OtherData:
                 if 'other' not in school_info:
@@ -270,7 +310,6 @@ def main(text_infile, csv_outfile):
         pages = all_text.split("\f")
         parsed_pages = [parse_page(page) for page in pages if len(page) > 10]
 
-    return
     rows = flatten_pages(parsed_pages)
     with open(csv_outfile, 'w', newline='') as outfile:
         writer = csv.writer(outfile)
