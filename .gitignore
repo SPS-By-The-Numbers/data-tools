@@ -163,3 +163,4 @@ cython_debug/
 
 # This directory should be in gcs.
 input/
+output/
