@@ -14,6 +14,10 @@ logging.basicConfig(level='INFO')
 IN_CSV = "ActualsChildGeneralFundExpenditures (safs3dw).csv"
 
 
+def to_bq_name(name):
+    return name.replace(' ', '_').lower()
+
+
 def to_type(name):
     match name:
         case ("Activity Code" |
@@ -43,14 +47,14 @@ def to_type(name):
 def infer_schema(val):
     name = val.replace('\ufeff', '').strip()
     return {
-        'name': name,
+        'name': to_bq_name(name),
         'type': to_type(name)
     }
 
 
-def header_to_schema(row, name):
+def header_to_schema(row):
     return {
-        'name': name,
+        'name': 'sfas',
         'type': 'record',
         'fields': [infer_schema(val) for val in row]
     }
@@ -87,7 +91,7 @@ def parse_value(name, value):
             return value
 
 
-def process(dataset_name, reader, outfile):
+def process(reader, outfile):
     header = None
     rows = []
     is_codes = False
@@ -106,12 +110,12 @@ def process(dataset_name, reader, outfile):
 
             header = row
         else:
-            vals = [(name, parse_value(name, val)) for name, val in
-                    zip(header, row)]
+            vals = [(to_bq_name(name), parse_value(name, val))
+                    for name, val in zip(header, row)]
             rows.append(dict(vals))
     fastavro.writer(outfile,
                     schema=fastavro.parse_schema(
-                        header_to_schema(header, dataset_name)),
+                        header_to_schema(header)),
                     records=rows,
                     codec='zstandard')
 
@@ -122,7 +126,7 @@ def main():
     with open(inputcsv, "r", encoding="utf-8") as infile:
         reader = csv.reader(infile)
         with open(f'output/{dataset_name}.avro', "wb") as outfile:
-            process(dataset_name, reader, outfile)
+            process(reader, outfile)
 
 
 if __name__ == '__main__':
