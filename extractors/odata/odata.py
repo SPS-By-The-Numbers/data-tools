@@ -175,8 +175,8 @@ def edm_to_schema_type(edm_node):
                     'transform': transform_edm_date_to_millis}
 
         case 'Edm.Decimal':
-            precision = int(edm_node.get('Precision')) or 38
-            scale = int(edm_node.get('Scale')) or 9
+            precision = int(edm_node.get('Precision') or 38)
+            scale = int(edm_node.get('Scale') or 9)
             return {'sql_type': 'NUMERIC',
                     'avro_type': {
                         'type': 'bytes',
@@ -349,18 +349,7 @@ def complex_type_to_schema(metadata, namespace, type_name):
                                     ODATA_NS)[0]
     fields = []
     for prop in type_element.findall('./edm:Property', ODATA_NS):
-        prop_type = prop.get('Type')
         prop_name = prop.get('Name')
-        if prop_type.startswith('Edm.'):
-            schema_type = edm_to_schema_type(prop).items()
-        elif prop_type.startswith('socrata.'):
-            schema_type = complex_type_to_schema(
-                metadata,
-                f'{namespace}_{prop_name}',
-                prop_type[len(SOCRATA_PREFIX):])
-        else:
-            raise ValueError(prop_type)
-
         field = {'name': prop_name}
         for k, v in edm_to_schema_type(prop).items():
             field[k] = v
