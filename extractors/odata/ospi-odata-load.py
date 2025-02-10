@@ -108,6 +108,10 @@ def write_checkpoint(name, value):
 def scrape_all_entities(schemas, entity_sets, tempfile, force, skip_upload):
     random.shuffle(entity_sets)
     for entity in entity_sets:
+        if entity == 'cdk6-5kdf' or entity == '8y5c-ekcc':
+            logger.info(f'skipping vehicle and prescription database')
+            continue
+
         if not force and checkpoint_exists(entity):
             logger.info(f'CHECKPOINT {entity}: skip')
             continue
