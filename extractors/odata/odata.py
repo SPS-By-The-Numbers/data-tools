@@ -261,62 +261,48 @@ def edm_to_schema_type(edm_node):
         case 'Edm.Geography':
             return {'sql_type': 'GEOGRAPHY',
                     'avro_type': {
-                        'type': {
-                            "type": "string",
-                            "logicaltype": "geography_wkt",
-                        },
+                        "type": "string",
+                        "logicaltype": "geography_wkt",
                     },
                     'transform': identity}
 
         case 'Edm.GeographyPoint':
             return {'sql_type': 'GEOGRAPHY',
                     'avro_type': {
-                        'type': {
-                            "type": "string",
-                            "logicaltype": "geography_wkt",
-                        },
+                        "type": "string",
+                        "logicaltype": "geography_wkt",
                     },
                     'transform': transform_edm_point_to_pointliteral}
 
         case 'Edm.GeographyLineString':
             return {'sql_type': 'GEOGRAPHY',
                     'avro_type': {
-                        'type': {
-                            "type": "string",
-                            "logicaltype": "geography_wkt",
-                        },
-                        'logicalType': 'linestring',
+                        "type": "string",
+                        "logicaltype": "geography_wkt",
                     },
                     'transform': transform_edm_linestring_to_linestring}
 
         case 'Edm.GeographyMultiPoint':
             return {'sql_type': 'GEOGRAPHY',
                     'avro_type': {
-                        'type': {
-                            "type": "string",
-                            "logicaltype": "geography_wkt",
-                        },
-                        'logicalType': 'multipoint',
+                        "type": "string",
+                        "logicaltype": "geography_wkt",
                     },
                     'transform': transform_edm_multipoint_to_multipoint}
 
         case 'Edm.GeographyMultiLineString':
             return {'sql_type': 'GEOGRAPHY',
                     'avro_type': {
-                        'type': {
-                            "type": "string",
-                            "logicaltype": "geography_wkt",
-                        },
+                        "type": "string",
+                        "logicaltype": "geography_wkt",
                     },
                     'transform': transform_edm_multiline_to_multilineliteral}
 
         case 'Edm.GeographyMultiPolygon':
             return {'sql_type': 'GEOGRAPHY',
                     'avro_type': {
-                        'type': {
-                            "type": "string",
-                            "logicaltype": "geography_wkt",
-                        },
+                        "type": "string",
+                        "logicaltype": "geography_wkt",
                     },
                     'transform': transform_edm_multipolygon_to_multipolygon}
 
