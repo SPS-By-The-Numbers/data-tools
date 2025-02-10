@@ -1,6 +1,6 @@
-import copy
 import functools
 from datetime import datetime, timedelta, timezone
+from decimal import Decimal
 
 ODATA_NS = {'edmx': 'http://docs.oasis-open.org/odata/ns/edmx',
             'edm': 'http://docs.oasis-open.org/odata/ns/edm'}
@@ -41,6 +41,12 @@ def transform_edm_date_to_epoch_days(x):
         return x
 
     return _since_epoch(x).days
+
+
+def transform_edm_decimal(x):
+    if x == '':
+        return None
+    return Decimal(x)
 
 
 def transform_edm_date_to_millis(x):
@@ -169,11 +175,16 @@ def edm_to_schema_type(edm_node):
                     'transform': transform_edm_date_to_millis}
 
         case 'Edm.Decimal':
-            return {'sql_type': 'FLOAT64',
+            precision = int(edm_node.get('Precision')) or 38
+            scale = int(edm_node.get('Scale')) or 9
+            return {'sql_type': 'NUMERIC',
                     'avro_type': {
-                        'type': 'double'
+                        'type': 'bytes',
+                        'logicalType': 'decimal',
+                        'precision': precision,
+                        'scale': scale,
                     },
-                    'transform': identity}
+                    'transform': transform_edm_decimal}
 
         case 'Edm.Double':
             return {'sql_type': 'FLOAT64',
