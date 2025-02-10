@@ -36,3 +36,17 @@ $ pdftotext -layout p223_sep24.pdf -f 2 - | tr -s ' ' > squished.txt
 $ python3 extractors/p223_pdf_to_csv.py squished.txt out.csv
 ```
 
+### Data types and formats
+Decimals are prefered to IEEE floating points. Many codes and IDs lend
+themselves to integers.  In the accounting system, "Activity" and "Program" in
+particular look like integers. However, in inte S275 document they added two
+character values "SB" and "CP" to represent ASB and Capital Projects Fund
+assignments even though those are not officially part of the Activity and
+Program domains.  For these situations, we will use a custom encoding of the
+non-confirmant values ot map into an unused portion of the integer space
+(typically negatives) to allow the schema to be integers.
+
+We will use BigQuery Decimal defaults of precision=38 and scale=9.
+
+Monetary values more standardly use precision=19 and scale=2, but to keep
+everything uniform just using BQ's larger range.

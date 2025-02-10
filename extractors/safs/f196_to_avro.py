@@ -1,17 +1,14 @@
+import argparse
 import csv
 import datetime
 import dateutil
 import fastavro
-import os
 import logging
-import sys
+from decimal import Decimal
 
 logger = logging.getLogger(__name__)
 
 logging.basicConfig(level='INFO')
-
-
-IN_CSV = "ActualsChildGeneralFundExpenditures (safs3dw).csv"
 
 
 def to_bq_name(name):
@@ -32,7 +29,14 @@ def to_type(name):
             return ['null', 'int']
 
         case ("Amount"):
-            return ['null', 'double']
+            return [
+                'null',
+                {
+                    "type": "bytes",
+                    "logicalType": "decimal",
+                    "precision": 38,
+                    "scale": 9,
+                }]
 
         case ("Last Updated"):
             return ['null', {
@@ -78,7 +82,7 @@ def parse_value(name, value):
         case ("Amount"):
             if value == '':
                 return None
-            return float(value)
+            return Decimal(value)
 
         case ("Last Updated"):
             if value == '':
@@ -121,11 +125,18 @@ def process(reader, outfile):
 
 
 def main():
-    inputcsv = sys.argv[1]
-    dataset_name = os.path.splitext(os.path.basename(sys.argv[1]))[0]
-    with open(inputcsv, "r", encoding="utf-8") as infile:
+    parser = argparse.ArgumentParser(
+        prog='f196_load',
+        description='Converts and access database to avro format')
+
+    parser.add_argument('--infile', required=True, help='csv inputfile')
+    parser.add_argument('--outfile', required=True, help='output file avro')
+
+    args = parser.parse_args()
+
+    with open(args.infile, "r", encoding="utf-8", newline='') as infile:
         reader = csv.reader(infile)
-        with open(f'output/{dataset_name}.avro', "wb") as outfile:
+        with open(args.outfile, "wb") as outfile:
             process(reader, outfile)
 
 
