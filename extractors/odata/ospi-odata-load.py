@@ -62,16 +62,12 @@ def to_avro_schema(schema, name):
         # Just copy all of the avro_type over
         # for the simple case of a non record.
         if avro_type['type'] != 'record':
-            for k, v in avro_type.items():
-                field_info[k] = v
-
-            # The __id column is not nullable.
-            if field_name != '__id':
-                field_info['type'] = [
-                    'null',
-                    field_info['type'],
-                ]
+            # __id is not nullable. The rest are.
+            if field_name == '__id':
+                field_info['type'] = avro_type
+            else:
                 field_info['default'] = None
+                field_info['type'] = ['null', avro_type]
 
         else:
             # Records are complex. Start with default.
@@ -144,6 +140,7 @@ def scrape_all_entities(schemas, entity_sets, tempfile, force, skip_upload):
 
                 if opened_file is None:
                     opened_file = open(tempfile, 'wb+')
+                    logger.info(to_avro_schema(entity_schema, entity))
                     writer(opened_file,
                            parse_schema(to_avro_schema(entity_schema, entity)),
                            values, codec='zstandard')
