@@ -43,10 +43,10 @@ def transform_edm_date_to_epoch_days(x):
     return _since_epoch(x).days
 
 
-def transform_edm_decimal(x):
-    if x == '':
+def transform_edm_decimal(x, scale):
+    if x is None:
         return None
-    return Decimal(x)
+    return Decimal(x).quantize(Decimal(10) ** -scale)
 
 
 def transform_edm_date_to_millis(x):
@@ -184,7 +184,7 @@ def edm_to_schema_type(edm_node):
                         'precision': precision,
                         'scale': scale,
                     },
-                    'transform': transform_edm_decimal}
+                    'transform': lambda x: transform_edm_decimal(x, scale)}
 
         case 'Edm.Double':
             return {'sql_type': 'FLOAT64',
