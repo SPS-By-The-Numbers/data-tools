@@ -1,3 +1,4 @@
+import argparse
 import csv
 import re
 import sys
@@ -319,18 +320,30 @@ def parse_page(page):
 
 
 def main(text_infile, csv_outfile):
-    with open(text_infile, "r", encoding="utf-8") as infile:
-        all_text = infile.read()
-        pages = all_text.split("\f")
-        parsed_pages = [parse_page(page) for page in pages if len(page) > 10]
+    parser = argparse.ArgumentParser(
+        description='Parses the school breakdowns out of a budget file')
+
+    parser.add_argument('--log-level', default='INFO',
+                        help='set log level {DEBUG, INFO, WARNING, ERROR}')
+    parser.add_argument('--infile',
+                        type=argparse.FileType('r', encoding='UTF-8'),
+                        required=True,
+                        help='output of "pdf2txt -layout -f start -l end"')
+    parser.add_argument('--outfile',
+                        type=argparse.FileType('w', encoding='UTF-8'),
+                        required=True,
+                        help='output csv')
+
+    args = parser.parse_args()
+    all_text = args.infile.read()
+    pages = all_text.split("\f")
+    parsed_pages = [parse_page(page) for page in pages if len(page) > 10]
 
     rows = flatten_pages(parsed_pages)
-    with open(csv_outfile, 'w', newline='') as outfile:
-        writer = csv.writer(outfile)
-        writer.writerow(['School Name', 'Category', 'Entry', 'Column',
-                         'Value'])
-        for row in rows:
-            writer.writerow(row)
+    writer = csv.writer(args.outfile)
+    writer.writerow(['School Name', 'Category', 'Entry', 'Column', 'Value'])
+    for row in rows:
+        writer.writerow(row)
 
 
 if __name__ == '__main__':
