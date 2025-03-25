@@ -13,6 +13,7 @@ Mode = Enum('Mode', ['SchoolName',
 
 ENROLLMENT_COL_BREAK = [0, 35, 54, 70, 87]
 FUNDING_COL_BREAK = [0, 22, 63, 85]
+FUNDING_TOTAL_BUDGET_BREAK = [0, 22, 60, 79]
 OTHER_INFO_BREAK = [0, 60]
 MAX_LINE_LENGTH = 2048
 
@@ -105,13 +106,13 @@ def find_fields(rows):
     last_end = 0
     for i in range(0, len(header_splits)):
         if i + 1 < len(header_splits):
-            # Normally choose the 2/3 point between start ane end
+            # Normally choose the 2/3 point between start and end
             next_start = header_splits[i + 1][0]
             cur_end = header_splits[i][1]
             delta = next_start - cur_end
             end = header_splits[i][1] + int(delta * 0.666)
         else:
-            end = -1
+            end = None  # Go the end of line.
         splits.append((last_end, end))
         last_end = end
 
@@ -127,6 +128,7 @@ def parse_school_funded_staff(rows, school_info):
         all_fields.append(fields)
         for split in field_splits:
             fields.append(row[split[0]:split[1]].strip())
+    print(all_fields)
 
     for fields in all_fields:
         parse_school_funded_staff_fields(headers, fields, school_info)
@@ -227,30 +229,42 @@ def parse_page(page):
                     school_info['funding'] = {}
                     school_info['funding']['headers'] = get_cols(
                         line, 1, 3, FUNDING_COL_BREAK)
+
                 elif line.startswith('General Education'):
                     school_info['funding']['gen_ed'] = get_nums(
                         line, 1, 3, FUNDING_COL_BREAK)
+
                 elif line.startswith('Special Education'):
                     school_info['funding']['spec_ed'] = get_nums(
                         line, 1, 3, FUNDING_COL_BREAK)
+
                 elif line.startswith('Bilingual Education'):
                     school_info['funding']['bi_ling'] = get_nums(
                         line, 1, 3, FUNDING_COL_BREAK)
+
                 elif line.startswith('State LAP'):
                     school_info['funding']['lap'] = get_nums(
                         line, 1, 3, FUNDING_COL_BREAK)
+
                 elif line.startswith('Federal Title I'):
                     school_info['funding']['title_i'] = get_nums(
                         line, 1, 3, FUNDING_COL_BREAK)
+
                 elif line.startswith('Other Grants'):
                     school_info['funding']['other_grants'] = get_nums(
                         line, 1, 3, FUNDING_COL_BREAK)
+
                 elif line.startswith('Seattle Ed. Levy'):
                     school_info['funding']['ed_levy'] = get_nums(
                         line, 1, 3, FUNDING_COL_BREAK)
+
                 elif line.startswith('Total School Budget'):
                     school_info['funding']['total'] = get_nums(
                         line, 1, 3, FUNDING_COL_BREAK)
+
+                elif line.startswith('Total Budget'):
+                    school_info['funding']['total'] = get_nums(
+                        line, 1, 3, FUNDING_TOTAL_BUDGET_BREAK)
 
                 elif line.startswith('School Funded Staff'):
                     mode = Mode.SchoolFundedStaff
