@@ -131,8 +131,12 @@ def parse_school_funded_staff(rows, school_info):
         for split in field_splits:
             fields.append(row[split[0]:split[1]].strip())
 
+    staffing = school_info['staffing'] = {}
     for fields in all_fields:
-        parse_school_funded_staff_fields(headers, fields, school_info)
+        staff_type, staffing_info = parse_school_funded_staff_fields(
+            headers, fields)
+        if staff_type is not None:
+            staffing[staff_type] = staffing_info
 
 
 def get_school_funded_staff_fields(output, value_headers,
@@ -145,29 +149,21 @@ def get_school_funded_staff_fields(output, value_headers,
     for h, v in zip(value_headers, [normalize_num(x) for x in value_fields]):
         if h not in output:
             output[h] = []
-        output[h].append(v)
+        output[h] = v
 
 
-def parse_school_funded_staff_fields(headers, fields, school_info):
-    match fields[0]:
-        case ('Bilingual Education Teachers'
-              'Total School Funded Staff' |
-              'Specialists & Intv. Teachers' |
-              'Special Education Teachers' |
-              'School Administrator' |
-              'Classroom Teachers' |
-              'Instructional Assistants' |
-              'Clerical Support' |
-              'Other Certificated Staff' |
-              'Preschool Teachers'):
-            label = f'staff_type - {fields[0]}'
-            school_info[label] = {'headers': headers}
-
-            get_school_funded_staff_fields(school_info[label], headers[1:],
-                                           fields[1:])
+def parse_school_funded_staff_fields(headers, fields):
+    staff_type = fields[0]
+    if staff_type in STAFFING_TYPES_CONFIG:
+        staffing_info = {}
+        get_school_funded_staff_fields(staffing_info, headers[1:],
+                                       fields[1:])
+        return staff_type, staffing_info
+    else:
+        return None, None
 
 
-STAFFING_CONFIG = [
+FUNDING_CONFIG = [
     {
         'name': 'General Education',
         'start': 1,
@@ -233,6 +229,7 @@ STAFFING_CONFIG = [
     },
 ]
 
+
 ENROLLMENT_CONFIG = [
     {
         'name': 'Total AAFTE* Enrollment',
@@ -262,6 +259,20 @@ ENROLLMENT_CONFIG = [
         'extractor': get_nums,
         'breaks': ENROLLMENT_COL_BREAK,
     },
+]
+
+
+STAFFING_TYPES_CONFIG = [
+    'Total School Funded Staff',
+    'Bilingual Education Teachers',
+    'Classroom Teachers',
+    'Clerical Support',
+    'Instructional Assistants',
+    'Other Certificated Staff',
+    'Preschool Teachers',
+    'School Administrator',
+    'Special Education Teachers',
+    'Specialists & Intv. Teachers'
 ]
 
 
@@ -328,7 +339,7 @@ def parse_page(page):
                     mode = Mode.SchoolFundedStaff
                     row_cache = []
                 else:
-                    for extract_config in STAFFING_CONFIG:
+                    for extract_config in FUNDING_CONFIG:
                         name = extract_config['name']
                         if line.startswith(name):
                             if 'funding' not in school_info:
@@ -344,23 +355,24 @@ def parse_page(page):
                             break
 
             case Mode.SchoolFundedStaff:
-                # The header is hard to parse. Just hard coding it.
+                # The entire section is hard to parse.  Try to collate
+                # all the rows into an array with some hack overlapping if
+                # logic and then strip out the data.
                 if line.startswith('Total School Funded Staff'):
                     row_cache.append(raw_line)
                     parse_school_funded_staff(row_cache, school_info)
                     mode = Mode.OtherData
                 elif (line.startswith('General') or
-                      line.startswith('Staff Type') or
-                      line.startswith('Bilingual Education Teachers') or
-                      line.startswith('Classroom Teachers') or
-                      line.startswith('Instructional Assistants') or
-                      line.startswith('Clerical Support') or
-                      line.startswith('Other Certificated Staff') or
-                      line.startswith('Preschool Teachers') or
-                      line.startswith('School Administrator') or
-                      line.startswith('Special Education Teachers') or
-                      line.startswith('Specialists & Intv. Teachers')):
+                      line.startswith('Staff Type')):
+                    # Collate the header rows.
                     row_cache.append(raw_line)
+                else:
+                    # Collate all the staff type rows. Note that the
+                    # Terminal line of 'Total School Funded Staff' is
+                    # caught by the if tatement.
+                    for staff_type in STAFFING_TYPES_CONFIG:
+                        if line.startswith(staff_type):
+                            row_cache.append(raw_line)
 
             case Mode.OtherData:
                 if 'other' not in school_info:
@@ -427,7 +439,7 @@ def extract_funding(info, raw_info):
     for i in range(0, len(year_columns)):
         year_info = {}
         expected_total = None
-        for extract_config in STAFFING_CONFIG:
+        for extract_config in FUNDING_CONFIG:
             name = extract_config['name']
             if name == 'Funding Type':
                 # TODO: Do this more generically.
@@ -453,6 +465,17 @@ def extract_funding(info, raw_info):
 
 def extract_staffing(info, raw_info):
     """Extract the structed funding data strings in raw_info into info"""
+    staffing_info = raw_info["staffing"]
+
+    year_info = {}
+    for staff_type, funding_fte_info in staffing_info.items():
+        for funding_type, fte in funding_fte_info.items():
+            if funding_type not in year_info:
+                year_info[funding_type] = {}
+
+            year_info[funding_type][staff_type] = fte
+
+    merge_year_info(info, '23-24', 'staffing', year_info)
 
 
 def extract_enrollment(info, raw_info):
