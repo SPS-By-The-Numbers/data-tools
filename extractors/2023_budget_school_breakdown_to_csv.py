@@ -233,6 +233,37 @@ STAFFING_CONFIG = [
     },
 ]
 
+ENROLLMENT_CONFIG = [
+    {
+        'name': 'Total AAFTE* Enrollment',
+        'start': 1,
+        'num': 3,
+        'extractor': get_nums,
+        'breaks': ENROLLMENT_COL_BREAK,
+    },
+    {
+        'name': 'Special Education',
+        'start': 1,
+        'num': 3,
+        'extractor': get_nums,
+        'breaks': ENROLLMENT_COL_BREAK,
+    },
+    {
+        'name': 'Bilingual Education',
+        'start': 1,
+        'num': 3,
+        'extractor': get_nums,
+        'breaks': ENROLLMENT_COL_BREAK,
+    },
+    {
+        'name': 'Free and Reduced Lunch',
+        'start': 1,
+        'num': 3,
+        'extractor': get_nums,
+        'breaks': ENROLLMENT_COL_BREAK,
+    },
+]
+
 
 def parse_page(page):
     school_info = {}
@@ -267,26 +298,26 @@ def parse_page(page):
                 #                         22-23 23-24 24-25
                 #  Total AAFTE* Enrollment 307 278 267
                 #
-                if x := re.match(
+                if line.startswith('Total Budget'):
+                    mode = Mode.BudgetByFundingType
+                elif x := re.match(
                         r".*(\d\d-\d\d)\s+(\d\d-\d\d*)\s+(\d\d-\d\d).*",
                         line):
                     school_info['enrollment'] = {}
-                    school_info['enrollment']['headers'] = [x[1], x[2], x[3]]
-                elif line.startswith('Total AAFTE* Enrollment'):
-                    school_info['enrollment']['aafte'] = get_nums(
-                        line, 1, 3, ENROLLMENT_COL_BREAK)
-                elif line.startswith('Special Education'):
-                    school_info['enrollment']['speced'] = get_nums(
-                        line, 1, 3, ENROLLMENT_COL_BREAK)
-                elif line.startswith('Bilingual Education'):
-                    school_info['enrollment']['speced'] = get_nums(
-                        line, 1, 3, ENROLLMENT_COL_BREAK)
-                elif line.startswith('Free and Reduced Lunch'):
-                    school_info['enrollment']['frl'] = get_nums(
-                        line, 1, 3, ENROLLMENT_COL_BREAK)
+                    school_info['enrollment']['School Year'] = [x[1], x[2], x[3]]
+                else:
+                    for extract_config in ENROLLMENT_CONFIG:
+                        name = extract_config['name']
+                        if line.startswith(name):
+                            extractor = extract_config['extractor']
 
-                elif line.startswith('Total Budget'):
-                    mode = Mode.BudgetByFundingType
+                            school_info['enrollment'][name] = extractor(
+                                line,
+                                extract_config['start'],
+                                extract_config['num'],
+                                extract_config['breaks'])
+                            # Found a match. No need to keep going.
+                            break
 
             case Mode.BudgetByFundingType:
                 # Example:
@@ -378,6 +409,16 @@ def normalize_name(name):
     return name
 
 
+def merge_year_info(info,  year, info_type, year_info):
+    if year not in info:
+        info[year] = {}
+
+    if info_type in info[year]:
+        info[year][info_type] = info[year][info_type] | year_info
+    else:
+        info[year][info_type] = year_info
+
+
 def extract_funding(info, raw_info):
     """Extract the structed funding data strings in raw_info into info"""
     funding_info = raw_info["funding"]
@@ -407,7 +448,7 @@ def extract_funding(info, raw_info):
             raise RuntimeError(
                 f"expected {expected_total} got {recalculated_total}")
 
-        info[year_columns[i]] = year_info
+        merge_year_info(info, year_columns[i], 'funding', year_info)
 
 
 def extract_staffing(info, raw_info):
@@ -416,6 +457,17 @@ def extract_staffing(info, raw_info):
 
 def extract_enrollment(info, raw_info):
     """Extract the structed funding data strings in raw_info into info"""
+    enrollment_info = raw_info["enrollment"]
+    year_columns = enrollment_info["School Year"]
+
+    for i in range(0, len(year_columns)):
+        year_info = {}
+        for extract_config in ENROLLMENT_CONFIG:
+            name = extract_config['name']
+            if name in enrollment_info:
+                year_info[name] = enrollment_info[name][i]
+
+        merge_year_info(info, year_columns[i], 'enrollment', year_info)
 
 
 def normalize_school(raw_info):
