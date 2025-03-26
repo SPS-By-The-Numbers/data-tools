@@ -1,9 +1,13 @@
 import argparse
-# import csv
+import csv
+import logging
+import math
 import re
 import sys
 
 from enum import Enum
+
+logger = logging.getLogger(__name__)
 
 Mode = Enum('Mode', ['SchoolName',
                      'EnrollmentAndDemographics',
@@ -47,13 +51,6 @@ def flatten_school_info(page):
                 continue
             for h, v in zip(headers, values):
                 rows.append([school_name, category, entry, h, v])
-    return rows
-
-
-def flatten_pages(pages):
-    rows = []
-    for page in pages:
-        rows.extend(flatten_school_info(page))
     return rows
 
 
@@ -412,23 +409,28 @@ def parse_file_into_schools(infile):
     all_text = infile.read()
     pages = all_text.split("\f")
 
-    # Skip pages with less than 10 lines. These are likely blanks or images
-    # between sections.
-    return [parse_page(page) for page in pages if len(page) > 10]
+    # Skip pages with less than 15 lines. These are likely blanks or images
+    # between sections. The Images comes out to around 10 lines.
+    return [parse_page(page) for page in pages if page.count('\n') > 15]
 
 
-def normalize_name(name):
-    return name
+def make_yyyy(year):
+    if len(year) == 2:
+        return f"20{year}"
+    return year
 
+def merge_year_info(info, raw_year, info_type, year_info):
+    # Convert to the standard year code used in OSPI date which uses
+    # 4 digit years.
+    year = '-'.join([make_yyyy(y) for y in raw_year.split('-')])
+    year_data = info["year_data"]
+    if year not in year_data:
+        year_data[year] = {}
 
-def merge_year_info(info,  year, info_type, year_info):
-    if year not in info:
-        info[year] = {}
-
-    if info_type in info[year]:
-        info[year][info_type] = info[year][info_type] | year_info
+    if info_type in year_data[year]:
+        year_data[year][info_type] = year_data[year][info_type] | year_info
     else:
-        info[year][info_type] = year_info
+        year_data[year][info_type] = year_info
 
 
 def extract_funding(info, raw_info):
@@ -457,15 +459,17 @@ def extract_funding(info, raw_info):
             recalculated_total = recalculated_total + funding_amount
 
         if recalculated_total != expected_total:
-            raise RuntimeError(
+            logger.error(
+                f"{info['metadata']['name']}: "
                 f"expected {expected_total} got {recalculated_total}")
 
         merge_year_info(info, year_columns[i], 'funding', year_info)
 
 
-def extract_staffing(info, raw_info):
+def extract_staffing(info, raw_info, current_year):
     """Extract the structed funding data strings in raw_info into info"""
     staffing_info = raw_info["staffing"]
+    errors = []
 
     year_info = {}
     for staff_type, funding_fte_info in staffing_info.items():
@@ -475,7 +479,94 @@ def extract_staffing(info, raw_info):
 
             year_info[funding_type][staff_type] = fte
 
-    merge_year_info(info, '23-24', 'staffing', year_info)
+    # Validation loop.
+    staff_type_totals = {}
+    funding_type_totals = {}
+    for funding_type, staff_type_fte in year_info.items():
+        # Total column is accidentally a funding type. remove.
+        if funding_type == 'Total':
+            continue
+
+        for staff_type, fte in staff_type_fte.items():
+            # Account for Staff type
+            if staff_type in staff_type_totals:
+                staff_type_totals[staff_type] += fte
+            else:
+                staff_type_totals[staff_type] = fte
+
+            # Account for Funding Total. Skip the Total line for the funding
+            # summation
+            if staff_type == "Total School Funded Staff":
+                continue
+
+            if funding_type in funding_type_totals:
+                funding_type_totals[funding_type] += fte
+            else:
+                funding_type_totals[funding_type] = fte
+
+
+    # Validate
+
+    # Check same number of funding types. Subtract one for total.
+    fund_type_diff = (
+        (len(year_info.keys()) - 1) - len(funding_type_totals.keys()))
+    if fund_type_diff != 0:
+        errors.append(['fund_type', fund_type_diff])
+        logger.warning(f"{info['metadata']['name']}: "
+                       "Differing number of funding types in year_info "
+                       f"{year_info.keys()} - 1 and "
+                       f"{funding_type_totals.keys()}")
+
+    for funding_type, staff_type_fte in year_info.items():
+        # Check number of staff types match
+        staff_type_diff = (len(staff_type_fte.keys()) -
+                           len(staff_type_totals.keys()))
+        if staff_type_diff != 0:
+            errors.append(['staff_type', staff_type_diff])
+            logger.warning(f"{info['metadata']['name']}: "
+                           "Differing number of staff types in year_info "
+                           f"{staff_type_fte.keys()} and "
+                           f"{staff_type_totals.keys()}")
+
+        for staff_type, fte in staff_type_fte.items():
+            # Verify the match of staff type FTE sums.
+            if funding_type == 'Total':
+                logger.debug(
+                    f"{info['metadata']['name']}: "
+                    f"Validating {fte} {staff_type} "
+                    f"{staff_type_totals[staff_type]}")
+                if not math.isclose(fte, staff_type_totals[staff_type]):
+                    # Skip "Total School Funded Staff" as it will double-count
+                    # errors from other staff error issues. This does mean
+                    # there can be a summation problem on the row, but it's
+                    # probably okay. Emit the error message though.
+                    if staff_type != 'Total School Funded Staff':
+                        errors.append(['staff_type_fte',
+                                    fte - staff_type_totals[staff_type]])
+
+                    logger.error(f"{info['metadata']['name']}: "
+                                "Mismatched Staff type total for "
+                                f"{staff_type}. Got "
+                                f"{staff_type_totals[staff_type]} "
+                                f"but expecting {fte}")
+                continue
+
+
+            # Verify the match of funding category FTE sums.
+            if staff_type == "Total School Funded Staff":
+                if not math.isclose(fte, funding_type_totals[funding_type]):
+                    errors.append(['fund_type_fte',
+                                   fte - funding_type_totals[funding_type]])
+                    logger.error(f"{info['metadata']['name']}: "
+                                 "Mismatched Funding type total for "
+                                 f"{funding_type}. Got "
+                                 f"{funding_type_totals[funding_type]} "
+                                 f"but expecting {fte}")
+
+    merge_year_info(info, current_year, 'staffing', year_info)
+    if "staffing" not in info["metadata"]["errors"]:
+        info["metadata"]["errors"]["staffing"] = {}
+    info["metadata"]["errors"]["staffing"][current_year] = errors
 
 
 def extract_enrollment(info, raw_info):
@@ -493,7 +584,7 @@ def extract_enrollment(info, raw_info):
         merge_year_info(info, year_columns[i], 'enrollment', year_info)
 
 
-def normalize_school(raw_info):
+def normalize_school(raw_info, school_map):
     """Takes result of parsing a school and turns it into structred data.
 
     The input data is raw strings.  This will do self-checks and then return
@@ -515,13 +606,125 @@ def normalize_school(raw_info):
     }
 
     """
-    info = {}
-    info["name"] = normalize_name(raw_info["name"])
+    school_map_info = school_map[raw_info["name"]]
+    info = {
+        "metadata": school_map_info | {
+            "scraped_name": raw_info["name"],
+            "errors": {}
+        },
+        "year_data": {
+        }
+    }
+
     extract_funding(info, raw_info)
-    extract_staffing(info, raw_info)
     extract_enrollment(info, raw_info)
+
+    # Use the most recent year as the "current" year.
+    years = list(info["year_data"].keys())
+    years.sort()
+    current_year = years[-1]
+    extract_staffing(info, raw_info, current_year)
+
     return info
 
+
+def value_for_csv(category, value):
+    match category:
+        case "staffing":
+            return "fte", value, None
+        case "funding":
+            return "dollars", value, None
+        case "enrollment":
+            return "aafte", value, None
+
+
+def merge_staffing_error_for_year(counters, errors):
+    for error in errors:
+        match error[0]:
+            case "fund_type_fte":
+                counters["funding_error_total_fte"] += error[1]
+                counters["funding_fte_error_count"] += 1
+            case "staff_type_fte":
+                counters["staff_error_total_fte"] += error[1]
+                counters["staff_fte_error_count"] += 1
+
+def calculate_staffing_errors(parsed_schools):
+    all_errors = {}
+    for school in parsed_schools:
+        for year, errors in school["metadata"]["errors"]["staffing"].items():
+            if year not in all_errors:
+                all_errors[year] = {
+                    "funding_fte_error_count": 0,
+                    "funding_error_total_fte": 0,
+                    "staff_fte_error_count": 0,
+                    "staff_error_total_fte": 0,
+                }
+            merge_staffing_error_for_year(all_errors[year], errors)
+    return all_errors
+
+
+def write_denormalized_csv(outfile, parsed_schools):
+    writer = csv.writer(outfile)
+    writer.writerow([
+        'school',
+        'school_code',
+        'school_year_code',
+        'category',  # enrollment, staffing, funding
+        'subcategory',
+        'item_name',
+        'value_type',
+        'amount',
+        'other_value',
+    ])
+    for school in parsed_schools:
+        name = school['metadata']['name']
+        school_code = school['metadata']['school_code']
+
+        # Output all the year data.
+        for year, year_entries in school['year_data'].items():
+            for category, category_entries in year_entries.items():
+                for item_name, item_entries in category_entries.items():
+                    if category == 'staffing':
+                        subcategoires = item_entries
+                    else:
+                        # For 1 dimension categories, subcategory is the
+                        # same as category
+                        subcategoires = {category: item_entries}
+
+                    for subcategory, item_value in subcategoires.items():
+                        value_type, amount, other_value = value_for_csv(
+                            category, item_value)
+                        writer.writerow([
+                            name,
+                            school_code,
+                            year,
+                            category,
+                            subcategory,
+                            item_name,
+                            value_type,
+                            amount,
+                            other_value
+                        ])
+
+    budget_errors = calculate_staffing_errors(parsed_schools)
+    for year, error_counts in budget_errors.items():
+        for item_name, value in error_counts.items():
+            if item_name.endswith("_count"):
+                value_type = "count"
+            elif item_name.endswith("total_fte"):
+                value_type = "fte"
+            else:
+                raise ValueError(item_name)
+            writer.writerow([
+                "error_counts",
+                "-1",
+                year,
+                "errors",
+                item_name,
+                value_type,
+                value,
+                None
+            ])
 
 def main(text_infile, csv_outfile):
     parser = argparse.ArgumentParser(
@@ -533,6 +736,10 @@ def main(text_infile, csv_outfile):
                         type=argparse.FileType('r', encoding='UTF-8'),
                         required=True,
                         help='output of "pdf2txt -layout -f start -l end"')
+    parser.add_argument('--schoolmap',
+                        type=argparse.FileType('r', encoding='UTF-8'),
+                        required=True,
+                        help='csv with school_code, normalized name, match"')
     parser.add_argument('--outfile',
                         type=argparse.FileType('w', encoding='UTF-8'),
                         required=True,
@@ -541,17 +748,13 @@ def main(text_infile, csv_outfile):
     args = parser.parse_args()
 
     raw_parsed_schools = parse_file_into_schools(args.infile)
+    school_map = {row[2]: {"school_code": row[0], "name": row[1] } for row in
+                  csv.reader(args.schoolmap) if row[2]}
 
-    parsed_schools = [normalize_school(raw_info)
+    parsed_schools = [normalize_school(raw_info, school_map)
                       for raw_info in raw_parsed_schools]
 
-    print(parsed_schools)
-
-    # rows = flatten_pages(parsed_schools)
-    # writer = csv.writer(args.outfile)
-    # writer.writerow(['School Name', 'Category', 'Entry', 'Column', 'Value'])
-    # for row in rows:
-    #     writer.writerow(row)
+    write_denormalized_csv(args.outfile, parsed_schools)
 
 
 if __name__ == '__main__':
