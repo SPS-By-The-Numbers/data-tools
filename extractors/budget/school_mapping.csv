@@ -4,9 +4,9 @@ school_code,school_and_district,Parsed Name
 2181,Alki Elementary School - Seattle,Alki Elementary
 2730,Arbor Heights Elementary School - Seattle,Arbor Heights Elementary
 3717,B F Day Elementary School - Seattle,B.F. ay Elementary
-2307,Bailey Gatzert Elementary School - Seattle,Bailey
+2307,Bailey Gatzert Elementary School - Seattle,Bailey Gatzert Elementary
 2220,Ballard High School - Seattle,Ballard igh School
-2070,Beacon Hill International School - Seattle,Beacon Hill Intl. Elementary
+2070,Beacon Hill International School - Seattle,Beacon ill Intl. Elementary
 5048,Birth to 3 Contracts - Seattle,Bryant Elementary
 5406,Bridges Transition - Seattle,
 2209,Broadview-Thomson K-8 School - Seattle,Broadview Thomson K-8
@@ -16,16 +16,16 @@ school_code,school_and_district,Parsed Name
 5292,Cascadia Elementary - Seattle,Cascadia Elementrary
 2838,Catharine Blaine K-8 School - Seattle,Catharine Blaine K-8
 5487,Cedar Park Elementary School - Seattle,Cedar Park Elementary
-3096,Chief Sealth International High School - Seattle,Chief Sealth Intl. High School
-2392,Cleveland High School STEM - Seattle,Cleveland STEM igh School
+3096,Chief Sealth International High School - Seattle,Chief Sealth Intl. igh School
+2392,Cleveland High School STEM - Seattle,Cleveland STE
 2199,Concord International School - Seattle,Concord Intl. Elementary
-2450,Daniel Bagley Elementary School - Seattle,Daniel Bagley Elementary
+2450,Daniel Bagley Elementary School - Seattle,aniel Bagley Elementary
 2839,David T. Denny International Middle School - Seattle,enny Intl.
 3803,Dearborn Park International School - Seattle,Dearborn Park Intl. Elementary
-5488,Decatur Elementary School - Seattle,Decatur Elementary
+5488,Decatur Elementary School - Seattle,ecatur Elementary
 1002,District Office -  Seattle School District 001,
-2321,Dunlap Elementary School - Seattle,Dunlap Elementary
-2729,Eckstein Middle School - Seattle,Eckstein
+2321,Dunlap Elementary School - Seattle,unlap Elementary
+2729,Eckstein Middle School - Seattle,Eckstein Middle School
 2118,Emerson Elementary School - Seattle,Emerson Elementary
 3518,Fairmount Park Elementary School - Seattle,Fairmount Park Elementary
 2182,Franklin High School - Seattle,Franklin igh School
@@ -36,7 +36,7 @@ school_code,school_and_district,Parsed Name
 3378,Graham Hill Elementary School - Seattle,raham ill Elementary
 2061,Green Lake Elementary School - Seattle,reen ake Elementary
 2123,Greenwood Elementary School - Seattle,Greenwood Elementary
-2371,Hamilton International Middle School - Seattle,Hamilton Intl.
+2371,Hamilton International Middle School - Seattle,amilton Intl.
 4248,Hawthorne Elementary School - Seattle - Seattle,awthorne Elementary
 5175,Hazel Wolf K-8 - Seattle,Hazel Wolf STEM K-8
 2269,Highland Park Elementary School - Seattle,ighland Park Elementary
@@ -44,22 +44,22 @@ school_code,school_and_district,Parsed Name
 3276,Ingraham High School - Seattle,ngraham igh School
 3496,Interagency Detention School - Seattle,
 5405,Interagency Open Doors - Seattle,
-1635,Interagency Programs - Seattle,
+1635,Interagency Programs - Seattle,nteragency
 5351,Jane Addams Middle School - Seattle,Jane Addams Middle School
 2063,John Hay Elementary School - Seattle,John Hay Elementary
 2143,John Muir Elementary School - Seattle,John
 2975,John Rogers Elementary School - Seattle,John Rogers Elementary
 2081,John Stanford International School - Seattle,John Stanford Elementary
 3478,Kimball Elementary School - Seattle,Kimball Elementary
-2733,Lafayette Elementary School - Seattle,afayette Elementary
-2437,Laurelhurst Elementary School - Seattle,aurelhurst Elementary
+2733,Lafayette Elementary School - Seattle,Lafayette Elementary
+2437,Laurelhurst Elementary School - Seattle,Laurelhurst Elementary
 2183,Lawton Elementary School - Seattle,awton Elementary
-2121,Leschi Elementary School - Seattle,eschi Elementary
-3874,Licton Springs K-8 - Seattle,icton Springs K-8
-5566,Lincoln High School - Seattle,incoln igh School
-5276,Louisa Boren STEM K-8 - Seattle,ouisa Boren STE
+2121,Leschi Elementary School - Seattle,Leschi Elementary
+3874,Licton Springs K-8 - Seattle,Licton Springs K-8
+5566,Lincoln High School - Seattle,Lincoln igh School
+5276,Louisa Boren STEM K-8 - Seattle,Louisa Boren STEM K-8
 3714,Lowell Elementary School - Seattle,owell Elementary
-2462,Loyal Heights Elementary School - Seattle,oyal eights Elementary
+2462,Loyal Heights Elementary School - Seattle,Loyal eights Elementary
 2435,Madison Middle School - Seattle,adison
 2069,Madrona K-5 School - Seattle,Madrona K-5
 5565,Magnolia Elementary - Seattle,agnolia Elementary
@@ -67,17 +67,17 @@ school_code,school_and_district,Parsed Name
 2089,Martin Luther King Jr. Elementary School - Seattle,Martin Luther King Jr. Elementary
 3517,McClure Middle School - Seattle,cClure
 5203,McDonald International School - Seattle,c onald Intl. Elementary
-2201,McGilvra Elementary School - Seattle,McGilvra Elementary
+2201,McGilvra Elementary School - Seattle,c ilvra Elementary
 5485,Meany Middle School - Seattle,eany
 3095,Mercer International Middle School - Seattle,ercer Intl.
-1547,Middle College High School - Seattle,
-2322,Montlake Elementary School - Seattle,ontlake Elementary
+1547,Middle College High School - Seattle,Middle College High School
+2322,Montlake Elementary School - Seattle,Montlake Elementary
 3479,Nathan Hale High School - Seattle,Nathan ale igh School
 3218,North Beach Elementary School - Seattle,North Beach Elementary
 3027,Northgate Elementary School - Seattle,Northgate Elementary
-3868,Nova High School - Seattle,
+3868,Nova High School - Seattle,Nova High School
 2976,Olympic Hills Elementary School - Seattle,lympic ills Elementary
-2256,Olympic View Elementary School - Seattle,Olympic View Elementary
+2256,Olympic View Elementary School - Seattle,lympic View Elementary
 4065,Orca K-8 School - Seattle,rca K-8
 1620,Pathfinder K-8 School - Seattle,Pathfinder K-8
 5046,Private School Services - Seattle,
@@ -93,9 +93,9 @@ school_code,school_and_district,Parsed Name
 1796,Salmon Bay K-8 School - Seattle,Salmon Bay K-8
 5205,Sand Point Elementary - Seattle,Sand Point Elementary
 3665,Sanislo Elementary School - Seattle,Sanislo Elementary
-5260,Seattle Skills Center - Seattle,
-1596,Seattle World School - Seattle,
-3778,South Lake High School - Seattle,
+5260,Seattle Skills Center - Seattle,Skills Center
+1596,Seattle World School - Seattle,Seattle World School
+3778,South Lake High School - Seattle,Alan T. Sugiyama High School
 4218,South Shore PK-8 School - Seattle,South Shore K-8
 2080,Stevens Elementary School - Seattle,Stevens Elementary
 1856,The Center School - Seattle,Center School
