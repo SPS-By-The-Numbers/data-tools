@@ -17,7 +17,7 @@ Mode = Enum('Mode', ['SchoolName',
                      'Done'])
 
 
-def _normalize_line(line):
+def _remove_comma_dollar(line):
     x = re.sub(r"\$|,", "", line)
     return x
 
@@ -73,7 +73,7 @@ def parse_page(page, page_config, funding_config, enrollment_config,
 
     logger.debug("Parsing page")
     for raw_line in page.split('\n'):
-        line = _normalize_line(raw_line.strip())
+        line = _remove_comma_dollar(raw_line.strip())
         if not line:
             continue
 
