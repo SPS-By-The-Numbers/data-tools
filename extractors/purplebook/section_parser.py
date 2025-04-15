@@ -47,6 +47,15 @@ def pop_read(fields, validation_re, convert=identity, raise_invalid=True):
     return convert(token)
 
 
+def read_total_line(line):
+    fields = line_tools.tokenize_by_two_space(line)
+    amount = pop_read(fields, AllocationRowAccumulator.RE_AMOUNT,
+                      remove_comma_dollar)
+    fte = pop_read(fields, AllocationRowAccumulator.RE_FTE, to_number,
+                   raise_invalid=False)
+    return fte, amount
+
+
 class BaseParser:
     def __init__(self, school_name, school_info, errors):
         self._context = {}
@@ -178,6 +187,7 @@ class StaffingAllocationsParser(BaseParser):
 
     def commit(self, school_info):
         school_info["staffing"] = self._allocations.get_allocations()
+        school_info["totals"]["staffing"] = self._totals
         # TODO: Validate here.
 
     def accumulate(self, line, raw_line):
@@ -200,7 +210,11 @@ class StaffingAllocationsParser(BaseParser):
         "Total Staffing (FTE) Allocation" is the start of the next section.
         """
         if line.startswith("Total Staffing (FTE) Allocation"):
-            # TODO: Parse the value out of this row.
+            fte, amount = read_total_line(line)
+            self._totals = {
+                "fte": fte,
+                "amount": amount
+            }
             return Section.NonStaffAllocations
 
         fields = line_tools.tokenize_by_two_space(line)
@@ -225,6 +239,7 @@ class NonStaffAllocationsParser(BaseParser):
 
     def commit(self, school_info):
         school_info["nonstaff"] = self._allocations.get_allocations()
+        school_info["totals"]["nonstaff"] = self._totals
         # TODO: Validate here.
 
     def accumulate(self, line, raw_line):
@@ -247,7 +262,11 @@ class NonStaffAllocationsParser(BaseParser):
         "Total Non-Staff Allocation" is the start of the next section.
         """
         if line.startswith("Total Non-Staff Allocation"):
-            # TODO: Parse the value out of this row.
+            _, amount = read_total_line(line)
+            self._totals = {
+                "fte": 0,
+                "amount": amount
+            }
             return Section.TitleIAndLap
 
         fields = line_tools.tokenize_by_two_space(line)
@@ -265,6 +284,7 @@ class TitleIAndLapParser(BaseParser):
 
     def commit(self, school_info):
         school_info["title1_and_lap"] = self._allocations.get_allocations()
+        school_info["totals"]["title1_and_lap"] = self._totals
         # TODO: Validate here.
 
     def accumulate(self, line, raw_line):
@@ -284,7 +304,11 @@ class TitleIAndLapParser(BaseParser):
         be.
         """
         if line.startswith("Total Title I & LAP"):
-            # TODO: Parse the values out of this row for checks.
+            fte, amount = read_total_line(line)
+            self._totals = {
+                "fte": fte,
+                "amount": amount
+            }
             return Section.BudgetedCentrally
 
         fields = line_tools.tokenize_by_two_space(line)
@@ -302,6 +326,7 @@ class BudgetedCentrallyParser(BaseParser):
 
     def commit(self, school_info):
         school_info["budgeted_centrally"] = self._allocations.get_allocations()
+        school_info["totals"]["budgeted_centrally"] = self._totals
         # TODO: Validate here.
 
     def accumulate(self, line, raw_line):
@@ -321,7 +346,11 @@ class BudgetedCentrallyParser(BaseParser):
         be.
         """
         if line.startswith("Total Allocated/Budgeted Centrally"):
-            # TODO: Parse the values out of this row for checks.
+            fte, amount = read_total_line(line)
+            self._totals = {
+                "fte": fte,
+                "amount": amount
+            }
             return Section.TotalAllocations
 
         fields = line_tools.tokenize_by_two_space(line)
@@ -339,19 +368,17 @@ class TotalAllocationsParser(BaseParser):
         self._amount = None
 
     def commit(self, school_info):
-        school_info["total_allocation"] = {"fte": self._fte,
-                                           "amount": self._amount}
+        school_info["totals"]["grand_total"] = self._totals
         # TODO: Validate here.
 
     def accumulate(self, line, raw_line):
         """Parses one centrally budgted items."""
         if line.startswith("Total Allocations"):
-            fields = line_tools.tokenize_by_two_space(line)
-            fields
-            self._amount = pop_read(fields, AllocationRowAccumulator.RE_AMOUNT,
-                                    remove_comma_dollar)
-            self._fte = pop_read(fields, AllocationRowAccumulator.RE_FTE,
-                                 to_number)
+            fte, amount = read_total_line(line)
+            self._totals = {
+                "fte": fte,
+                "amount": amount
+            }
             return Section.WssAndSpecEd
 
         return None

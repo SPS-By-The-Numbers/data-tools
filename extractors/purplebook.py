@@ -1,4 +1,5 @@
 import argparse
+import csv
 import logging
 
 from budget import line_tools
@@ -114,7 +115,7 @@ def extract_data_from_school(school_name, raw_lines, errors):
     # 7. "Read Allocation Above Weighted Staffing Standards"
     #  Stop at end of file.
 
-    school_info = {}
+    school_info = {"totals":{}}
 
     current_section = Section.Start
     next_section = Section.SchoolAttributes
@@ -133,7 +134,7 @@ def extract_data_from_school(school_name, raw_lines, errors):
                                                              errors)
 
         # Skip empty lines.
-        line = raw_line.strip()
+        line = line_tools.realign_dollar_sign(raw_line.strip())
         if not line:
             continue
 
@@ -141,6 +142,59 @@ def extract_data_from_school(school_name, raw_lines, errors):
         next_section = section_parser.accumulate(line, raw_line)
 
     return school_info
+
+
+def write_denormalized_csv(outfile, schools):
+    writer = csv.writer(outfile)
+    FUNDING_COLS = [
+        "fund_id",
+        "fund_center",
+        "fund_center_id",
+        "budget_item",
+        "budget_item_id",
+        "fte",
+        "amount",
+    ]
+    writer.writerow(
+        [
+            'school',
+            'section',
+            "otherval",
+        ] + FUNDING_COLS
+    )
+
+    for school_name,school_info in schools.items():
+        for section, items in school_info.items():
+            match section:
+                case "attributes":
+                    for attr in items:
+                        writer.writerow([
+                            school_name,
+                            section,
+                            attr])
+
+                case "totals":
+                    for total_name, values in items.items():
+                        writer.writerow([
+                            school_name,
+                            section,
+                            "",  # otherval
+                            "",  # fund_id
+                            "",  # fund_center
+                            "",  # fund_center_id
+                            total_name,  # budget_item
+                            "",  # budget_item_id
+                            values["fte"],
+                            values["amount"],
+                        ])
+
+                case _:
+                    for row in items:
+                        writer.writerow([
+                            school_name,
+                            section,
+                            ""] + [row[k] for k in FUNDING_COLS]
+                        )
 
 
 def main():
@@ -151,11 +205,11 @@ def main():
 
     schools = {}
     errors = []
-    for name, lines in lines_by_schools.items():
-        logging.info(f"Parsing {name} with {len(lines)} lines")
-        schools[name] = extract_data_from_school(name, lines, errors)
+    for name, raw_lines in lines_by_schools.items():
+        logging.info(f"Parsing {name} with {len(raw_lines)} lines")
+        schools[name] = extract_data_from_school(name, raw_lines, errors)
 
-    print(schools)
+    write_denormalized_csv(args.outfile, schools)
 
 
 if __name__ == '__main__':
