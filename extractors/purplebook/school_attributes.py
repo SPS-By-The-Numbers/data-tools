@@ -1,0 +1,2 @@
+class SchoolAttributes():
+    c

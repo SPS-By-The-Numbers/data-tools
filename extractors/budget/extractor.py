@@ -2,6 +2,7 @@ import logging
 import re
 
 from enum import Enum
+from decimal import Decimal
 
 from budget.school_allocations_validate import (validate_funding,
                                                 validate_staffing)
@@ -16,10 +17,16 @@ Mode = Enum('Mode', ['SchoolName',
                      'OtherData',
                      'Done'])
 
+RE_DOLLAR_COMMA = re.compile(r"\$|,")
 
-def _remove_comma_dollar(line):
-    x = re.sub(r"\$|,", "", line)
+
+def remove_comma_dollar_str(line):
+    x = re.sub(RE_DOLLAR_COMMA, "", line)
     return x
+
+
+def remove_comma_dollar(line):
+    return Decimal(remove_comma_dollar_str(line))
 
 
 def get_school_funded_staff_fields(output, value_headers,
@@ -73,7 +80,7 @@ def parse_page(page, page_config, funding_config, enrollment_config,
 
     logger.debug("Parsing page")
     for raw_line in page.split('\n'):
-        line = _remove_comma_dollar(raw_line.strip())
+        line = remove_comma_dollar_str(raw_line.strip())
         if not line:
             continue
 
