@@ -14,7 +14,8 @@ Section = Enum('Section',
                 'SchoolAttributes',
                 'StaffingAllocations',
                 'NonStaffAllocations',
-                'TitleIAndLAP',
+                'TitleIAndLap',
+                'BudgetedCentrally',
                 'TotalAllocations',
                 'WssAndSpecEd',
                 'AboveWss',
@@ -108,18 +109,23 @@ class AllocationRowAccumulator(object):
     def get_allocations(self):
         return self._allocations
 
-    def add(self, fields):
+    def add(self, fields, skip_fte=False, optional_fte=False):
         """Takes a tokenized set of fields and adds a row of this"""
 
         # Read the amount
         amount = pop_read(fields, AllocationRowAccumulator.RE_AMOUNT,
-                          remove_comma_dollar)
+                          remove_comma_dollar,
+                          raise_invalid=False)
 
         # Read the FTE field.
-        fte = Decimal(0)
-        if not amount.is_zero():
-            fte = pop_read(fields, AllocationRowAccumulator.RE_FTE,
-                           to_number)
+        if skip_fte:
+            fte = None
+        else:
+            fte = Decimal(0)
+            if amount and not amount.is_zero():
+                fte = pop_read(fields, AllocationRowAccumulator.RE_FTE,
+                               to_number,
+                               raise_invalid=(not optional_fte))
 
         # Read the budget item id field.
         budget_item_id = pop_read(fields,
@@ -213,13 +219,152 @@ class StaffingAllocationsParser(BaseParser):
         return None
 
 
+class NonStaffAllocationsParser(BaseParser):
+    def init_context(self):
+        self._allocations = AllocationRowAccumulator()
+
+    def commit(self, school_info):
+        school_info["nonstaff"] = self._allocations.get_allocations()
+        # TODO: Validate here.
+
+    def accumulate(self, line, raw_line):
+        """Parses one Non Staff Allocations line.
+
+
+        Attributes have multiple sections split by spaces, mostly:
+
+            [Fund]* [Fund Center]* [Fund Center Code] [Budget Item]
+            [Budget Item Id]* [$allocation]
+
+        The problem is that Fund, Fund Centert and Fund Center Code are not
+        repeated if its the same as the previous row. Similarly Budget Item Id
+        is blank if $allocation is 0.
+
+        This line parsing instead is done by popping off a field from the
+        _right_ and then examining the field format to see what value it might
+        be.
+
+        "Total Non-Staff Allocation" is the start of the next section.
+        """
+        if line.startswith("Total Non-Staff Allocation"):
+            # TODO: Parse the value out of this row.
+            return Section.TitleIAndLap
+
+        fields = line_tools.tokenize_by_two_space(line)
+
+        num_fields = len(fields)
+        if num_fields > 1:
+            self._allocations.add(fields, skip_fte=True)
+
+        return None
+
+
+class TitleIAndLapParser(BaseParser):
+    def init_context(self):
+        self._allocations = AllocationRowAccumulator()
+
+    def commit(self, school_info):
+        school_info["title1_and_lap"] = self._allocations.get_allocations()
+        # TODO: Validate here.
+
+    def accumulate(self, line, raw_line):
+        """Parses one Title I and LAP allocation line.
+
+
+        Attributes have multiple sections split by spaces, mostly:
+
+            [Fund]* [Fund Center]* [Fund Center Code] [Budget Item] \
+            [fte]* [$allocation]
+
+        Fund, Fund Center and Fund Center Code are not repeated if its the
+        same as the previous row. FTE is blank if $allocation is 0.
+
+        This line parsing instead is done by popping off a field from the
+        _right_ and then examining the field format to see what value it might
+        be.
+        """
+        if line.startswith("Total Title I & LAP"):
+            # TODO: Parse the values out of this row for checks.
+            return Section.BudgetedCentrally
+
+        fields = line_tools.tokenize_by_two_space(line)
+
+        num_fields = len(fields)
+        if num_fields > 1:
+            self._allocations.add(fields, optional_fte=True)
+
+        return None
+
+
+class BudgetedCentrallyParser(BaseParser):
+    def init_context(self):
+        self._allocations = AllocationRowAccumulator()
+
+    def commit(self, school_info):
+        school_info["budgeted_centrally"] = self._allocations.get_allocations()
+        # TODO: Validate here.
+
+    def accumulate(self, line, raw_line):
+        """Parses one centrally budgted items.
+
+
+        Attributes have multiple sections split by spaces, mostly:
+
+            [Fund]* [Fund Center]* [Fund Center Code] [Budget Item] \
+            [fte]* [$allocation]
+
+        Fund, Fund Center and Fund Center Code are not repeated if its the
+        same as the previous row. FTE is blank if $allocation is 0.
+
+        This line parsing instead is done by popping off a field from the
+        _right_ and then examining the field format to see what value it might
+        be.
+        """
+        if line.startswith("Total Allocated/Budgeted Centrally"):
+            # TODO: Parse the values out of this row for checks.
+            return Section.TotalAllocations
+
+        fields = line_tools.tokenize_by_two_space(line)
+
+        num_fields = len(fields)
+        if num_fields > 1:
+            self._allocations.add(fields)
+
+        return None
+
+
+class TotalAllocationsParser(BaseParser):
+    def init_context(self):
+        self._fte = None
+        self._amount = None
+
+    def commit(self, school_info):
+        school_info["total_allocation"] = {"fte": self._fte,
+                                           "amount": self._amount}
+        # TODO: Validate here.
+
+    def accumulate(self, line, raw_line):
+        """Parses one centrally budgted items."""
+        if line.startswith("Total Allocations"):
+            fields = line_tools.tokenize_by_two_space(line)
+            fields
+            self._amount = pop_read(fields, AllocationRowAccumulator.RE_AMOUNT,
+                                    remove_comma_dollar)
+            self._fte = pop_read(fields, AllocationRowAccumulator.RE_FTE,
+                                 to_number)
+            return Section.WssAndSpecEd
+
+        return None
+
+
 SectionParsers = {
     Section.Start: NullParser,
     Section.SchoolAttributes: SchoolAttributesParser,
     Section.StaffingAllocations: StaffingAllocationsParser,
-    Section.NonStaffAllocations: NullParser,
-    Section.TitleIAndLAP: NullParser,
-    Section.TotalAllocations: NullParser,
+    Section.NonStaffAllocations: NonStaffAllocationsParser,
+    Section.TitleIAndLap: TitleIAndLapParser,
+    Section.BudgetedCentrally: BudgetedCentrallyParser,
+    Section.TotalAllocations: TotalAllocationsParser,
     Section.WssAndSpecEd: NullParser,
     Section.AboveWss: NullParser,
 }

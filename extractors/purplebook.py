@@ -49,7 +49,7 @@ def _break_lines_by_school(infile):
     for raw_line in infile.readlines():
         if raw_line.endswith("Budget Allocation\n"):
             if cur_school is not None:
-                logging.info(f"Write {cur_school} with {len(raw_lines)} lines")
+                logging.info(f"Finding {cur_school} with {len(raw_lines)} lines")
                 raw_lines_by_school[cur_school] = raw_lines
 
             # Reset raw_lines once Budget Allocation is found.
@@ -152,6 +152,7 @@ def main():
     schools = {}
     errors = []
     for name, lines in lines_by_schools.items():
+        logging.info(f"Parsing {name} with {len(lines)} lines")
         schools[name] = extract_data_from_school(name, lines, errors)
 
     print(schools)
