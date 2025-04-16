@@ -56,6 +56,9 @@ RE_DOLLAR_COMMA = re.compile(r'\$[0-9,]+')
 """Decimal number"""
 RE_DECIMAL = re.compile(r'[0-9]+\.[0-9]+')
 
+"""Decimal number with commas"""
+RE_DECIMAL_COMMA = re.compile(r'[0-9,]+\.[0-9]+')
+
 """Decimal number, dash is zero"""
 RE_DECIMAL_DASH = re.compile(r'[0-9]+\.[0-9]+|-')
 
@@ -91,3 +94,6 @@ RE_ALPHANUM_UPPER = re.compile(r'[0-9A-Z]+')
 
 """Any non-empty string"""
 RE_NON_EMPTY = re.compile(r'.+')
+
+"""Any non-space string"""
+RE_NON_SPACE = re.compile(r'\S+')

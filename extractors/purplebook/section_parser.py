@@ -27,6 +27,8 @@ TotalMode = Enum('TotalMode', ['NotYet', 'GetAafte', 'Done'])
 
 RE_BLANK_TERM = re.compile(r'\(blank\)')
 
+RE_TRAILING_ASTRISK = re.compile(r'(.*?) \*$')
+
 
 def is_spec_ed_staff_type(s):
     return (re.match(line_tools.RE_ALPHANUM_SPACES_DASH, s) and
@@ -100,13 +102,18 @@ class AllocationRowAccumulator(object):
     def get_allocations(self):
         return self._allocations
 
-    def add(self, fields, skip_fte=False, optional_fte=False):
+    def add(self, fields, skip_fte=False, optional_fte=False,
+            amount_may_be_comma_decimal=False):
         """Takes a tokenized set of fields and adds a row of this"""
 
         # Read the amount
         amount = line_tools.pop_read(fields, line_tools.RE_DOLLAR_COMMA,
-                                     remove_comma_dollar,
-                                     raise_invalid=False)
+                                    remove_comma_dollar,
+                                    raise_invalid=False)
+        if amount_may_be_comma_decimal:
+            amount = line_tools.pop_read(fields, line_tools.RE_DECIMAL_COMMA,
+                                         remove_comma_dollar,
+                                         raise_invalid=False)
 
         # Read the FTE field.
         if skip_fte:
@@ -252,7 +259,9 @@ class NonStaffAllocationsParser(BaseParser):
             }
             return Section.TitleIAndLap
 
-        fields = line_tools.tokenize_by_two_space(line)
+        # Strip training " *" from fields since that's a human annotation.
+        fields = [re.sub(RE_TRAILING_ASTRISK, r"\1", f) for f
+                  in line_tools.tokenize_by_two_space(line)]
 
         num_fields = len(fields)
         if num_fields > 1:
@@ -298,7 +307,8 @@ class TitleIAndLapParser(BaseParser):
 
         num_fields = len(fields)
         if num_fields > 1:
-            self._allocations.add(fields, optional_fte=True)
+            self._allocations.add(fields, optional_fte=True,
+                                  amount_may_be_comma_decimal=True)
 
         return None
 
