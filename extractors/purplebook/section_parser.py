@@ -25,6 +25,8 @@ WssType = Enum('WssType', ['HeadCount', 'AafteOnly'])
 
 TotalMode = Enum('TotalMode', ['NotYet', 'GetAafte', 'Done'])
 
+RE_BLANK_TERM = re.compile(r'\(blank\)')
+
 
 def is_spec_ed_staff_type(s):
     return (re.match(line_tools.RE_ALPHANUM_SPACES_DASH, s) and
@@ -208,8 +210,8 @@ class StaffingAllocationsParser(BaseParser):
                                       raise_invalid=False)
             if val is not None:
                 self._elementary_fte_check = val
-            elif num_fields > 2:
-                self._allocations.add(fields)
+        elif num_fields > 2:
+            self._allocations.add(fields)
 
         return None
 
@@ -592,6 +594,54 @@ class WssAndSpecEdParser(BaseParser):
         return self._total_mode != TotalMode.NotYet
 
 
+class AboveWssParser(BaseParser):
+    def init_context(self):
+        self._looking_for_table = True
+        self._allocations = []
+
+    def commit(self, school_info):
+        school_info["above_wss"] = self._allocations
+        # TODO: Validate here.
+
+    def accumulate(self, line, raw_line):
+        """The Above WSS Table.
+
+        It looks something like:
+            Date   Budget Item   Funding Source  Reason  Reason2  Sum of FTE
+
+            (blank)  (blank)  (blank)  (blank)  (blank)
+        """
+        if self._looking_for_table:
+            if line.startswith("Date"):
+                self._looking_for_table = False
+        else:
+            line = re.sub(RE_BLANK_TERM, '-', line)
+            fields = line_tools.tokenize_by_two_space(line)
+
+            # Only look at things that aren't all blank and have enough fields.
+            if not all([v == '-' for v in fields]) and len(fields) >= 6:
+                fte = line_tools.pop_read(fields, line_tools.RE_DECIMAL,
+                                          line_tools.to_number)
+                reason2 = line_tools.pop_read(fields, line_tools.RE_NON_EMPTY)
+                reason = line_tools.pop_read(fields, line_tools.RE_NON_EMPTY)
+                funding_source = line_tools.pop_read(fields,
+                                                     line_tools.RE_NON_EMPTY)
+                budget_item = line_tools.pop_read(fields,
+                                                  line_tools.RE_NON_EMPTY)
+                item_date = line_tools.pop_read(fields,
+                                                line_tools.RE_NON_EMPTY)
+                self._allocations.append({
+                    'date': item_date,
+                    'budget_item': budget_item,
+                    'funding_source': funding_source,
+                    'reason': reason,
+                    'reason2': reason2,
+                    'fte': fte,
+                })
+
+        return None
+
+
 SectionParsers = {
     Section.Start: NullParser,
     Section.SchoolAttributes: SchoolAttributesParser,
@@ -601,5 +651,5 @@ SectionParsers = {
     Section.BudgetedCentrally: BudgetedCentrallyParser,
     Section.TotalAllocations: TotalAllocationsParser,
     Section.WssAndSpecEd: WssAndSpecEdParser,
-    Section.AboveWss: NullParser,
+    Section.AboveWss: AboveWssParser,
 }

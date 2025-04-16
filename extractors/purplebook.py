@@ -37,7 +37,6 @@ def staffing_allocations_line_accumulate(school_name, school_info,
 
     fields = line_tools.tokenize_by_two_space(line)
     si_tools.append_text_values(school_info, "staffing", fields)
-    print(fields)
     return current_section
 
 
@@ -125,10 +124,9 @@ def extract_data_from_school(school_name, raw_lines, errors):
     for raw_line in raw_lines:
         if next_section is not None and next_section != current_section:
             section_parser.commit(school_info)
-            if next_section == Section.Done:
-                break
-
             current_section = next_section
+            if current_section == Section.Done:
+                break
             section_parser = SectionParsers[current_section](school_name,
                                                              school_info,
                                                              errors)
@@ -140,6 +138,10 @@ def extract_data_from_school(school_name, raw_lines, errors):
 
         # Consume the line.
         next_section = section_parser.accumulate(line, raw_line)
+
+    # Catch straggler
+    if current_section != Section.Done:
+        section_parser.commit(school_info)
 
     return school_info
 
@@ -203,6 +205,24 @@ def write_denormalized_csv(outfile, schools):
                                 values["amount"],
                             ])
 
+                case "above_wss":
+                    for row in items:
+                        writer.writerow([
+                            school_name,
+                            section,
+                            row['date'],  # otherval
+                            "",  # fund_id
+                            row["funding_source"],  # fund_center
+                            "",  # fund_center_id
+                            row["budget_item"],  # budget_item
+                            "",  # budget_item_id
+                            row["fte"],
+                            "",  # Amount
+                            row["reason"],
+                            row["reason2"],
+                        ])
+
+
                 case "wss_spec_ed":
                     for table_type, table_entries in items.items():
                         if table_type == 'wss':
@@ -236,7 +256,7 @@ def write_denormalized_csv(outfile, schools):
                                         staff_type,  # fund_id
                                         "",  # fund_center
                                         "",  # fund_center_id
-                                        k,  # budget_item
+                                        k,   # budget_item
                                         "",  # budget_item_id
                                         v,
                                         ""
