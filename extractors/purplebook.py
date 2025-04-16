@@ -163,7 +163,7 @@ def write_denormalized_csv(outfile, schools):
         ] + FUNDING_COLS
     )
 
-    for school_name,school_info in schools.items():
+    for school_name, school_info in schools.items():
         for section, items in school_info.items():
             match section:
                 case "attributes":
@@ -175,18 +175,72 @@ def write_denormalized_csv(outfile, schools):
 
                 case "totals":
                     for total_name, values in items.items():
-                        writer.writerow([
-                            school_name,
-                            section,
-                            "",  # otherval
-                            "",  # fund_id
-                            "",  # fund_center
-                            "",  # fund_center_id
-                            total_name,  # budget_item
-                            "",  # budget_item_id
-                            values["fte"],
-                            values["amount"],
-                        ])
+                        if total_name == 'wss':
+                            for k,v in values.items():
+                                writer.writerow([
+                                    school_name,
+                                    section,
+                                    "",  # otherval
+                                    "",  # fund_id
+                                    "",  # fund_center
+                                    "",  # fund_center_id
+                                    k,   # budget_item
+                                    "",  # budget_item_id
+                                    v,
+                                    "",
+                                ])
+                        else:
+                            writer.writerow([
+                                school_name,
+                                section,
+                                "",  # otherval
+                                "",  # fund_id
+                                "",  # fund_center
+                                "",  # fund_center_id
+                                total_name,  # budget_item
+                                "",  # budget_item_id
+                                values["fte"],
+                                values["amount"],
+                            ])
+
+                case "wss_spec_ed":
+                    for table_type, table_entries in items.items():
+                        if table_type == 'wss':
+                            for row in table_entries:
+                                grade = row['grade']
+                                for k, v in row.items():
+                                    if k == 'grade':
+                                        continue
+                                    writer.writerow([
+                                        school_name,
+                                        'wss_enrollment',
+                                        "",  # otherval
+                                        grade,  # fund_id
+                                        "",  # fund_center
+                                        "",  # fund_center_id
+                                        k,  # budget_item
+                                        "",  # budget_item_id
+                                        v,
+                                        ""
+                                    ])
+                        elif table_type == 'spec_ed':
+                            for row in table_entries:
+                                staff_type = row['staff_type']
+                                for k, v in row.items():
+                                    if k == 'staff_type':
+                                        continue
+                                    writer.writerow([
+                                        school_name,
+                                        'spec_ed_staffing',
+                                        "",  # otherval
+                                        staff_type,  # fund_id
+                                        "",  # fund_center
+                                        "",  # fund_center_id
+                                        k,  # budget_item
+                                        "",  # budget_item_id
+                                        v,
+                                        ""
+                                    ])
 
                 case _:
                     for row in items:
