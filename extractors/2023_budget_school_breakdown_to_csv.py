@@ -3,7 +3,7 @@ import csv
 import logging
 import re
 
-from common import common_pdftext_setup
+from common import common_logging_setup, common_pdftext_setup, get_args
 from budget.csv_utils import write_denormalized_csv
 from budget.extractor import (parse_file_into_schools, normalize_school,
                               get_cols, get_nums)
@@ -14,6 +14,19 @@ ENROLLMENT_COL_BREAK = [0, 35, 54, 70, 87]
 FUNDING_COL_BREAK = [0, 22, 63, 85]
 FUNDING_TOTAL_BUDGET_BREAK = [0, 22, 60, 79]
 OTHER_INFO_BREAK = [0, 60]
+
+
+def get_school_funding_staff_fields(header_rows, data_rows, staffing_config):
+    headers, field_splits = find_fields(header_rows)
+
+    all_fields = []
+    for row in data_rows:
+        fields = []
+        all_fields.append(fields)
+        for split in field_splits:
+            fields.append(row[split[0]:split[1]].strip())
+
+    return headers, all_fields
 
 
 FUNDING_CONFIG = {
@@ -154,7 +167,6 @@ STAFFING_CONFIG = {
 }
 
 
-
 def find_fields(rows):
     filled = [False] * max(len(r) for r in rows)
     # Overlap all the rows to find non-spaces.
@@ -203,30 +215,18 @@ def find_fields(rows):
     return headers, splits
 
 
-def get_school_funding_staff_fields(header_rows, data_rows, staffing_config):
-    headers, field_splits = find_fields(header_rows)
-
-    all_fields = []
-    for row in data_rows:
-        fields = []
-        all_fields.append(fields)
-        for split in field_splits:
-            fields.append(row[split[0]:split[1]].strip())
-
-    return headers, all_fields
-
-
 def main():
     parser = argparse.ArgumentParser(
         description='Parses the school breakdowns out of a budget file')
+
+    common_pdftext_setup(parser)
+    common_logging_setup(parser)
 
     parser.add_argument('--schoolmap',
                         type=argparse.FileType('r', encoding='UTF-8'),
                         required=True,
                         help='csv with school_code, normalized name, match"')
-
-    args = common_pdftext_setup(parser)
-    logging.basicConfig(level=args.log_level)
+    args = get_args()
 
     raw_parsed_schools = parse_file_into_schools(args.infile,
                                                  PAGE_CONFIG, FUNDING_CONFIG,

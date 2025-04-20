@@ -1,9 +1,13 @@
 import argparse
 import logging
 
-def common_pdftext_setup(parser):
+
+def common_logging_setup(parser):
     parser.add_argument('--log-level', default='INFO',
                         help='set log level {DEBUG, INFO, WARNING, ERROR}')
+
+
+def common_pdftext_setup(parser):
     parser.add_argument('--infile',
                         type=argparse.FileType('r', encoding='UTF-8'),
                         required=True,
@@ -12,6 +16,8 @@ def common_pdftext_setup(parser):
                         type=argparse.FileType('w', encoding='UTF-8'),
                         required=True,
                         help='output csv')
+
+
+def get_args(parser):
     args = parser.parse_args()
     logging.basicConfig(level=args.log_level)
-    return args

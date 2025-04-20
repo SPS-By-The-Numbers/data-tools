@@ -2,7 +2,7 @@ import argparse
 import csv
 import logging
 
-from common import common_pdftext_setup
+from common import common_logging_setup, common_pdftext_setup, get_args
 from budget.school_allocations_validate import (STAFFING_TOTAL_COLUMN,
                                                 STAFFING_TOTAL_ROW)
 from budget.extractor import (parse_file_into_schools, normalize_school,
@@ -177,13 +177,15 @@ def main():
     parser = argparse.ArgumentParser(
         description='Parses the school breakdowns out of a budget file')
 
+    common_pdftext_setup(parser)
+    common_logging_setup(parser)
+
     parser.add_argument('--schoolmap',
                         type=argparse.FileType('r', encoding='UTF-8'),
                         required=True,
                         help='csv with school_code, normalized name, match"')
 
-    args = common_pdftext_setup(parser)
-    logging.basicConfig(level=args.log_level)
+    args = get_args()
 
     raw_parsed_schools = parse_file_into_schools(args.infile,
                                                  PAGE_CONFIG, FUNDING_CONFIG,

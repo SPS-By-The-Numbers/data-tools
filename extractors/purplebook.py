@@ -4,9 +4,8 @@ import logging
 
 from budget import line_tools
 from budget import school_info_tools as si_tools
-from common import common_pdftext_setup
+from common import common_logging_setup, common_pdftext_setup, get_args
 from purplebook.section_parser import Section, SectionParsers
-from enum import Enum
 
 logger = logging.getLogger(__name__)
 
@@ -49,7 +48,8 @@ def _break_lines_by_school(infile):
     for raw_line in infile.readlines():
         if raw_line.endswith("Budget Allocation\n"):
             if cur_school is not None:
-                logging.info(f"Finding {cur_school} with {len(raw_lines)} lines")
+                logging.info(
+                    f"Finding {cur_school} with {len(raw_lines)} lines")
                 raw_lines_by_school[cur_school] = raw_lines
 
             # Reset raw_lines once Budget Allocation is found.
@@ -114,7 +114,7 @@ def extract_data_from_school(school_name, raw_lines, errors):
     # 7. "Read Allocation Above Weighted Staffing Standards"
     #  Stop at end of file.
 
-    school_info = {"totals":{}}
+    school_info = {"totals": {}}
 
     current_section = Section.Start
     next_section = Section.SchoolAttributes
@@ -176,7 +176,7 @@ def write_denormalized_csv(outfile, schools):
                 case "totals":
                     for total_name, values in items.items():
                         if total_name == 'wss':
-                            for k,v in values.items():
+                            for k, v in values.items():
                                 writer.writerow([
                                     school_name,
                                     section,
@@ -219,7 +219,6 @@ def write_denormalized_csv(outfile, schools):
                             row["reason"],
                             row["reason2"],
                         ])
-
 
                 case "wss_spec_ed":
                     for table_type, table_entries in items.items():
@@ -272,7 +271,11 @@ def write_denormalized_csv(outfile, schools):
 def main():
     parser = argparse.ArgumentParser(description='Parses a purplebook')
 
-    args = common_pdftext_setup(parser)
+    common_pdftext_setup(parser)
+    common_logging_setup(parser)
+
+    args = get_args()
+
     lines_by_schools = _break_lines_by_school(args.infile)
 
     schools = {}
