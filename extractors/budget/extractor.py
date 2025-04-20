@@ -21,12 +21,14 @@ RE_DOLLAR_COMMA = re.compile(r"\$|,")
 
 
 def remove_comma_dollar_str(line):
-    x = re.sub(RE_DOLLAR_COMMA, "", line)
-    return x
+    return re.sub(RE_DOLLAR_COMMA, "", line)
 
 
 def remove_comma_dollar(line):
-    return Decimal(remove_comma_dollar_str(line))
+    x = remove_comma_dollar_str(line)
+    if x == "-":
+        return Decimal(0)
+    return Decimal(x)
 
 
 def get_school_funded_staff_fields(output, value_headers,

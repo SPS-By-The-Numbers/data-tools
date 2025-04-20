@@ -3,7 +3,7 @@ from decimal import Decimal
 
 SPACE_SPAN_TO_TOKEN = re.compile(r"\s\s+")
 
-DOLLAR_REALIGN = re.compile(r"\$\s+(\d)")
+DOLLAR_REALIGN = re.compile(r"\s\$\s*([0-9][0-9,]*|-)(?:\s|$)")
 
 
 def tokenize_by_two_space(line):
@@ -13,8 +13,14 @@ def tokenize_by_two_space(line):
 
 
 def realign_dollar_sign(line):
-    """Remove random spaces after the dollarsign and a number."""
-    return re.sub(DOLLAR_REALIGN, r"$\1", line)
+    """Make sure dollarsigns connect to their number and have spaces in front.
+
+    Sometimes the $ gets placed in weird spots in the field.  If there is a
+    free-floating one, make sure it connects to the number to the right of it
+    and that there are at least 2 spaces to the left so it can broken into a
+    field easily.
+    """
+    return re.sub(DOLLAR_REALIGN, r"  $\1  ", line).strip()
 
 
 def identity(x):
@@ -22,7 +28,7 @@ def identity(x):
 
 
 def to_number(x):
-    x = x.replace(',','')
+    x = x.replace(',', '')
     return Decimal(x)
 
 
@@ -53,11 +59,17 @@ def pop_read(fields, validation_re, convert=identity, raise_invalid=True):
 """A Dollar amount with leading dollarsign and commas"""
 RE_DOLLAR_COMMA = re.compile(r'\$[0-9,]+')
 
+"""A Dollar amount with leading dollarsign and commas, dash is zero"""
+RE_DOLLAR_COMMA_DASH = re.compile(r'\$(?:[0-9,]+|-)')
+
 """Decimal number"""
 RE_DECIMAL = re.compile(r'[0-9]+\.[0-9]+')
 
 """Decimal number with commas"""
 RE_DECIMAL_COMMA = re.compile(r'[0-9,]+\.[0-9]+')
+
+"""Decimal number with commas, dash is zero"""
+RE_DECIMAL_COMMA_DASH = re.compile(r'[0-9,]+\.[0-9]+|-')
 
 """Decimal number, dash is zero"""
 RE_DECIMAL_DASH = re.compile(r'[0-9]+\.[0-9]+|-')
@@ -85,6 +97,9 @@ RE_ALPHANUM_SPACES = re.compile(r'[A-Za-z0-9 ]+')
 
 """Alphanumeric with spaces and dashes"""
 RE_ALPHANUM_SPACES_DASH = re.compile(r'[A-Za-z0-9 \-+/]+')
+
+"""Alphanumeric with spaces and dashes"""
+RE_ALPHANUM_SPACES_DASH_PERIOD = re.compile(r'[A-Za-z0-9 \.\-+/]+')
 
 """Alphanumeric, no spaces, dashes-okay, lowercase only"""
 RE_ALPHANUM_LOWER_DASH = re.compile(r'[0-9a-z-]+')

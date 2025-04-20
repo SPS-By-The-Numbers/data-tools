@@ -27,7 +27,24 @@ TotalMode = Enum('TotalMode', ['NotYet', 'GetAafte', 'Done'])
 
 RE_BLANK_TERM = re.compile(r'\(blank\)')
 
-RE_TRAILING_ASTRISK = re.compile(r'(.*?) \*$')
+RE_TRAILING_ASTRISK = re.compile(r'\s*\*+$')
+
+
+def get_fields(line):
+    # Strip trailing " *" from fields since that's a human annotation.
+    no_asterisks = []
+    for field in line_tools.tokenize_by_two_space(line):
+        if len(field) == 0:
+            no_asterisks.append(field)
+        else:
+            removed = re.sub(RE_TRAILING_ASTRISK, "", field)
+
+            # If the field was not originally empty but it becomes empty after
+            # removing asteriks then it should not be added.
+            if len(removed) > 0:
+                no_asterisks.append(removed)
+
+    return no_asterisks
 
 
 def is_spec_ed_staff_type(s):
@@ -37,7 +54,7 @@ def is_spec_ed_staff_type(s):
 
 
 def read_total_line(line):
-    fields = line_tools.tokenize_by_two_space(line)
+    fields = get_fields(line)
     amount = line_tools.pop_read(fields, line_tools.RE_DOLLAR_COMMA,
                                  remove_comma_dollar)
     fte = line_tools.pop_read(fields, line_tools.RE_DECIMAL,
@@ -46,11 +63,32 @@ def read_total_line(line):
     return fte, amount
 
 
+def validate_totals(school_name, section, totals, actuals, errors):
+    """Checks if scraped fte and amount total values match the rows"""
+    if "fte" in totals and totals["fte"] is not None:
+        actual_total_fte = sum([row["fte"] or Decimal(0) for row in actuals])
+        fte_delta = actual_total_fte - totals["fte"]
+        if fte_delta != 0:
+            logger.warning(f"{school_name} {section} Total FTE mismatch. "
+                           f"Expected: {totals['fte']} "
+                           f"Got: {actual_total_fte}")
+            errors.append(["fte_total_delta", fte_delta])
+
+    if "amount" in totals and totals["amount"] is not None:
+        actual_total_amount = sum([row["amount"] or Decimal(0)
+                                   for row in actuals])
+        amount_delta = actual_total_amount - totals["amount"]
+        if amount_delta != 0:
+            logger.warning(f"{school_name} {section} Total Amount mismatch. "
+                           f"Expected: {totals['amount']} "
+                           f"Got: {actual_total_amount}")
+            errors.append(["amount_total_delta", amount_delta])
+
+
 class BaseParser:
-    def __init__(self, school_name, school_info, errors):
-        self._context = {}
+    def __init__(self, school_name, errors):
+        self._context = {}  # TODO: Remove field
         self._school_name = school_name
-        self._school_info = school_info
         self._errors = errors
         self.init_context()
 
@@ -63,6 +101,15 @@ class BaseParser:
 
     def commit(self, school_info):
         pass
+
+    def _commit_allocation(self, school_info, section):
+        totals = self._totals
+        allocations = self._allocations.get_allocations()
+
+        validate_totals(self._school_name, section, totals, allocations,
+                        self._errors)
+        school_info[section] = self._allocations.get_allocations()
+        school_info["totals"][section] = self._totals
 
 
 class NullParser(BaseParser):
@@ -84,7 +131,7 @@ class SchoolAttributesParser(BaseParser):
         if line.startswith("Fund  "):
             return Section.StaffingAllocations
 
-        for token in line_tools.tokenize_by_two_space(line):
+        for token in get_fields(line):
             # Single - is empty value.
             if token != '-':
                 self._context[token] = None
@@ -106,24 +153,19 @@ class AllocationRowAccumulator(object):
             amount_may_be_comma_decimal=False):
         """Takes a tokenized set of fields and adds a row of this"""
 
-        # Read the amount
-        amount = line_tools.pop_read(fields, line_tools.RE_DOLLAR_COMMA,
-                                    remove_comma_dollar,
-                                    raise_invalid=False)
-        if amount_may_be_comma_decimal:
-            amount = line_tools.pop_read(fields, line_tools.RE_DECIMAL_COMMA,
-                                         remove_comma_dollar,
-                                         raise_invalid=False)
+        # Read the amount. Drop fields from the right until something is
+        # found. Ensure there are enough fields to continue.
+        min_fields, amount = self._get_amount(fields, skip_fte, optional_fte)
 
-        # Read the FTE field.
-        if skip_fte:
-            fte = None
+        if len(fields) < min_fields:
+            logger.debug("Too few fields after amount")
+            return
+
+        # Read the FTE field handling the oddities where its sometimes elided.
+        if not skip_fte and amount and not amount.is_zero():
+            fte = self._get_fte(fields, optional_fte)
         else:
-            fte = Decimal(0)
-            if amount and not amount.is_zero():
-                fte = line_tools.pop_read(fields, line_tools.RE_DECIMAL,
-                                          line_tools.to_number,
-                                          raise_invalid=(not optional_fte))
+            fte = None
 
         # Read the budget item id field.
         budget_item_id = line_tools.pop_read(fields,
@@ -168,6 +210,40 @@ class AllocationRowAccumulator(object):
             "amount": amount,
         })
 
+    def _get_fte(self, fields, optional_fte):
+        """Reads an FTE off the fields"""
+        return line_tools.pop_read(fields, line_tools.RE_DECIMAL,
+                                   line_tools.to_number,
+                                   raise_invalid=(not optional_fte))
+
+    def _get_amount(self, fields, skip_fte, optional_fte):
+        if skip_fte or optional_fte:
+            min_fields = 1
+        else:
+            min_fields = 2
+
+        amount = None
+        while amount is None and len(fields) >= min_fields:
+            amount = line_tools.pop_read(fields,
+                                         line_tools.RE_DOLLAR_COMMA_DASH,
+                                         remove_comma_dollar,
+                                         raise_invalid=False)
+            if amount is None:
+                # Maybe they forgot the dollarsign.
+                logger.info("No amount with dollar. Trying w/o dollar")
+                logger.info(fields)
+                amount = line_tools.pop_read(fields,
+                                             line_tools.RE_DECIMAL_COMMA_DASH,
+                                             remove_comma_dollar,
+                                             raise_invalid=False)
+
+            # Still no amount? Drop the field.
+            if amount is None:
+                logger.debug(fields)
+                popped_field = fields.pop()
+                logger.debug(f"Skipping unexpected field {popped_field}")
+        return min_fields, amount
+
 
 class StaffingAllocationsParser(BaseParser):
     def init_context(self):
@@ -175,9 +251,7 @@ class StaffingAllocationsParser(BaseParser):
         self._elementary_fte_check = None
 
     def commit(self, school_info):
-        school_info["staffing"] = self._allocations.get_allocations()
-        school_info["totals"]["staffing"] = self._totals
-        # TODO: Validate here.
+        self._commit_allocation(school_info, "staffing")
 
     def accumulate(self, line, raw_line):
         """Parses one Staffing Allocations line.
@@ -206,7 +280,7 @@ class StaffingAllocationsParser(BaseParser):
             }
             return Section.NonStaffAllocations
 
-        fields = line_tools.tokenize_by_two_space(line)
+        fields = get_fields(line)
 
         num_fields = len(fields)
         if num_fields == 1:
@@ -228,9 +302,7 @@ class NonStaffAllocationsParser(BaseParser):
         self._allocations = AllocationRowAccumulator()
 
     def commit(self, school_info):
-        school_info["nonstaff"] = self._allocations.get_allocations()
-        school_info["totals"]["nonstaff"] = self._totals
-        # TODO: Validate here.
+        self._commit_allocation(school_info, "nonstaff")
 
     def accumulate(self, line, raw_line):
         """Parses one Non Staff Allocations line.
@@ -259,9 +331,7 @@ class NonStaffAllocationsParser(BaseParser):
             }
             return Section.TitleIAndLap
 
-        # Strip training " *" from fields since that's a human annotation.
-        fields = [re.sub(RE_TRAILING_ASTRISK, r"\1", f) for f
-                  in line_tools.tokenize_by_two_space(line)]
+        fields = get_fields(line)
 
         num_fields = len(fields)
         if num_fields > 1:
@@ -275,9 +345,7 @@ class TitleIAndLapParser(BaseParser):
         self._allocations = AllocationRowAccumulator()
 
     def commit(self, school_info):
-        school_info["title1_and_lap"] = self._allocations.get_allocations()
-        school_info["totals"]["title1_and_lap"] = self._totals
-        # TODO: Validate here.
+        self._commit_allocation(school_info, "title1_and_lap")
 
     def accumulate(self, line, raw_line):
         """Parses one Title I and LAP allocation line.
@@ -303,7 +371,7 @@ class TitleIAndLapParser(BaseParser):
             }
             return Section.BudgetedCentrally
 
-        fields = line_tools.tokenize_by_two_space(line)
+        fields = get_fields(line)
 
         num_fields = len(fields)
         if num_fields > 1:
@@ -318,9 +386,7 @@ class BudgetedCentrallyParser(BaseParser):
         self._allocations = AllocationRowAccumulator()
 
     def commit(self, school_info):
-        school_info["budgeted_centrally"] = self._allocations.get_allocations()
-        school_info["totals"]["budgeted_centrally"] = self._totals
-        # TODO: Validate here.
+        self._commit_allocation(school_info, "budgeted_centrally")
 
     def accumulate(self, line, raw_line):
         """Parses one centrally budgted items.
@@ -346,7 +412,7 @@ class BudgetedCentrallyParser(BaseParser):
             }
             return Section.TotalAllocations
 
-        fields = line_tools.tokenize_by_two_space(line)
+        fields = get_fields(line)
 
         num_fields = len(fields)
         if num_fields > 1:
@@ -433,7 +499,7 @@ class WssAndSpecEdParser(BaseParser):
         # with a string. This works cause there is no title that starts with
         # a number.
         expanded_line = re.sub(r'(  [0-9]+) ([A-Za-z])', r'\1  \2', line)
-        fields = line_tools.tokenize_by_two_space(expanded_line)
+        fields = get_fields(expanded_line)
 
         # Most of the time, this table does not have a final "Total" number.
         # But when it does, we need to switch parsing styles as the table has
@@ -449,27 +515,30 @@ class WssAndSpecEdParser(BaseParser):
                 elif fields[1] == 'Headct':
                     self._wss_type = WssType.HeadCount
         else:
-            # Table parsing time!
-            num_fields = len(fields)
-
-            # Skip lines with too few fields as they are likely noise.
-            # TODO: This num_fields length check is a bit wrong.
-            if num_fields >= 3:
-                if is_spec_ed_staff_type(fields[-2]):
-                    # Sometimes the IA column is missing a -. Handle here.
-                    self._consume_spec_ed_no_ia(fields)
-                elif is_spec_ed_staff_type(fields[-3]):
-                    self._consume_spec_ed(fields)
-
-                # Treat the rest as WSS.
-                if self._wss_type == WssType.AafteOnly:
-                    self._consume_wss_aafte_only(fields)
-                elif self._wss_type == WssType.HeadCount:
-                    self._consume_wss_headcount(fields)
-                else:
-                    raise ValueError(self._wss_type)
+            self._consume_wss_row(fields)
 
         return None
+
+    def _consume_wss_row(self, fields):
+        # Table parsing time!
+        num_fields = len(fields)
+
+        # Skip lines with too few fields as they are likely noise.
+        # TODO: This num_fields length check is a bit wrong.
+        if num_fields >= 3:
+            if is_spec_ed_staff_type(fields[-2]):
+                # Sometimes the IA column is missing a -. Handle here.
+                self._consume_spec_ed_no_ia(fields)
+            elif is_spec_ed_staff_type(fields[-3]):
+                self._consume_spec_ed(fields)
+
+            # Treat the rest as WSS.
+            if self._wss_type == WssType.AafteOnly:
+                self._consume_wss_aafte_only(fields)
+            elif self._wss_type == WssType.HeadCount:
+                self._consume_wss_headcount(fields)
+            else:
+                raise ValueError(self._wss_type)
 
     def _consume_spec_ed_no_ia(self, fields):
         # If there is a missing IA field, just pop 2 off.
@@ -478,13 +547,12 @@ class WssAndSpecEdParser(BaseParser):
                                            line_tools.to_number_dash_zero)
         staff_type = line_tools.pop_read(
             fields,
-            line_tools.RE_ALPHANUM_SPACES_DASH)
+            line_tools.RE_ALPHANUM_SPACES_DASH_PERIOD)
         self._allocations['spec_ed'].append({
             "aides": Decimal(0),
             'staff_type': staff_type,
             "teachers": teachers_fte,
         })
-
 
     def _consume_spec_ed(self, fields):
         aides_fte = line_tools.pop_read(fields,
@@ -497,11 +565,11 @@ class WssAndSpecEdParser(BaseParser):
             aides_fte = Decimal(0)
 
         teachers_fte = line_tools.pop_read(fields,
-                                           line_tools.RE_DECIMAL_DASH,
+                                           line_tools.RE_DECIMAL_COMMA_DASH,
                                            line_tools.to_number_dash_zero)
         staff_type = line_tools.pop_read(
             fields,
-            line_tools.RE_ALPHANUM_SPACES_DASH)
+            line_tools.RE_ALPHANUM_SPACES_DASH_PERIOD)
         self._allocations['spec_ed'].append({
             'staff_type': staff_type,
             "aides": aides_fte,
@@ -538,7 +606,6 @@ class WssAndSpecEdParser(BaseParser):
                 'grade': grade,
             } | values)
 
-
     def _consume_wss_headcount(self, fields):
         if len(fields) < 6:
             return
@@ -547,11 +614,12 @@ class WssAndSpecEdParser(BaseParser):
         frl_fte = line_tools.pop_read(fields, line_tools.RE_INT_COMMA_DASH,
                                       line_tools.to_number_dash_zero)
         ell_boc_fte = line_tools.pop_read(fields, line_tools.RE_INT_COMMA_DASH,
-                                      line_tools.to_number_dash_zero)
+                                          line_tools.to_number_dash_zero)
         aafte_fte = line_tools.pop_read(fields,
                                         line_tools.RE_NUMBER_COMMA_DASH,
                                         line_tools.to_number_dash_zero)
-        headcount_fte = line_tools.pop_read(fields, line_tools.RE_INT_COMMA_DASH,
+        headcount_fte = line_tools.pop_read(fields,
+                                            line_tools.RE_INT_COMMA_DASH,
                                             line_tools.to_number_dash_zero)
         grade = line_tools.pop_read(fields, line_tools.RE_ALPHANUM_SPACES_DASH)
 
@@ -568,7 +636,6 @@ class WssAndSpecEdParser(BaseParser):
             self._allocations['wss'].append({
                 'grade': grade,
             } | values)
-
 
     def _consume_total_aafte(self, raw_line, fields):
         """Returns true if we've latched into reading the totals"""
@@ -626,7 +693,7 @@ class AboveWssParser(BaseParser):
                 self._looking_for_table = False
         else:
             line = re.sub(RE_BLANK_TERM, '-', line)
-            fields = line_tools.tokenize_by_two_space(line)
+            fields = get_fields(line)
 
             # Only look at things that aren't all blank and have enough fields.
             if not all([v == '-' for v in fields]) and len(fields) >= 6:

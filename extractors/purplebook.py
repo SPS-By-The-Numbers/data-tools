@@ -118,8 +118,7 @@ def extract_data_from_school(school_name, raw_lines, errors):
 
     current_section = Section.Start
     next_section = Section.SchoolAttributes
-    section_parser = SectionParsers[current_section](school_name, school_info,
-                                                     errors)
+    section_parser = SectionParsers[current_section](school_name, errors)
 
     for raw_line in raw_lines:
         if next_section is not None and next_section != current_section:
@@ -128,7 +127,6 @@ def extract_data_from_school(school_name, raw_lines, errors):
             if current_section == Section.Done:
                 break
             section_parser = SectionParsers[current_section](school_name,
-                                                             school_info,
                                                              errors)
 
         # Skip empty lines.
