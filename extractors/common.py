@@ -21,3 +21,4 @@ def common_pdftext_setup(parser):
 def get_args(parser):
     args = parser.parse_args()
     logging.basicConfig(level=args.log_level)
+    return args
