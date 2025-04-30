@@ -1,5 +1,4 @@
 import argparse
-import csv
 import fastavro
 import logging
 import os
@@ -8,20 +7,19 @@ import subprocess
 
 from common import common_logging_setup, get_args
 from decimal import Decimal
+import f19x
 
 logger = logging.getLogger(__name__)
 
-# Quantlizaton for scale of 9 which is bigquery's fixed-point scale.
-DEC_SCALE = Decimal('0.000000001')
-
 # Column names for type inferrence.
 RE_INT_COLUMN = re.compile(
-    r"code|"
-    r"activity|"
-    r"program|"
-    r"object|"
-    r"fund|"
-    r"revenue|"
+    r"activity_code|"
+    r"county_code|"
+    r"fund_code|"
+    r"object_code|"
+    r"district_code|"
+    r"program_code|"
+    r"revenue_code|"
     r"codist|"
     r"ccddd")
 RE_DECIMAL_COLUMN = re.compile(r'amount| proj| bud')
@@ -33,136 +31,95 @@ RE_BOOLEAN_COLUMN = re.compile(r'is_forecast')
 RE_STR_COLUMN = re.compile(r"fund_des|fund_name")
 
 
-def to_decimal(x):
-    if not x:
-        return None
-
-    return Decimal(x).quantize(DEC_SCALE)
-
-
-def identity(x):
-    return x
-
-
-def to_bq_name(name):
-    """Returns a column name compatible with BigQuery"""
-    return name.replace(' ', '_').lower()
-
-
-def table_id_column(table_name):
-    """Returns the normal column name for id value of this table"""
-    match table_name:
-        case 'county':
-            return 'county'
-
-        case _:
-            return "id"
-
-
 def normalize_name(table_name, col_name):
     """Column names drift over time. Normalize them here"""
-    bq_col_name = to_bq_name(col_name)
+    bq_col_name = f19x.to_bq_name(col_name)
 
     match bq_col_name:
+        # Normalize column names that have shifted over time.
         case 'cty':
-            return 'county'
+            return 'county_code'
 
         case 'dist':
-            return 'district'
+            return 'district_code'
 
         case 'codist':
             return 'ccddd'
 
-        case 'item_number':
-            return 'item'
-
         case 'categories':
             return 'category'
-
-        case 'id':
-            # Sigh. Guess this from the table name
-            return table_id_column(table_name)
-
-        case 'item':
-            if table_name == 'trans_vehicle_revenues':
-                return 'revenue'
-            return bq_col_name
 
         case 'titles':
             return 'title'
 
+        # Handle weird id column
+        case 'id':
+            # Sigh. Guess this from the table name
+            if table_name == 'county':
+                return 'county_code'
+            return bq_col_name
+
+        # Suffix numeric values with '_code'
+        case 'district':
+            return 'district_code'
+
+        case 'county':
+            return 'county_code'
+
+        case 'itemcode':
+            # The 2024-2025 budget uses itemcode in general_fund_revenues for
+            # some reason.
+            if table_name == 'general_fund_revenues':
+                return 'revenue_code'
+            return 'item_code'
+
+        case 'item':
+            if table_name == 'trans_vehicle_revenues':
+                return 'revenue_code'
+            return 'item_code'
+
+        case 'item_number':
+            return 'item_code'
+
+        case 'revenue':
+            return 'revenue_code'
+
         case 'program_number':
             if table_name == 'revenue':
                 # This is a mislabeled column in AF11952122.
-                return 'revenue'
+                return 'revenue_code'
             else:
-                return 'program'
+                return 'program_code'
 
         case 'fund_number':
-            return 'fund'
+            return 'fund_code'
+
+        case 'program':
+            return 'program_code'
+
+        case 'activity':
+            return 'activity_code'
+
+        case 'object':
+            return 'object_code'
+
+        case 'fund':
+            return 'fund_code'
 
         case _:
             return bq_col_name
 
 
-def int_or_null(x):
-    if not x:
-        return None
-    return int(x)
-
-
-def to_type(name):
-    name_lower = name.lower()
-
-    if RE_STR_COLUMN.match(name_lower):
-        return ['null', 'string'], identity
-    elif RE_INT_COLUMN.match(name_lower):
-        return ['null', 'int'], int_or_null
-    elif RE_DECIMAL_COLUMN.match(name_lower):
-        return [
-            'null',
-            {
-                "type": "bytes",
-                "logicalType": "decimal",
-                "precision": 38,
-                "scale": 9,
-            }], lambda d: Decimal(d).quantize(DEC_SCALE)
-    elif RE_DATE_COLUMN.match(name_lower):
-        return ['null', {
-            'type': 'int',
-            'logicalType': 'timestamp-millis'
-        }], int
-    elif RE_BOOLEAN_COLUMN.match(name_lower):
-        return ['null', 'boolean'], identity
-    else:
-        return ['null', 'string'], identity
-
-
-def infer_schema(table_name, col_name):
-    col_name = col_name.replace('\ufeff', '').strip()
-    name = normalize_name(table_name, col_name)
-    avro_type, convert_func = to_type(name)
-    return {
-        'name': name,
-        'type': avro_type,
-        '_convert_func': convert_func
-    }
-
-
-def text_column_schema(name):
-    return {
-        'name': name,
-        'type': 'string',
-        '_convert_func': identity,
-    }
-
-
 def header_to_schema(table_name, row):
-    data_fields = [infer_schema(table_name, col_name) for col_name in row]
+    data_fields = [f19x.infer_schema(table_name, col_name, normalize_name,
+                                     RE_STR_COLUMN, RE_INT_COLUMN,
+                                     RE_DECIMAL_COLUMN, RE_DATE_COLUMN,
+                                     RE_BOOLEAN_COLUMN)
+                   for col_name in row]
     return data_fields + [
-        text_column_schema('_source'),
-        text_column_schema('_table'),
-        text_column_schema('school_year'),
+        f19x.text_column_schema('_source'),
+        f19x.text_column_schema('_table'),
+        f19x.text_column_schema('school_year'),
     ]
 
 
@@ -186,12 +143,24 @@ def pivot_all_districts(orig_rows):
     amount_indicies = [i for i in range(len(header))
                        if i not in [ccddd_index, fund_index, item_index]]
     pivot_info = {}
+    first_col_found = False
     for i in amount_indicies:
-        year, raw_forecast = header[i].split(' ')
+        if ' ' in header[i]:
+            year, raw_forecast = header[i].split(' ')
+            is_forecast = raw_forecast.lower() == 'forecast'
+        else:
+            year = header[i]
+            if first_col_found:
+                # No words like forecase anymore. Consider the first one real
+                # and the others to be forecasts.
+                is_forecast = False
+            else:
+                first_col_found = True
+                is_forecast = True
+
         if len(year) == 5:
             parts = year.split('-')
             year = f"20{parts[0]}-20{parts[1]}"
-        is_forecast = raw_forecast.lower() == 'forecast'
         pivot_info[i] = [year, is_forecast]
 
     for r in orig_rows[1:]:
@@ -215,6 +184,9 @@ def write_avro(outfile, source_file, name, mdb_table_name, school_year, rows):
         'type': 'record',
         'fields': clean_fields
     }
+
+    logger.info(f"Writing {name} "
+                f"{['%s:%s' % (f['name'], f['type']) for f in clean_fields]}")
 
     records = []
     for csv_row in rows[1:]:
@@ -245,18 +217,6 @@ def write_avro(outfile, source_file, name, mdb_table_name, school_year, rows):
                     schema=fastavro.parse_schema(clean_header),
                     records=records,
                     codec='zstandard')
-
-
-def load_table_as_csv(filename, mdb_table):
-    """Loads all f195 table rows in csv form"""
-    proc = subprocess.Popen(['mdb-export', '-B', filename, mdb_table],
-                            stdout=subprocess.PIPE, universal_newlines=True)
-
-    rows = []
-    reader = csv.reader(proc.stdout)
-    for row in reader:
-        rows.append(row)
-    return rows
 
 
 def get_table_mapping(filename):
@@ -324,17 +284,17 @@ def main():
     mappings = get_table_mapping(args.infile)
     csv_tables = {}
     for name, mdb_table in mappings.items():
-        rows = load_table_as_csv(args.infile, mdb_table)
+        rows = f19x.load_table_as_csv(args.infile, mdb_table)
         # Handle weird case in AF11952122.accdb where there is an extra
         # header row and incorrect labels.
         if name == 'revenue' and rows[0][0] == 'Field1':
             logger.warning("Skipping first two rows in revenue table")
-            rows = [['revenue', 'title', 'category']] + rows[2:]
+            rows = [['revenue_code', 'title', 'category']] + rows[2:]
         elif name == 'all_districts':
             rows = pivot_all_districts(rows)
 
         if len(rows) > 0:
-            logger.info(f'{name}: {len(rows)} {rows[0]}')
+            logger.info(f'read: {name}: {len(rows)} {rows[0]}')
             csv_tables[name] = rows
 
     for name, rows in csv_tables.items():

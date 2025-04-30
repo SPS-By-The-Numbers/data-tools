@@ -7,35 +7,35 @@ TABLE_INFO = {
     # Domain tables
     "activity": {
         'is_domain': True,
-        'cluster': 'school_year,activity'
+        'cluster': 'school_year,activity_code'
     },
     "ccddd": {
         'is_domain': True,
-        'cluster': 'school_year,ccddd,county,district'
+        'cluster': 'school_year,ccddd,county_code,district_code'
     },
     "county": {
         'is_domain': True,
-        'cluster': 'school_year,county'
+        'cluster': 'school_year,county_code'
     },
     "fund": {
         'is_domain': True,
-        'cluster': 'school_year,fund'
+        'cluster': 'school_year,fund_code'
     },
     "item_dict": {
         'is_domain': True,
-        'cluster': 'school_year,item'
+        'cluster': 'school_year,item_code'
     },
     "object": {
         'is_domain': True,
-        'cluster': 'school_year,object'
+        'cluster': 'school_year,object_code'
     },
     "program": {
         'is_domain': True,
-        'cluster': 'school_year,program'
+        'cluster': 'school_year,program_code'
     },
     "revenue": {
         'is_domain': True,
-        'cluster': 'school_year,revenue'
+        'cluster': 'school_year,revenue_code'
     },
 
     # Line items
@@ -45,27 +45,27 @@ TABLE_INFO = {
     },
     "capital_project_revenues": {
         'is_domain': False,
-        'cluster': 'school_year,ccddd,fund,revenue'
+        'cluster': 'school_year,ccddd,fund_code,revenue_code'
     },
     "debt_service_revenues": {
         'is_domain': False,
-        'cluster': 'school_year,ccddd,fund,revenue'
+        'cluster': 'school_year,ccddd,fund_code,revenue_code'
     },
     "general_fund_expenditures": {
         'is_domain': False,
-        'cluster': 'school_year,ccddd,object,activity'
+        'cluster': 'school_year,ccddd,object_code,activity_code'
     },
     "general_fund_revenues": {
         'is_domain': False,
-        'cluster': 'school_year,ccddd,fund,revenue'
+        'cluster': 'school_year,ccddd,fund_code,revenue_code'
     },
     "item_numbers": {
         'is_domain': False,
-        'cluster': 'school_year,item,fund'
+        'cluster': 'school_year,item_code,fund_code'
     },
     "trans_vehicle_revenues": {
         'is_domain': False,
-        'cluster': 'school_year,ccddd,fund,revenue'
+        'cluster': 'school_year,ccddd,fund_code,revenue_code'
     }
 }
 
@@ -78,15 +78,18 @@ YEARS = [
     "2020-2021",
     "2021-2022",
     "2022-2023",
-    "2023-2024"
+    "2023-2024",
+    "2024-2025",
 ]
 
-GS_SAFS_ROOT = "gs://sps-btn-data-all-data/raw/safs"
+GS_SAFS_ROOT = "gs://sps-btn-data-all-data/processed/safs"
 
 SAFS_TEMPL = "{root}/{safs_type}/{safs_type}-{year}-{tablename}.avro"
 
 LOAD_QUERY_TEMPLATE = (
     """
+    DROP TABLE IF EXISTS `sps-btn-data.raw_safs.{tablename}`;
+
     LOAD DATA INTO `sps-btn-data.raw_safs.{tablename}`
     CLUSTER BY {cluster}
     FROM FILES(
