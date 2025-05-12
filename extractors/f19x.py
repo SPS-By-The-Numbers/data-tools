@@ -1,3 +1,4 @@
+import dateutil
 import csv
 import inflection
 import subprocess
@@ -18,6 +19,10 @@ def _to_decimal(x):
 
 def _identity(x):
     return x
+
+
+def _datestr_to_millis(x):
+    return int(dateutil.parser.parse(x).timestamp())
 
 
 def to_bq_name(name):
@@ -53,7 +58,7 @@ def to_type(name, re_str_column, re_int_column, re_decimal_column,
         return ['null', {
             'type': 'int',
             'logicalType': 'timestamp-millis'
-        }], int
+        }], _datestr_to_millis
     elif re_boolean_column.match(name_lower):
         return ['null', 'boolean'], _identity
     else:
@@ -71,6 +76,7 @@ def infer_schema(table_name, col_name, normalize_name, re_str_column,
     return {
         'name': name,
         'type': avro_type,
+        'default': None,
         '_convert_func': convert_func
     }
 

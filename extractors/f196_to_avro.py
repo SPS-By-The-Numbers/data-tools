@@ -1,4 +1,6 @@
 import argparse
+import csv
+import f19x
 import fastavro
 import logging
 import os
@@ -7,17 +9,20 @@ import subprocess
 
 from common import common_logging_setup, get_args
 from decimal import Decimal
-import f19x
 
 logger = logging.getLogger(__name__)
 
 # Column names for type inferrence.
 RE_INT_COLUMN = re.compile(
+    r"accounting_item_id$|"
     r"activity_code$|"
     r"county_code$|"
     r"fund_code$|"
     r"object_code$|"
     r"district_code$|"
+    r"nces_code$|"
+    r"school_code$|"
+    r"sub_fund_code$|"
     r"program_code$|"
     r"revenue_code$|"
     r"codist$|"
@@ -41,6 +46,19 @@ def normalize_name(table_name, col_name):
     bq_col_name = f19x.to_bq_name(col_name)
 
     match bq_col_name:
+        case 'codist':
+            return 'ccddd'
+
+        # Suffix numeric values with '_code'
+        case 'district':
+            return 'district_code'
+
+        case 'county':
+            return 'county_code'
+
+        case 'item_number':
+            return 'item_code'
+
         # Handle weird id column
         case 'id':
             # Sigh. Guess this from the table name
@@ -73,6 +91,9 @@ def normalize_name(table_name, col_name):
 
         case 'object':
             return 'object_code'
+
+        case 'activity':
+            return 'activity_code'
 
         case 'item':
             return 'item_code'
@@ -152,8 +173,13 @@ def write_avro(outfile, source_file, name, mdb_table_name, school_year, rows):
             try:
                 val = conv_func(row[i])
             except Exception as e:
-                logger.error(f"Error with {info} on {row}")
-                raise e
+                # OSPI has some weird "OSPI" ccddd line item. It's supposed
+                # to be an int so make it -100
+                if info['name'] == 'ccddd' and row[i] == 'OSPI':
+                    val = -100
+                else:
+                    logger.error(f"Error with {info} on {row}")
+                    raise e
 
             one_record[info['name']] = val
             if info['name'] == 'amount' and val == Decimal(0):
@@ -174,7 +200,7 @@ def write_avro(outfile, source_file, name, mdb_table_name, school_year, rows):
                     codec='zstandard')
 
 
-def get_table_mapping(filename):
+def get_mdb_table_mapping(filename):
     """Loads all f196 table names into canonical identifiers"""
     proc = subprocess.Popen(['mdb-tables', '-1', filename],
                             stdout=subprocess.PIPE)
@@ -235,9 +261,86 @@ def get_table_mapping(filename):
     return mappings
 
 
+def get_xslx_table_from_filename(filename):
+    if "capital_project_revenues" in filename:
+        return "capital_project_revenues"
+
+    elif "captal_project_revenues" in filename:
+        return "captal_project_revenues"
+
+    elif "child_general_fund_expenditures" in filename:
+        return "child_general_fund_expenditures"
+
+    elif "debt_service_revenues" in filename:
+        return "debt_service_revenues"
+
+    elif "general_fund_expenditures" in filename:
+        return "general_fund_expenditures"
+
+    elif "general_fund_revenues" in filename:
+        return "general_fund_revenues"
+
+    elif "item_dictionary" in filename:
+        return "item_dictionary"
+
+    elif "item_numbers" in filename:
+        return "item_numbers"
+
+    elif "revenues_and_expenditures" in filename:
+        return "revenues_and_expenditures"
+
+    elif "trans_vehicle_revenues" in filename:
+        return "trans_vehicle_revenues"
+
+    else:
+        raise ValueError(filename)
+
+
+def process_mdb(infile, outdir, outprefix, school_year):
+    mappings = get_mdb_table_mapping(infile)
+    csv_tables = {}
+    for name, mdb_table in mappings.items():
+        rows = f19x.load_table_as_csv(infile, mdb_table)
+
+        if len(rows) > 0:
+            logger.info(f'read: {name}: {len(rows)} {rows[0]}')
+            csv_tables[name] = rows
+
+    for name, rows in csv_tables.items():
+        with open(
+                f"{outdir}/{outprefix}{school_year}-{name}.avro", 'wb') as fp:
+            write_avro(fp, os.path.basename(infile), name, mappings[name],
+                       school_year, rows)
+
+
+def load_csv(table_name, f):
+    rows = []
+    header_done = False
+    for row in csv.reader(f):
+        if not header_done:
+            rows.append([normalize_name(table_name, col) for col in row])
+            header_done = True
+        else:
+            rows.append(row)
+    return rows
+
+
+def process_csv(infile, outdir, outprefix, school_year):
+    table_name = get_xslx_table_from_filename(infile)
+
+    with open(infile, "r", encoding="utf-8", newline='') as f:
+        rows = load_csv(table_name, f)
+    with open(f"{outdir}/{outprefix}{school_year}-{table_name}.avro",
+              'wb') as fp:
+        write_avro(fp, os.path.basename(infile), table_name, table_name,
+                   school_year, rows)
+
+
 def main():
-    parser = argparse.ArgumentParser(description='Reads a f196 mdb into avro')
-    parser.add_argument('--infile', required=True, help='f196 mdb file"')
+    parser = argparse.ArgumentParser(
+        description='Reads a f196 mdb or csv into avro')
+    parser.add_argument('--infile', required=True,
+                        help='f196 file mdb or csv"')
     parser.add_argument('--school-year', required=True, help='eg. 2014-2015')
     parser.add_argument('--outprefix', default="f196-",
                         help='Prefix for avro files')
@@ -246,21 +349,13 @@ def main():
     common_logging_setup(parser)
 
     args = get_args(parser)
-
-    mappings = get_table_mapping(args.infile)
-    csv_tables = {}
-    for name, mdb_table in mappings.items():
-        rows = f19x.load_table_as_csv(args.infile, mdb_table)
-
-        if len(rows) > 0:
-            logger.info(f'read: {name}: {len(rows)} {rows[0]}')
-            csv_tables[name] = rows
-
-    for name, rows in csv_tables.items():
-        with open(f"{args.outdir}/{args.outprefix}{args.school_year}-"
-                  f"{name}.avro", 'wb') as fp:
-            write_avro(fp, os.path.basename(args.infile), name, mappings[name],
-                       args.school_year, rows)
+    if args.infile.endswith('.mdb') or args.infile.endswith('.accdb'):
+        process_mdb(args.infile, args.outdir, args.outprefix, args.school_year)
+    elif args.infile.endswith('.csv'):
+        process_csv(args.infile, args.outdir, args.outprefix,
+                    args.school_year)
+    else:
+        logger.error(f"Expected .mdb, .accdb, or .xls in {args.infile}")
 
 
 if __name__ == '__main__':

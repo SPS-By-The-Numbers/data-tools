@@ -1,3 +1,4 @@
+arrow
 fastavro
 google-cloud-bigquery
 google-cloud-storage
