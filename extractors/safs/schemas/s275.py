@@ -1,35 +1,4 @@
-def make_field(name, field_type, doc=None, default=None):
-    if field_type == 'decimal':
-        schema_type = [
-            "null",
-            {
-                "logicalType": "decimal",
-                "precision": 38,
-                "scale": 9,
-                "type": "bytes"
-            }
-        ]
-    elif field_type == 'timestamp':
-        schema_type = [
-            "null",
-            {
-                "logicalType": "timestamp-millis",
-                "type": "int"
-            }
-        ]
-    else:
-        schema_type = [
-            "null",
-            field_type,
-        ]
-
-    return {
-        "default": None,
-        "name": name,
-        "type": schema_type,
-        "doc": doc
-    }
-
+from .common import make_field
 
 ASSIGNMENT_SCHEMA = {
     "type": "record",
@@ -92,11 +61,24 @@ ASSIGNMENT_SCHEMA = {
         make_field(
             name="fte_in_assignment",
             field_type="decimal",
-            doc=("How much FTE is this assignment worth")),
+            doc=("How much FTE is this assignment worth.  Note that agrees "
+                 "with fte_in_assignment, but not total_final_salary or "
+                 "assignment_salary. All three of these can independently be "
+                 "non-zero.")),
+        make_field(
+            name="percent_fte_in_assignment",
+            field_type="decimal",
+            doc=("What percent of the employees total FTE are in this "
+                 "assignment. Note that agrees with fte_in_assignment, but "
+                 "not total_final_salary or assignment_salary. All three of "
+                 "these can independently be non-zero.")),
         make_field(
             name="hours_per_year_in_assignment",
             field_type="decimal",
-            doc=("Assignment Hours Per Year")),
+            doc=("Assignment Hours Per Year. This seems largely informational "
+                 "It does not necessarily agree with any of "
+                 "assignment_salary, fte_in_assignment, "
+                 "percent_fte_in_assignment, or total_final_salary")),
         make_field(
             name="is_major",
             field_type="boolean",
@@ -168,11 +150,16 @@ EMPLOYEE_SCHEMA = {
             field_type="int",
             doc=("primary key")),
         make_field(
-            name="pseudonym",
+            name="obfuscated_id",
             field_type="string",
-            doc=("(logical key) more human-readable name that can be used in "
-                 "lieu of the full name. The mapping from fullname to "
-                 "pseudonym is guaranteed to be stable.")),
+            doc=("(logical key) obfuscated_id that attempts to represent one "
+                 "employee across all districts and over years. It is based "
+                 "first on the certificate number. If that is empty, it tries "
+                 "to reverts to using FirstName, MiddleName, LastName. The ID "
+                 "generation is a salted content hash and guaranteed "
+                 "stable. No real attempt to made to avoid reversing the ID "
+                 "to the original as this is public data. This structure is "
+                 "concpetually closer to a \"knock before entering\" sign.")),
         make_field(
             name="highest_degree",
             field_type="string",
@@ -251,13 +238,13 @@ CONTRACT_SCHEMA = {
 
 HIRE_STATE_SCHEMA = {
     "type": "record",
-    "name": "s275_hire_state",
-    "doc": ("Represents if an employee, in a given s275_report, is a new "
-            "hire, a continuing employee, a transfer, or a returning "
-            "employee"),
+    "name": "s275_report_employee",
+    "doc": ("Represents information about an employee that is unique to one "
+            "s275 report such as if they are a continuing, beginning, "
+            "returning, transfering, new classified-employee."),
     "fields": [
         make_field(
-            name="hire_state_id",
+            name="s275_report_employee_id",
             field_type="int",
             doc=("primary key")),
         make_field(
@@ -357,7 +344,15 @@ PRIVATE_CONTRACT_SCHEMA = {
         make_field(
             name="total_final_salary",
             field_type="decimal",
-            doc=("Final Salary for year for 1 FTE. Compare to D.6")),
+            doc=("Final Salary for year for 1 FTE. Compare to D.6. \n\n"
+                 "If the person’s assignment has changed or the person has "
+                 "terminated employment or gone on leave, updates to the "
+                 "assignment salaries and benefits are determined by what "
+                 "the individual would have earned had that individual "
+                 "remained in the same position and assignment as reported "
+                 "on October 1. However, total final salary is determined "
+                 "by payroll, not the snapshot. See example 2F on page 40 of "
+                 "2024-2025 s275 personnel reporting handbook")),
         make_field(
             name="insurance",
             field_type="decimal",
@@ -399,14 +394,16 @@ PRIVATE_ASSIGNMENT_SCHEMA = {
             name="assignment_salary",
             field_type="decimal",
             doc=("salary for this assignment")),
+
+        # The following are calculated fields.
         make_field(
-            name="assignment_salary_percentage",
+            name="inferred_assignment_salary_percentage",
             field_type="decimal",
-            doc=("Conceptually what percentage of the total compensation is "
+            doc=("Conceptually what percentage of the fte assignment is "
                  "in this assignment.  Calculated as "
-                 "total_final_salary/assignment_salary.")),
+                 "assignment_salary/sum(all assignment_salary in report).")),
         make_field(
-            name="assignment_other_salary",
+            name="inferred_assignment_other_salary",
             field_type="decimal",
             doc=("Conceptually how much of the other_salary is taken by this "
                  "assignment. This is just an estimate as the original data "
@@ -415,7 +412,7 @@ PRIVATE_ASSIGNMENT_SCHEMA = {
 
                  "Calculated as assignment_salary_percentage * other_salary")),
         make_field(
-            name="assignment_insurance",
+            name="inferred_assignment_insurance",
             field_type="decimal",
             doc=("Conceptually how much of the insurance is taken by this "
                  "assignment. This is just an estimate as insurance follows "
@@ -425,7 +422,7 @@ PRIVATE_ASSIGNMENT_SCHEMA = {
 
                  "Calcualted as assignment_salary_percentage * insruance")),
         make_field(
-            name="assignment_benefits",
+            name="inferred_assignment_benefits",
             field_type="decimal",
             doc=("Conceptually how much of the benefits is taken by this "
                  "assignment. This is just an estimate as insurance follows "
@@ -434,7 +431,7 @@ PRIVATE_ASSIGNMENT_SCHEMA = {
 
                  "Calculated as assignment_salary_percentage * benefits")),
         make_field(
-            name="assignment_total_compensation",
+            name="inferred_assignment_total_compensation",
             field_type="decimal",
             doc=("Conceptually, how much of the total compensation is taken "
                  "up by this assignment.\n\n"
