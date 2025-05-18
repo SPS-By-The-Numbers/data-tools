@@ -148,14 +148,34 @@ def verify_same_ignore_empty(current, new):
     return UpdateType.UPDATE
 
 
+def table_to_avro_rows(table, additional_tables):
+    """Converts a table entry into a single dict for avro serializaiton.
+
+    This will join fields in additional_tables by the primary key id of the
+    table.
+    """
+    for logical_key, data in table:
+        avro_row = dict(logical_key)
+        avro_row = avro_row | dict(data['fields'])
+
+        primary_key = data['id']
+        avro_row[table.pk_name] = primary_key
+
+        for t in additional_tables:
+            avro_row = avro_row | dict(t.find_by_id(primary_key)['fields'])
+
+        yield avro_row
+
+
 class Table:
-    __slots__ = ('_rows', '_next_id', '_pk_name', '_logical_key_extractors',
-                 '_other_fields_extractors')
+    __slots__ = ('_rows', '_next_id', '_id_to_logical_key', '_pk_name',
+                 '_logical_key_extractors', '_other_fields_extractors')
 
     def __init__(self, pk_name,
                  logical_key_extractors=None,
                  other_fields_extractors=None):
         self._rows = {}
+        self._id_to_logical_key = {}
         self._next_id = 0
         self.pk_name = pk_name
         self.logical_key_extractors = logical_key_extractors
@@ -167,6 +187,7 @@ class Table:
 
     @property
     def rows(self):
+        """Returns the rows dict which is indexed ty the logcal key tuple."""
         return self._rows
 
     @property
@@ -192,6 +213,9 @@ class Table:
     @other_fields_extractors.setter
     def other_fields_extractors(self, value):
         self._other_fields_extractors = value
+
+    def find_by_id(self, the_id):
+        return self.rows[self._id_to_logical_key[the_id]]
 
     def find(self, record):
         """Returns the row in that matches fields in `record`.
@@ -252,6 +276,7 @@ class Table:
             'id': new_id,
             'fields': other_fields_tuple
         }
+        self._id_to_logical_key[new_id] = logical_key_tuple
         return new_id
 
     def _extract_row_from_record(self, record):
@@ -282,9 +307,10 @@ class NormalizedS275:
             'employee_id',
             **s275_extractors.make_employee_extractors())
         self._employee_calculated_table = Table(
-            'employee_calculated_id',
+            '__not_directly_exported',
             **s275_extractors.make_employee_calculated_extractors(
                 self._employee_table))
+
         self._contract_table = Table(
             'contract_id',
             **s275_extractors.make_contract_extractors())
@@ -379,19 +405,49 @@ class NormalizedS275:
                 self._calculated_assignment_compensation[
                     entry['assignment_id']] = value
 
-    def write_table(self, outdir, schema, table, calculated_fields):
+    def write_table(self, outdir, schema, table, additional_tables=[]):
         with open(outdir / f"{schema['name']}.avro", "wb") as outfile:
             fastavro.writer(outfile,
                             fastavro.parse_schema(schema),
-                            table)
+                            table_to_avro_rows(table, additional_tables))
 
     def write_all_tables(self, outdir_str):
         outdir = Path(outdir_str)
-        self.write_all_tables(
-            path=(outdir / 'employee'),
-            table=self._employee_table,
+        self.write_table(
+            outdir=outdir,
             schema=s275.EMPLOYEE_SCHEMA,
-            calculated_fields=[self._employee_calculated_table])
+            table=self._employee_table,
+            additional_tables=[self._employee_calculated_table])
+
+        self.write_table(
+            outdir=outdir,
+            schema=s275.CONTRACT_SCHEMA,
+            table=self._contract_table)
+
+        self.write_table(
+            outdir=outdir,
+            schema=s275.ASSIGNMENT_SCHEMA,
+            table=self._assignment_table)
+
+        self.write_table(
+            outdir=outdir,
+            schema=s275.S275_REPORT_EMPLOYEE_SCHEMA,
+            table=self._s275_report_employee_table)
+
+        self.write_table(
+            outdir=outdir,
+            schema=s275.PRIVATE_EMPLOYEE_SCHEMA,
+            table=self._private_employee_data_table)
+
+        self.write_table(
+            outdir=outdir,
+            schema=s275.PRIVATE_CONTRACT_SCHEMA,
+            table=self._private_contract_table)
+
+        self.write_table(
+            outdir=outdir,
+            schema=s275.PRIVATE_ASSIGNMENT_SCHEMA,
+            table=self._private_assignment_table)
 
 
 def main():

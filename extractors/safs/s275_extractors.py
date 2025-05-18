@@ -8,6 +8,14 @@ def passthru(record, source):
     return record[source]
 
 
+def to_int(record, source):
+    """Just pass through the data value unchanged"""
+    if record[source]:
+        return int(record[source])
+
+    return None
+
+
 def decode_cbrtn(record, source):
     """Just pass through the data value unchanged"""
     src_val = record[source].upper()
@@ -51,6 +59,11 @@ class ExtractorConfig:
         Returns:  "assignment_salary", Decimal(1.23)
         """
         return self._target, self._extractor(record, self._source)
+
+
+def one_to_boolean(record, source):
+    """Converts a "1" value ot True. Everything else is False"""
+    return record[source] == '1'
 
 
 def y_n_to_boolean(record, source):
@@ -198,7 +211,7 @@ def make_assignment_extractors(s275_report_table, employee_table,
         ExtractorConfig(target="duty_root_code", source="droot"),
         ExtractorConfig(target="duty_suffix_code", source="dsufx"),
         ExtractorConfig(target="grade", source="grade"),
-        ExtractorConfig(target="s275_recno", source="recno"),
+        ExtractorConfig(target="s275_recno", source="recno", extractor=to_int),
     ]
 
     assignment_other_fields = [
@@ -210,7 +223,8 @@ def make_assignment_extractors(s275_report_table, employee_table,
                         source="asspct"),
         ExtractorConfig(target="hours_per_year_in_assignment",
                         source="asshpy"),
-        ExtractorConfig(target="is_major", source="major"),
+        ExtractorConfig(target="is_major", source="major",
+                        extractor=one_to_boolean),
     ]
 
     return {'logical_key_extractors': assignment_logical_key,

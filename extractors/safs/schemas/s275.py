@@ -19,7 +19,7 @@ ASSIGNMENT_SCHEMA = {
             doc=("which s275 report this belongs to")),
         make_field(
             name="employee_id",
-            field_type="string",
+            field_type="int",
             doc=("(logical primary key part) employee this assignment "
                  "belongs to")),
         make_field(
@@ -161,21 +161,25 @@ EMPLOYEE_SCHEMA = {
                  "to the original as this is public data. This structure is "
                  "concpetually closer to a \"knock before entering\" sign.")),
         make_field(
-            name="highest_degree",
+            name="c_highest_degree",
             field_type="string",
-            doc=("Highest degree received by this employee")),
+            doc=("Inferred most recent value of the Highest degree received "
+                 "by this employee")),
         make_field(
-            name="highest_degree_year",
+            name="c_highest_degree_year",
             field_type="string",
-            doc=("year the highest degree is received")),
+            doc=("Inferred most recent value year the highest degree is "
+                 "received")),
         make_field(
-            name="experience_years",
+            name="c_experience_years",
             field_type="decimal",
-            doc=("number of years of experience")),
+            doc=("Inferred most recent value of number of years of "
+                 "experience")),
         make_field(
-            name="nbpts_certificate_expiration",
+            name="c_nbpts_certificate_expiration",
             field_type="timestamp",
-            doc=("For teachers and other certificated instructional staff "
+            doc=("Inferred most recent value of For teachers and other "
+                 "certificated instructional staff "
                  "(CIS) who hold, or held, current certification by the "
                  "NBPTS, report the expiration date of the national board "
                  "certification in year-month-day"))
@@ -236,7 +240,7 @@ CONTRACT_SCHEMA = {
     ]
 }
 
-HIRE_STATE_SCHEMA = {
+S275_REPORT_EMPLOYEE_SCHEMA = {
     "type": "record",
     "name": "s275_report_employee",
     "doc": ("Represents information about an employee that is unique to one "
@@ -253,7 +257,7 @@ HIRE_STATE_SCHEMA = {
             doc=("s275_report this belongs to")),
         make_field(
             name="employee_id",
-            field_type="string",
+            field_type="int",
             doc=("employee this belongs to")),
         make_field(
             name="hire_state",
@@ -286,17 +290,36 @@ HIRE_STATE_SCHEMA = {
 
                  "New = An employee with only classified assignments that "
                  "was not reported by the reporting district for the "
-                 "previous school year."))
+                 "previous school year.")),
+        make_field(
+            name="highest_degree",
+            field_type="string",
+            doc=("Highest degree received by this employee")),
+        make_field(
+            name="highest_degree_year",
+            field_type="string",
+            doc=("year the highest degree is received")),
+        make_field(
+            name="experience_years",
+            field_type="decimal",
+            doc=("number of years of experience")),
+        make_field(
+            name="nbpts_certificate_expiration",
+            field_type="timestamp",
+            doc=("For teachers and other certificated instructional staff "
+                 "(CIS) who hold, or held, current certification by the "
+                 "NBPTS, report the expiration date of the national board "
+                 "certification in year-month-day"))
     ]
 }
 
 PRIVATE_EMPLOYEE_SCHEMA = {
     "type": "record",
-    "name": "s275_private_employee",
+    "name": "s275_private_employee_data",
     "doc": "Contains full name and demographics of the associated Employee",
     "fields": [
         make_field(
-            name="private_employee_id",
+            name="private_employee_data_id",
             field_type="int",
             doc=("primary key")),
         make_field(
