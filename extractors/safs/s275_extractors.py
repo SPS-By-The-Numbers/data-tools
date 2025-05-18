@@ -1,7 +1,5 @@
 import logging
 
-from decimal import Decimal
-
 logger = logging.getLogger(__name__)
 
 
@@ -31,6 +29,8 @@ def decode_cbrtn(record, source):
 
 
 class ExtractorConfig:
+    __slots__ = '_source', '_target', '_extractor'
+
     def __init__(self, source=None, target=None,
                  extractor=passthru):
         self._source = source
@@ -51,47 +51,6 @@ class ExtractorConfig:
         Returns:  "assignment_salary", Decimal(1.23)
         """
         return self._target, self._extractor(record, self._source)
-
-
-def calc_assignment_salary_percentage(record, source):
-    total_final_salary = record['tfinsal']
-    assignment_salary = record['asssal']
-
-    # Sometimes both values are zero.
-    if assignment_salary is None or assignment_salary.is_zero():
-        return Decimal(0)
-
-    if total_final_salary is None or total_final_salary.is_zero():
-        logger.error(f'{assignment_salary} / {total_final_salary}')
-        return Decimal(0)
-
-    return assignment_salary / total_final_salary
-
-
-def calc_assignment_other_salary(record, source):
-    percent = calc_assignment_salary_percentage(record, source)
-    other_salary = record['othersal']
-    return percent * other_salary
-
-
-def calc_assignment_insurance(record, source):
-    percent = calc_assignment_salary_percentage(record, source)
-    insurance = record['cins']
-    return percent * insurance
-
-
-def calc_assignment_benefits(record, source):
-    percent = calc_assignment_salary_percentage(record, source)
-    benefits = record['cman']
-    return percent * benefits
-
-
-def calc_assignment_total_compensation(record, source):
-    assignment_salary = record['asssal']
-    return (assignment_salary +
-            calc_assignment_other_salary(record, source) +
-            calc_assignment_insurance(record, source) +
-            calc_assignment_benefits(record, source))
 
 
 def y_n_to_boolean(record, source):
@@ -162,18 +121,28 @@ def make_employee_extractors():
         ExtractorConfig(target="obfuscated_id", source=None,
                         extractor=make_obfuscated_id),
     ]
+    return {'logical_key_extractors': employee_logical_key}
 
-    employee_inferred_fields = [
-        ExtractorConfig(target="inferred_highest_degree", source="hdeg"),
-        ExtractorConfig(target="inferred_highest_degree_year", source="hyear"),
-        ExtractorConfig(target="inferred_experience_years", source="exp"),
-        ExtractorConfig(target="inferred_nbpts_certificate_expiration",
-                        source="inferred_NBcertexpdate",
+
+def make_employee_calculated_extractors(employee_table):
+    employee_logical_key = [
+        ExtractorConfig(target="employee_id", source=None,
+                        extractor=employee_table.find_id),
+    ]
+
+    employee_other_fields = [
+        ExtractorConfig(target="c_record_year", source="SchoolYear"),
+        ExtractorConfig(target="c_record_ccddd", source="codist"),
+        ExtractorConfig(target="c_highest_degree", source="hdeg"),
+        ExtractorConfig(target="c_highest_degree_year", source="hyear"),
+        ExtractorConfig(target="c_experience_years", source="exp"),
+        ExtractorConfig(target="c_nbpts_certificate_expiration",
+                        source="c_NBcertexpdate",
                         extractor=parse_datetime)
     ]
 
     return {'logical_key_extractors': employee_logical_key,
-            'inferred_fields_extractors': employee_inferred_fields}
+            'other_fields_extractors': employee_other_fields}
 
 
 def make_s275_report_extractors():
@@ -318,19 +287,5 @@ def make_private_assignment_extractors(assignment_table,
         ExtractorConfig(target="assignment_salary", source="asssal"),
     ]
 
-    private_assignment_inferred_fields = [
-        ExtractorConfig(target="inferred_assignment_salary_percentage",
-                        extractor=calc_assignment_salary_percentage),
-        ExtractorConfig(target="inferred_assignment_other_salary",
-                        extractor=calc_assignment_other_salary),
-        ExtractorConfig(target="inferred_assignment_insurance",
-                        extractor=calc_assignment_insurance),
-        ExtractorConfig(target="inferred_assignment_benefits",
-                        extractor=calc_assignment_benefits),
-        ExtractorConfig(target="inferred_assignment_total_compensation",
-                        extractor=calc_assignment_total_compensation),
-    ]
-
     return {'logical_key_extractors': private_assignment_logical_key,
-            'other_fields_extractors': private_assignment_other_fields,
-            'inferred_fields_extractors': private_assignment_inferred_fields}
+            'other_fields_extractors': private_assignment_other_fields}

@@ -7,8 +7,10 @@ import logging
 from . import s275_extractors
 
 from enum import Enum
+from decimal import Decimal
+from pathlib import Path
 from ..common import common_logging_setup, get_args
-# from .schemas import s275
+from .schemas import s275
 
 logger = logging.getLogger(__name__)
 
@@ -18,6 +20,25 @@ class UpdateType(Enum):
     NO_CHANGE = 2
     NEW_IS_EMPTY = 3
     ERROR = 4
+
+
+def safe_div(a, b):
+    """returns a/b. If b is 0, returns 0."""
+    if b.is_zero():
+        return Decimal(0)
+
+    return a / b
+
+
+def get_decimal(record, field):
+    if field not in record:
+        return Decimal(0)
+
+    value = record[field]
+    if not value:
+        return Decimal(0)
+
+    return value
 
 
 def has_value(a_tuple):
@@ -56,32 +77,55 @@ def cmp_field(current, new, field):
         return 1
 
 
+def cmp_field_update_if_greater(current, new, field):
+    school_year_cmp = cmp_field(current, new, field)
+    if school_year_cmp == -1:
+        return UpdateType.NO_CHANGE
+    elif school_year_cmp == 1:
+        return UpdateType.UPDATE
+
+    return None
+
+
+def _employee_update_by_value(current, new):
+    # Use the latest School Year record.
+    result = cmp_field_update_if_greater(current, new, 'SchoolYear')
+    if result is not None:
+        return result
+
+    # Highest degree year seems strongest signal.
+    result = cmp_field_update_if_greater(current, new, 'highest_degree_year')
+    if result is not None:
+        return result
+
+    # Experience years next strongest signal.
+    result = cmp_field_update_if_greater(current, new, 'experience_years')
+    if result is not None:
+        return result
+
+    # This is weak, but at least it is something.
+    result = cmp_field_update_if_greater(current, new,
+                                         'nbpts_certificate_expiration')
+    if result is not None:
+        return result
+
+    # Otherwise pick the ccddd with the largest number so at least this is
+    # somewhat consistent on what is chosen.
+    result = cmp_field_update_if_greater(current, new, 'codist')
+    if result is not None:
+        return result
+
+    return UpdateType.NO_CHANGE
+
+
 def employee_update(current_tuple, new_tuple):
     if current_tuple == new_tuple:
         return UpdateType.NO_CHANGE
 
     current = dict(current_tuple)
     new = dict(new_tuple)
-    hyear_cmp = cmp_field(current_tuple, new, 'highest_degree_year')
 
-    if hyear_cmp == -1:
-        return UpdateType.NO_CHANGE
-    elif hyear_cmp == 1:
-        return UpdateType.UPDATE
-
-    exp_cmp = cmp_field(current, new, 'experience_years')
-    if exp_cmp == -1:
-        return UpdateType.NO_CHANGE
-    elif exp_cmp == 1:
-        return UpdateType.UPDATE
-
-    nb_cert_exp = cmp_field(current, new, 'nbpts_certificate_expiration')
-    if nb_cert_exp == -1:
-        return UpdateType.NO_CHANGE
-    elif nb_cert_exp == 1:
-        return UpdateType.UPDATE
-
-    return UpdateType.NO_CHANGE
+    return _employee_update_by_value(current, new)
 
 
 def verify_same(current, new):
@@ -105,16 +149,25 @@ def verify_same_ignore_empty(current, new):
 
 
 class Table:
+    __slots__ = ('_rows', '_next_id', '_pk_name', '_logical_key_extractors',
+                 '_other_fields_extractors')
+
     def __init__(self, pk_name,
                  logical_key_extractors=None,
-                 other_fields_extractors=None,
-                 inferred_fields_extractors=None):
+                 other_fields_extractors=None):
         self._rows = {}
         self._next_id = 0
         self.pk_name = pk_name
         self.logical_key_extractors = logical_key_extractors
         self.other_fields_extractors = other_fields_extractors
-        self.inferred_fields_extractors = inferred_fields_extractors
+
+    def __iter__(self):
+        for row in self._rows.items():
+            yield row
+
+    @property
+    def rows(self):
+        return self._rows
 
     @property
     def pk_name(self):
@@ -139,14 +192,6 @@ class Table:
     @other_fields_extractors.setter
     def other_fields_extractors(self, value):
         self._other_fields_extractors = value
-
-    @property
-    def inferred_fields_extractors(self):
-        return self._inferred_fields_extractors
-
-    @inferred_fields_extractors.setter
-    def inferred_fields_extractors(self, value):
-        self._inferred_fields_extractors = value
 
     def find(self, record):
         """Returns the row in that matches fields in `record`.
@@ -226,13 +271,20 @@ class Table:
 
 class NormalizedS275:
     def __init__(self):
+        # Key is _assignment_table id. Is a 1:1 mapping.
+        self._calculated_assignment_compensation = {}
+
+        # Tables for holding data read from the avro files.
         self._s275_report_table = Table(
             's275_report_id',
             **s275_extractors.make_s275_report_extractors())
-
         self._employee_table = Table(
             'employee_id',
             **s275_extractors.make_employee_extractors())
+        self._employee_calculated_table = Table(
+            'employee_calculated_id',
+            **s275_extractors.make_employee_calculated_extractors(
+                self._employee_table))
         self._contract_table = Table(
             'contract_id',
             **s275_extractors.make_contract_extractors())
@@ -242,7 +294,7 @@ class NormalizedS275:
                 self._s275_report_table,
                 self._employee_table,
                 self._contract_table))
-        self._employee_data_table = Table(
+        self._s275_report_employee_table = Table(
             's275_report_employee_id',
             **s275_extractors.make_s275_report_employee_extractors(
                 self._s275_report_table,
@@ -263,29 +315,83 @@ class NormalizedS275:
                 self._assignment_table,
                 self._private_contract_table))
 
-    def merge_file(self, f):
+    def merge(self, f):
         reader = fastavro.reader(f)
+        assignment_accumulators = {}
         for record in reader:
             self._s275_report_table.upsert(record)
             self._employee_table.upsert(record)
+            self._employee_calculated_table.upsert(
+                record,
+                update_disposition=employee_update)
             self._contract_table.upsert(record)
             self._assignment_table.upsert(record)
-            self._employee_data_table.upsert(record)
+            s275_employee_id = self._s275_report_employee_table.upsert(record)
             self._private_employee_data_table.upsert(record)
             self._private_contract_table.upsert(record)
-            self._private_assignment_table.upsert(record)
+            assignment_id = self._private_assignment_table.upsert(record)
 
-    def infer_data(self):
-        """This is basically a beefed up reduce() call."""
-        context = {}
-        self._s275_report_table.infer_data(self, context)
-        self._employee_table.infer_data(self, context)
-        self._contract_table.infer_data(self, context)
-        self._assignment_table.infer_data(self, context)
-        self._employee_data_table.infer_data(self, context)
-        self._private_employee_data_table.infer_data(self, context)
-        self._private_contract_table.infer_data(self, context)
-        self._private_assignment_table.infer_data(self, context)
+            # Find accumulator for assignments
+            if s275_employee_id in assignment_accumulators:
+                accumulator = assignment_accumulators[s275_employee_id]
+            else:
+                accumulator = assignment_accumulators[s275_employee_id] = {
+                    'total_assignment_salary': Decimal('0'),
+                    'assignment_entries': []
+                }
+
+            # Accumulate the total assignment salary for a record.
+            assignment_salary = get_decimal(record, 'asssal')
+            accumulator['assignment_entries'].append({
+                'assignment_id': assignment_id,
+                'assignment_salary': assignment_salary,
+                'benefits': get_decimal(record, 'cman'),
+                'insurance': get_decimal(record, 'cins'),
+                'other_salary': get_decimal(record, 'othersal'),
+                'total_final_salary': get_decimal(record, 'tfinsal'),
+            })
+            accumulator['total_assignment_salary'] += assignment_salary
+
+        # Fill in the assignment salary table.
+        for _, accumulator in assignment_accumulators.items():
+            total_assignment_salary = accumulator['total_assignment_salary']
+            for entry in accumulator['assignment_entries']:
+                assignment_percent = safe_div(entry['assignment_salary'],
+                                              total_assignment_salary)
+                assignment_other_salary = (entry['other_salary'] *
+                                           assignment_percent)
+                assignment_insurance = (entry['insurance'] *
+                                        assignment_percent)
+                assignment_benefits = (entry['benefits'] * assignment_percent)
+                value = {
+                    "c_assignment_salary_percentage": assignment_percent,
+                    "c_assignment_other_salary": assignment_other_salary,
+                    "c_assignment_insurance": assignment_insurance,
+                    "c_assignment_benefits": assignment_benefits,
+                    "c_assignment_total_compensation": (
+                        assignment_salary +
+                        assignment_other_salary +
+                        assignment_insurance +
+                        assignment_benefits
+                    ),
+                }
+
+                self._calculated_assignment_compensation[
+                    entry['assignment_id']] = value
+
+    def write_table(self, outdir, schema, table, calculated_fields):
+        with open(outdir / f"{schema['name']}.avro", "wb") as outfile:
+            fastavro.writer(outfile,
+                            fastavro.parse_schema(schema),
+                            table)
+
+    def write_all_tables(self, outdir_str):
+        outdir = Path(outdir_str)
+        self.write_all_tables(
+            path=(outdir / 'employee'),
+            table=self._employee_table,
+            schema=s275.EMPLOYEE_SCHEMA,
+            calculated_fields=[self._employee_calculated_table])
 
 
 def main():
@@ -304,9 +410,9 @@ def main():
 
     normalized_s275 = NormalizedS275()
     for f in args.infiles:
-        normalized_s275.merge_file(f)
+        normalized_s275.merge(f)
 
-    normalized_s275.infer_data()
+    normalized_s275.write_all_tables(args.outdir)
 
 
 if __name__ == '__main__':
