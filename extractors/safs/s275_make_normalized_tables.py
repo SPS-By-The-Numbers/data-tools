@@ -4,15 +4,65 @@ import argparse
 import fastavro
 import logging
 
-from . import s275_extractors
-
-from enum import Enum
-from decimal import Decimal
-from pathlib import Path
 from ..common import common_logging_setup, get_args
 from .schemas import s275
+from decimal import Decimal
+from enum import Enum
+from pathlib import Path
+from sqlalchemy import Column
+from sqlalchemy import create_engine
+from sqlalchemy import ForeignKey
+from sqlalchemy import Table
+from sqlalchemy import types
+from sqlalchemy import UniqueConstraint
+from sqlalchemy.orm import DeclarativeBase
 
 logger = logging.getLogger(__name__)
+
+
+def make_table(schema):
+    return Table(
+        schema["name"],
+        Base.metadata,
+        *to_sqlalchemy_columns(schema),
+        *to_sqlalchemy_constraints(schema)
+    )
+
+
+class Base(DeclarativeBase):
+    pass
+
+
+class Report(Base):
+    __table__ = make_table(s275.REPORT_SCHEMA)
+
+
+class ReportEmployee(Base):
+    __table__ = make_table(s275.REPORT_EMPLOYEE_SCHEMA)
+
+
+class Employee(Base):
+    __table__ = make_table(s275.EMPLOYEE_SCHEMA)
+
+
+class Contract(Base):
+    __table__ = make_table(s275.CONTRACT_SCHEMA)
+
+
+class Assignment(Base):
+    __table__ = make_table(s275.ASSIGNMENT_SCHEMA)
+
+
+class PrivateEmployee(Base):
+    __table__ = make_table(s275.PRIVATE_EMPLOYEE_SCHEMA)
+
+
+class PrivateContract(Base):
+    __table__ = make_table(s275.PRIVATE_CONTRACT_SCHEMA)
+
+
+class PrivateAssignment(Base):
+    __table__ = make_table(s275.PRIVATE_ASSIGNMENT_SCHEMA)
 
 
 class UpdateType(Enum):
@@ -148,6 +198,34 @@ def verify_same_ignore_empty(current, new):
     return UpdateType.UPDATE
 
 
+def _record_to_fields(record, schema):
+    fields = {}
+
+    # Extract every field that can be gotten from the record.
+    for f in schema['fields']:
+        # Skip automatic primary keys and foreign keys. Those do not come
+        # from the record.
+        if f['field_type'] == 'auto_primary_key' or 'foreign_key' in f:
+            continue
+
+        source = f.get('source', None)
+        extractor = f.get('extractor', None)
+
+        if extractor is None:
+            if source is None:
+                # No source or extractor? Must not come from the record.
+                value = None
+            else:
+                # Default to the passthru extrator.
+                value = s275.passthru(record, source)
+        else:
+            value = extractor(record, source)
+
+        fields[f['name']] = value
+
+    return fields
+
+
 def table_to_avro_rows(table, additional_tables):
     """Converts a table entry into a single dict for avro serializaiton.
 
@@ -167,185 +245,24 @@ def table_to_avro_rows(table, additional_tables):
         yield avro_row
 
 
-class Table:
-    __slots__ = ('_rows', '_next_id', '_id_to_logical_key', '_pk_name',
-                 '_logical_key_extractors', '_other_fields_extractors')
-
-    def __init__(self, pk_name,
-                 logical_key_extractors=None,
-                 other_fields_extractors=None):
-        self._rows = {}
-        self._id_to_logical_key = {}
-        self._next_id = 0
-        self.pk_name = pk_name
-        self.logical_key_extractors = logical_key_extractors
-        self.other_fields_extractors = other_fields_extractors
-
-    def __iter__(self):
-        for row in self._rows.items():
-            yield row
-
-    @property
-    def rows(self):
-        """Returns the rows dict which is indexed ty the logcal key tuple."""
-        return self._rows
-
-    @property
-    def pk_name(self):
-        return self._pk_name
-
-    @pk_name.setter
-    def pk_name(self, value):
-        self._pk_name = value
-
-    @property
-    def logical_key_extractors(self):
-        return self._logical_key_extractors
-
-    @logical_key_extractors.setter
-    def logical_key_extractors(self, value):
-        self._logical_key_extractors = value
-
-    @property
-    def other_fields_extractors(self):
-        return self._other_fields_extractors
-
-    @other_fields_extractors.setter
-    def other_fields_extractors(self, value):
-        self._other_fields_extractors = value
-
-    def find_by_id(self, the_id):
-        return self.rows[self._id_to_logical_key[the_id]]
-
-    def find(self, record):
-        """Returns the row in that matches fields in `record`.
-
-        Returns None if row does not exist.
-        """
-        logical_key_tuple, _ = self._extract_row_from_record(record)
-        if logical_key_tuple in self._rows:
-            return self._rows[logical_key_tuple]
-
-        return None
-
-    def find_id(self, record, _):
-        """Returns the primary key for the row that matches fields in `record`.
-
-        Returns None if row does not exist.
-        """
-        logical_key_tuple, _ = self._extract_row_from_record(record)
-        if logical_key_tuple in self._rows:
-            return self._rows[logical_key_tuple]['id']
-
-        return None
-
-    def upsert(self, record, update_disposition=verify_same):
-        logical_key_tuple, other_fields_tuple = self._extract_row_from_record(
-            record)
-
-        if logical_key_tuple in self._rows:
-            # Update
-            current = self._rows[logical_key_tuple]
-            update_type = update_disposition(current['fields'],
-                                             other_fields_tuple)
-            match update_type:
-                case UpdateType.ERROR:
-                    logger.warning(f"Update failed for {logical_key_tuple}\n"
-                                   f"\tfrom\n\t{current} to\n"
-                                   f"\t{record}.\n\n"
-                                   f"Specifically from \n"
-                                   f"\t{current['fields']} to\n"
-                                   f"\t{other_fields_tuple}")
-
-                case UpdateType.UPDATE:
-                    current['fields'] = other_fields_tuple
-
-                case UpdateType.NO_CHANGE:
-                    pass
-
-                case UpdateType.NEW_IS_EMPTY:
-                    pass
-
-            return current['id']
-
-        # New item
-        new_id = self._next_id
-        self._next_id = self._next_id + 1
-
-        self._rows[logical_key_tuple] = {
-            'id': new_id,
-            'fields': other_fields_tuple
-        }
-        self._id_to_logical_key[new_id] = logical_key_tuple
-        return new_id
-
-    def _extract_row_from_record(self, record):
-        """Take a record and extracts a row from the fields"""
-        logical_key_builder = []
-        other_fields_builder = []
-
-        for extractor in self.logical_key_extractors:
-            logical_key_builder.append(extractor.extract(record))
-
-        if self.other_fields_extractors:
-            for extractor in self.other_fields_extractors:
-                other_fields_builder.append(extractor.extract(record))
-
-        return tuple(logical_key_builder), tuple(other_fields_builder)
-
-
 class NormalizedS275:
     def __init__(self):
+        self._engine = create_engine(
+            "postgresql+psycopg2://albert:@localhost/albert",
+            echo=True).execution_options(autocommit=False)
+
         # Key is _assignment_table id. Is a 1:1 mapping.
         self._calculated_assignment_compensation = {}
 
-        # Tables for holding data read from the avro files.
-        self._s275_report_table = Table(
-            's275_report_id',
-            **s275_extractors.make_s275_report_extractors())
-        self._employee_table = Table(
-            'employee_id',
-            **s275_extractors.make_employee_extractors())
-        self._employee_calculated_table = Table(
-            '__not_directly_exported',
-            **s275_extractors.make_employee_calculated_extractors(
-                self._employee_table))
-
-        self._contract_table = Table(
-            'contract_id',
-            **s275_extractors.make_contract_extractors())
-        self._assignment_table = Table(
-            'assignment_id',
-            **s275_extractors.make_assignment_extractors(
-                self._s275_report_table,
-                self._employee_table,
-                self._contract_table))
-        self._s275_report_employee_table = Table(
-            's275_report_employee_id',
-            **s275_extractors.make_s275_report_employee_extractors(
-                self._s275_report_table,
-                self._employee_table))
-
-        self._private_employee_data_table = Table(
-            'private_employee_data_id',
-            **s275_extractors.make_private_employee_data_extractors(
-                self._s275_report_table,
-                self._employee_table))
-        self._private_contract_table = Table(
-            'private_contract_id',
-            **s275_extractors.make_private_contract_extractors(
-                self._contract_table))
-        self._private_assignment_table = Table(
-            'private_assignment_id',
-            **s275_extractors.make_private_assignment_extractors(
-                self._assignment_table,
-                self._private_contract_table))
+    def create_tables(self):
+        Base.metadata.create_all(self._engine)
 
     def merge(self, f):
         reader = fastavro.reader(f)
         assignment_accumulators = {}
         for record in reader:
-            self._s275_report_table.upsert(record)
+            Report(**self._record_to_fields(s275.REPORT_SCHEMA))
+            break
             self._employee_table.upsert(record)
             self._employee_calculated_table.upsert(
                 record,
@@ -412,6 +329,7 @@ class NormalizedS275:
                             table_to_avro_rows(table, additional_tables))
 
     def write_all_tables(self, outdir_str):
+        return
         outdir = Path(outdir_str)
         self.write_table(
             outdir=outdir,
@@ -448,6 +366,111 @@ class NormalizedS275:
             outdir=outdir,
             schema=s275.PRIVATE_ASSIGNMENT_SCHEMA,
             table=self._private_assignment_table)
+
+    def upsert(self, record, update_disposition=verify_same):
+        logical_key_tuple, other_fields_tuple = self._extract_row_from_record(
+            record)
+
+        if logical_key_tuple in self._rows:
+            # Update
+            current = self._rows[logical_key_tuple]
+            update_type = update_disposition(current['fields'],
+                                             other_fields_tuple)
+            match update_type:
+                case UpdateType.ERROR:
+                    logger.warning(f"Update failed for {logical_key_tuple}\n"
+                                   f"\tfrom\n\t{current} to\n"
+                                   f"\t{record}.\n\n"
+                                   f"Specifically from \n"
+                                   f"\t{current['fields']} to\n"
+                                   f"\t{other_fields_tuple}")
+
+                case UpdateType.UPDATE:
+                    current['fields'] = other_fields_tuple
+
+                case UpdateType.NO_CHANGE:
+                    pass
+
+                case UpdateType.NEW_IS_EMPTY:
+                    pass
+
+            return current['id']
+
+        # New item
+        new_id = self._next_id
+        self._next_id = self._next_id + 1
+
+        self._rows[logical_key_tuple] = {
+            'id': new_id,
+            'fields': other_fields_tuple
+        }
+        self._id_to_logical_key[new_id] = logical_key_tuple
+        return new_id
+
+
+def to_sqlalchemy_type(field_type):
+    match field_type:
+        case 'auto_primary_key':
+            return types.Integer
+
+        case 'decimal':
+            return types.DECIMAL(38, 9)
+
+        case 'timestamp':
+            return types.TIMESTAMP
+
+        case 'string':
+            return types.TEXT
+
+        case 'boolean':
+            return types.BOOLEAN
+
+        case 'int':
+            return types.INTEGER
+
+
+def to_sqlalchemy_columns(schema):
+    columns = []
+
+    for f in schema["fields"]:
+        name = f["name"]
+        field_type = f["field_type"]
+        sqlalchemy_type = to_sqlalchemy_type(field_type)
+        is_primary = False
+        autoincrement = False
+        if field_type == "auto_primary_key":
+            autoincrement = True
+            is_primary = True
+
+        if f.get('is_primary_key', False):
+            # Always let someone specify a column is part of the primary key.
+            is_primary = True
+
+        if "foreign_key" in f:
+            columns.append(Column(name,
+                                  sqlalchemy_type,
+                                  ForeignKey(f["foreign_key"]),
+                                  nullable=True,
+                                  doc=f["doc"],
+                                  primary_key=is_primary,
+                                  autoincrement=autoincrement))
+        else:
+            columns.append(Column(name,
+                                  sqlalchemy_type,
+                                  nullable=True,
+                                  doc=f["doc"],
+                                  primary_key=is_primary,
+                                  autoincrement=autoincrement))
+
+    return columns
+
+
+def to_sqlalchemy_constraints(schema):
+    constraints = []
+    for fields in schema.get("unique", []):
+        constraints.append(UniqueConstraint(*fields))
+
+    return constraints
 
 
 def main():
