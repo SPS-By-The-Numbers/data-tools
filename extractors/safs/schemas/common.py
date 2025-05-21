@@ -1,4 +1,4 @@
-def make_field(name, field_type, doc=None, default=None):
+def make_field(name, field_type, doc=None, default=None, primary_key=False):
     """Given a name and field_type, produces the right AVRO field definition"""
     if field_type == 'decimal':
         schema_type = [
@@ -28,5 +28,6 @@ def make_field(name, field_type, doc=None, default=None):
         "default": None,
         "name": name,
         "type": schema_type,
-        "doc": doc
+        "doc": doc,
+        "_orig_type": field_type
     }
