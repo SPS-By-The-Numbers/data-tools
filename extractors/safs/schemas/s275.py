@@ -10,6 +10,11 @@ def passthru(record, source):
     return record[source]
 
 
+def to_int(record, source):
+    """Reads the value as an int"""
+    return int(record[source])
+
+
 def percent_to_number(record, source):
     """Some percetage values are in %. Make it into a decimal"""
     if record[source]:
@@ -119,6 +124,7 @@ REPORT_SCHEMA = {
             "name": "school_year_code",
             "field_type": "string",
             "source": "SchoolYear",
+            "is_logical_key": True,
             "doc": ("(logical key part) school year this report is for. "
                     "Ex 2023-2024")
         },
@@ -126,6 +132,7 @@ REPORT_SCHEMA = {
             "name": "ccddd",
             "source": "codist",
             "field_type": "int",
+            "is_logical_key": True,
             "doc": ("(logical key part) OSPI County Disrict Code")
         },
         {
@@ -136,7 +143,7 @@ REPORT_SCHEMA = {
         },
         {
             "name": "district_code",
-            "source": "dist",
+            "source": "dis",
             "field_type": "int",
             "doc": ("district_code for convenience. ddd part of ccddd")
         },
@@ -163,8 +170,7 @@ REPORT_SCHEMA = {
             "doc": ("ceri timestamp in S275. With crasdate seems to "
                     "creation or update timestamp?")
         }
-    ],
-    "unique": [["school_year_code", "ccddd"]],
+    ]
 }
 
 
@@ -186,6 +192,7 @@ EMPLOYEE_SCHEMA = {
         {
             "name": "obfuscated_id",
             "field_type": "string",
+            "is_logical_key": True,
             "extractor": make_obfuscated_id,
             "doc": (
                 "(logical key) obfuscated_id that attempts to represent one "
@@ -235,7 +242,6 @@ EMPLOYEE_SCHEMA = {
             "doc": ("county and district code of record these fields are from")
         },
     ],
-    "unique": [["obfuscated_id"]],
 }
 
 CONTRACT_SCHEMA = {
@@ -256,6 +262,7 @@ CONTRACT_SCHEMA = {
             "name": "fte_hours",
             "source": "ftehrs",
             "field_type": "decimal",
+            "is_logical_key": True,
             "doc": ("(logical key) Usually same for all certificated "
                     "employees in the district. Only for duties 110 to 640.")
         },
@@ -263,6 +270,7 @@ CONTRACT_SCHEMA = {
             "name": "fte_days",
             "source": "ftedays",
             "field_type": "decimal",
+            "is_logical_key": True,
             "doc": ("(logical key) Usually same for all certificated "
                     "employees in the district. Only for duties 110 to 640.")
         },
@@ -270,6 +278,7 @@ CONTRACT_SCHEMA = {
             "name": "certificated_fte",
             "source": "certfte",
             "field_type": "decimal",
+            "is_logical_key": True,
             "doc": ("(logical key) Full-time equivalent (FTE) certificated "
                     "employment is determined as defined in WAC 392-121-212.  "
                     "Only for duties 110 to 640.")
@@ -278,6 +287,7 @@ CONTRACT_SCHEMA = {
             "name": "classified_fte",
             "source": "clasfte",
             "field_type": "decimal",
+            "is_logical_key": True,
             "doc": ("(logical key) Not in the S275 manual, but probably "
                     "similar to certfte just suing clasbase instead")
         },
@@ -285,18 +295,21 @@ CONTRACT_SCHEMA = {
             "name": "certificated_base_hours",
             "source": "certbase",
             "field_type": "decimal",
+            "is_logical_key": True,
             "doc": ("(logical key) Used to calculate certificated_fte")
         },
         {
             "name": "classified_base_hours",
             "source": "clasbase",
             "field_type": "decimal",
+            "is_logical_key": True,
             "doc": ("(logical key) Used to calculate clas_fte")
         },
         {
             "name": "is_classified",
             "source": "clasflag",
             "field_type": "boolean",
+            "is_logical_key": True,
             "extractor": y_n_to_boolean,
             "doc": ("(logical key) Is Classified")
         },
@@ -304,13 +317,11 @@ CONTRACT_SCHEMA = {
             "name": "is_certificated",
             "source": "certflag",
             "field_type": "boolean",
+            "is_logical_key": True,
             "extractor": y_n_to_boolean,
             "doc": ("(logical key) Is Certificated")
         }
     ],
-    "unique": [["fte_hours", "fte_days", "certificated_fte", "classified_fte",
-                "certificated_base_hours", "classified_base_hours",
-                "is_classified", "is_certificated"]],
 }
 
 REPORT_EMPLOYEE_SCHEMA = {
@@ -328,12 +339,14 @@ REPORT_EMPLOYEE_SCHEMA = {
             "name": "report_id",
             "field_type": "int",
             "foreign_key": "s275_report.report_id",
+            "is_logical_key": True,
             "doc": ("s275_report this belongs to")
         },
         {
             "name": "employee_id",
             "field_type": "int",
             "foreign_key": "s275_employee.employee_id",
+            "is_logical_key": True,
             "doc": ("employee this belongs to")
         },
         {
@@ -366,7 +379,7 @@ REPORT_EMPLOYEE_SCHEMA = {
         },
         {
             "name": "hire_state",
-            "source": "hire_state",
+            "source": "cbrtn",
             "field_type": "string",
             "extractor": decode_cbrtn,
             "doc": (
@@ -401,15 +414,154 @@ REPORT_EMPLOYEE_SCHEMA = {
                 "previous school year.")
         },
     ],
-    "unique": [["report_id", "employee_id"]],
+}
+
+ASSIGNMENT_SCHEMA = {
+    "name": "s275_assignment",
+    "doc": "Represents one assignment. Closest thing to a row in the s275",
+    "fields": [
+        {
+            "name": "assignment_id",
+            "field_type": "auto_primary_key",
+            "doc": ("primary key"),
+        },
+        {
+            "name": "contract_id",
+            "field_type": "int",
+            "foreign_key": "s275_contract.contract_id",
+            "is_logical_key": True,
+            "doc": ("contract this assignment belongs to"),
+        },
+        {
+            "name": "report_id",
+            "field_type": "int",
+            "foreign_key": "s275_report.report_id",
+            "is_logical_key": True,
+            "doc": ("which s275 report this belongs to")
+        },
+        {
+            "name": "employee_id",
+            "field_type": "int",
+            "foreign_key": "s275_employee.employee_id",
+            "is_logical_key": True,
+            "doc": ("(logical primary key part) employee this assignment "
+                    "belongs to")
+        },
+        {
+            "name": "school_code",
+            "source": "bldgn",
+            "field_type": "int",
+            "is_logical_key": True,
+            "doc": ("(logical primary key part) school this assignment "
+                    "belongs to")
+        },
+        {
+            "name": "program_code",
+            "source": "prog",
+            "field_type": "int",
+            "is_logical_key": True,
+            "doc": ("(logical primary key part) s275 has non-numeric codes. "
+                    "We map them to negative numbers")
+        },
+        {
+            "name": "activity_code",
+            "source": "act",
+            "field_type": "int",
+            "is_logical_key": True,
+            "doc": ("(logical primary key part) s275 has non-numeric codes. "
+                    "We map them to negative numbers")
+        },
+        {
+            "name": "duty_root_code",
+            "source": "droot",
+            "field_type": "int",
+            "is_logical_key": True,
+            "doc": ("(logical primary key part) OSPI duty title code root "
+                    "(first 2 digits)")
+        },
+        {
+            "name": "duty_suffix_code",
+            "source": "dsufx",
+            "field_type": "int",
+            "is_logical_key": True,
+            "doc": ("(logical primary key part) OSPI duty title code suffix "
+                    "(last digit). It's just 0 or 1 which determines "
+                    "Certificated or Classified.")
+        },
+        {
+            "name": "grade",
+            "source": "grade",
+            "field_type": "string",
+            "is_logical_key": True,
+            "doc": ("(logical primary key part) Grade. There are different "
+                    "rules for each duty code for what they need to be "
+                    "assigned to")
+        },
+        {
+            "name": "pct_of_certificated_contract",
+            "source": "asspct",
+            "field_type": "decimal",
+            "is_logical_key": True,
+            "doc": ("Percent of Certificated Contracted Time")
+        },
+        {
+            "name": "fte_in_assignment",
+            "source": "assfte",
+            "field_type": "decimal",
+            "is_logical_key": True,
+            "doc": ("How much FTE is this assignment worth.  Note that agrees "
+                    "with fte_in_assignment, but not total_final_salary or "
+                    "assignment_salary. All three of these can "
+                    "independently be non-zero.")
+        },
+        {
+            "name": "percent_fte_in_assignment",
+            "source": "asspct",
+            "field_type": "decimal",
+            "is_logical_key": True,
+            "extractor": percent_to_number,
+            "doc": ("What percent of the employees total FTE are in this "
+                    "assignment. Note that agrees with fte_in_assignment, but "
+                    "not total_final_salary or assignment_salary. All three "
+                    "of these can independently be non-zero.")
+        },
+        {
+            "name": "hours_per_year_in_assignment",
+            "source": "asshpy",
+            "field_type": "decimal",
+            "is_logical_key": True,
+            "doc": ("Assignment Hours Per Year. This seems largely "
+                    "informational It does not necessarily agree with any of "
+                    "assignment_salary, fte_in_assignment, "
+                    "percent_fte_in_assignment, or total_final_salary")
+        },
+        {
+            "name": "is_major",
+            "source": "major",
+            "field_type": "boolean",
+            "is_logical_key": True,
+            "extractor": one_to_boolean,
+            "doc": ("Does s275 consider this to be the \"major\" assignment")
+        },
+        {
+            "name": "s275_recno",
+            "source": "recno",
+            "field_type": "int",
+            "is_logical_key": True,
+            "extractor": to_int,
+            "doc": ("Record number in 275. Needed to deduplicate. This is "
+                    "just an audit log. The duplicate entries will not be "
+                    "included.")
+        }
+    ],
 }
 
 PRIVATE_EMPLOYEE_SCHEMA = {
-    "name": "s275_private_employee_data",
+    "name": "s275_private_employee",
     "doc": "Contains full name and demographics of the associated Employee",
     "fields": [
         {
-            "name": "private_employee_data_id",
+            "name": "private_employee_id",
             "field_type": "auto_primary_key",
             "doc": ("primary key")
         },
@@ -423,32 +575,37 @@ PRIVATE_EMPLOYEE_SCHEMA = {
         {
             "name": "employee_id",
             "field_type": "int",
+            "is_logical_key": True,
             "foreign_key": "s275_employee.employee_id",
             "doc": ("employee this belongs to. 1:1 relationship")
         },
         {
             "name": "sex",
+            "source": "sex",
             "field_type": "string",
             "doc": ("OSPI Demographics: Gender")
         },
         {
             "name": "is_hispanic",
+            "source": "hispanic",
             "field_type": "boolean",
             "extractor": y_n_to_boolean,
             "doc": ("OSPI Demographics: Hispanic")
         },
         {
             "name": "race",
+            "source": "race",
             "field_type": "string",
             "doc": ("OSPI Demographics: Race")
         },
         {
             "name": "certificate_id",
+            "source": "cert",
             "field_type": "string",
+            "is_logical_key": True,
             "doc": ("Certificate number for certificated employees")
         }
-    ],
-    "unique": [["employee_id"]],
+    ]
 }
 
 PRIVATE_CONTRACT_SCHEMA = {
@@ -465,12 +622,14 @@ PRIVATE_CONTRACT_SCHEMA = {
             "name": "contract_id",
             "field_type": "int",
             "foreign_key": "s275_contract.contract_id",
-            "doc": ("Contract this belongs to")
+            "is_logical_key": True,
+            "doc": ("Contract this is associated with")
         },
         {
             "name": "total_final_salary",
             "source": "tfinsal",
             "field_type": "decimal",
+            "is_logical_key": True,
             "doc": ("Final Salary for year for 1 FTE. Compare to D.6. \n\n"
                     "If the person’s assignment has changed or the person has "
                     "terminated employment or gone on leave, updates to the "
@@ -485,18 +644,21 @@ PRIVATE_CONTRACT_SCHEMA = {
             "name": "insurance",
             "source": "cins",
             "field_type": "decimal",
+            "is_logical_key": True,
             "doc": ("Annual Insurance Benefits for year")
         },
         {
             "name": "benefits",
             "source": "cman",
             "field_type": "decimal",
+            "is_logical_key": True,
             "doc": ("Annual Manditory Benefits for year")
         },
         {
             "name": "other_salary",
             "source": "othersal",
             "field_type": "decimal",
+            "is_logical_key": True,
             "doc": (
                 "Other salaries from supplemental contract "
                 "(RCW 28A.400.200). For reporting purposes, such contracts "
@@ -504,135 +666,7 @@ PRIVATE_CONTRACT_SCHEMA = {
                 "by various terms such as TRI, supplemental, stipends, and "
                 "time sheets.")
         },
-    ],
-    "unique": [["contract_id"]],
-}
-
-ASSIGNMENT_SCHEMA = {
-    "name": "s275_assignment",
-    "doc": "Represents one assignment. Closest thing to a row in the s275",
-    "fields": [
-        {
-            "name": "assignment_id",
-            "field_type": "auto_primary_key",
-            "doc": ("primary key"),
-        },
-        {
-            "name": "contract_id",
-            "field_type": "int",
-            "foreign_key": "s275_contract.contract_id",
-            "doc": ("contract this assignment belongs to"),
-        },
-        {
-            "name": "report_id",
-            "field_type": "int",
-            "foreign_key": "s275_report.report_id",
-            "doc": ("which s275 report this belongs to")
-        },
-        {
-            "name": "employee_id",
-            "field_type": "int",
-            "foreign_key": "s275_employee.employee_id",
-            "doc": ("(logical primary key part) employee this assignment "
-                    "belongs to")
-        },
-        {
-            "name": "school_code",
-            "source": "bldgn",
-            "field_type": "int",
-            "doc": ("(logical primary key part) school this assignment "
-                    "belongs to")
-        },
-        {
-            "name": "program_code",
-            "source": "prog",
-            "field_type": "int",
-            "doc": ("(logical primary key part) s275 has non-numeric codes. "
-                    "We map them to negative numbers")
-        },
-        {
-            "name": "activity_code",
-            "source": "act",
-            "field_type": "int",
-            "doc": ("(logical primary key part) s275 has non-numeric codes. "
-                    "We map them to negative numbers")
-        },
-        {
-            "name": "duty_root_code",
-            "source": "droot",
-            "field_type": "int",
-            "doc": ("(logical primary key part) OSPI duty title code root "
-                    "(first 2 digits)")
-        },
-        {
-            "name": "duty_suffix_code",
-            "source": "dsufx",
-            "field_type": "int",
-            "doc": ("(logical primary key part) OSPI duty title code suffix "
-                    "(last digit). It's just 0 or 1 which determines "
-                    "Certificated or Classified.")
-        },
-        {
-            "name": "grade",
-            "source": "grade",
-            "field_type": "string",
-            "doc": ("(logical primary key part) Grade. There are different "
-                    "rules for each duty code for what they need to be "
-                    "assigned to")
-        },
-        {
-            "name": "pct_of_certificated_contract",
-            "source": "asspct",
-            "field_type": "decimal",
-            "doc": ("Percent of Certificated Contracted Time")
-        },
-        {
-            "name": "fte_in_assignment",
-            "source": "assfte",
-            "field_type": "decimal",
-            "doc": ("How much FTE is this assignment worth.  Note that agrees "
-                    "with fte_in_assignment, but not total_final_salary or "
-                    "assignment_salary. All three of these can "
-                    "independently be non-zero.")
-        },
-        {
-            "name": "percent_fte_in_assignment",
-            "source": "asspct",
-            "field_type": "decimal",
-            "extractor": percent_to_number,
-            "doc": ("What percent of the employees total FTE are in this "
-                    "assignment. Note that agrees with fte_in_assignment, but "
-                    "not total_final_salary or assignment_salary. All three "
-                    "of these can independently be non-zero.")
-        },
-        {
-            "name": "hours_per_year_in_assignment",
-            "source": "asshpy",
-            "field_type": "decimal",
-            "doc": ("Assignment Hours Per Year. This seems largely "
-                    "informational It does not necessarily agree with any of "
-                    "assignment_salary, fte_in_assignment, "
-                    "percent_fte_in_assignment, or total_final_salary")
-        },
-        {
-            "name": "is_major",
-            "source": "major",
-            "field_type": "boolean",
-            "extractor": one_to_boolean,
-            "doc": ("Does s275 consider this to be the \"major\" assignment")
-        },
-        {
-            "name": "s275_recno",
-            "source": "recno",
-            "field_type": "int",
-            "doc": ("Record number in 275. Needed to deduplicate. This is "
-                    "just an audit log. The duplicate entries will not be "
-                    "included.")
-        }
-    ],
-    "unique": [["report_id", "contract_id", "employee_id", "school_code",
-                "program_code", "activity_code", "duty_root_code",
-                "duty_suffix_code", "grade", "s275_recno",]],
+    ]
 }
 
 PRIVATE_ASSIGNMENT_SCHEMA = {
@@ -649,13 +683,8 @@ PRIVATE_ASSIGNMENT_SCHEMA = {
             "name": "assignment_id",
             "field_type": "int",
             "foreign_key": "s275_assignment.assignment_id",
+            "is_logical_key": True,
             "doc": ("(logical key) assignment this belongs to")
-        },
-        {
-            "name": "private_contract_id",
-            "field_type": "int",
-            "foreign_key": "s275_private_contract.private_contract_id",
-            "doc": ("(logical key) contract this assignment beyongs to")
         },
         {
             "name": "assignment_salary",
@@ -722,5 +751,4 @@ PRIVATE_ASSIGNMENT_SCHEMA = {
                 "the f196 values.  The current calculation is a best guess.")
         }
     ],
-    "unique": [["assignment_id"], ["private_contract_id"]],
 }
