@@ -16,7 +16,7 @@ def to_int(record, source):
 
 
 def percent_to_number(record, source):
-    """Some percetage values are in %. Make it into a decimal"""
+    """Some percentage values are in %. Make it into a decimal"""
     if record[source]:
         return record[source] / Decimal(100)
 
@@ -752,3 +752,17 @@ PRIVATE_ASSIGNMENT_SCHEMA = {
         }
     ],
 }
+
+
+ALL_SCHEMAS = [
+    REPORT_SCHEMA,
+    EMPLOYEE_SCHEMA,
+    CONTRACT_SCHEMA,
+    REPORT_EMPLOYEE_SCHEMA,
+    ASSIGNMENT_SCHEMA,
+    PRIVATE_EMPLOYEE_SCHEMA,
+    PRIVATE_CONTRACT_SCHEMA,
+    PRIVATE_ASSIGNMENT_SCHEMA
+]
+
+TABLENAME_SCHEMA_MAP = {s['name']: s for s in ALL_SCHEMAS}

@@ -3,12 +3,16 @@
 import argparse
 import fastavro
 import logging
+import time
+from datetime import datetime
 
 from ..common import common_logging_setup, get_args
 from .schemas import s275
 from decimal import Decimal
 from enum import Enum
 from pathlib import Path
+from sqlalchemy.inspection import inspect
+
 from sqlalchemy import Column
 from sqlalchemy import create_engine
 from sqlalchemy import ForeignKey
@@ -16,10 +20,41 @@ from sqlalchemy import select
 from sqlalchemy import Table
 from sqlalchemy import types
 from sqlalchemy import UniqueConstraint
+from sqlalchemy.dialects.sqlite import insert
+#from sqlalchemy.dialects.postgresql import insert
+
 from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
+
+
+"""Number of items to hold before a commt"""
+COMMIT_BATCH_SIZE = 1000
+
+
+"""All objects added to a foreign key, indexed by logical key.
+
+First level is table name. Next is index logic_key to id map
+
+"""
+
+def get_null_sentinel(field_type):
+    match field_type:
+        case 'decimal':
+            return Decimal(-999999999.000000001)
+
+        case 'string':
+            return 'sqlh8'
+
+        case 'timestamp':
+            return datetime(month=1,day=1,year=1970)
+
+        case 'int':
+            return -9999999999
+
+        case _:
+            raise ValueError(f"No sentinel defined for {field_type}")
 
 
 def to_sqlalchemy_type(field_type):
@@ -52,13 +87,19 @@ def to_sqlalchemy_columns(schema):
         sqlalchemy_type = to_sqlalchemy_type(field_type)
         is_primary = False
         autoincrement = False
+        nullable = True
         if field_type == "auto_primary_key":
-            autoincrement = True
             is_primary = True
+            autoincrement = True
+            nullable = False
 
         if f.get('is_primary_key', False):
             # Always let someone specify a column is part of the primary key.
             is_primary = True
+            nullable = False
+
+        if f.get('is_logical_key', False):
+            nullable = False
 
         if "foreign_key" in f:
             columns.append(Column(name,
@@ -72,7 +113,7 @@ def to_sqlalchemy_columns(schema):
         else:
             columns.append(Column(name,
                                   sqlalchemy_type,
-                                  nullable=True,
+                                  nullable=nullable,
                                   doc=f["doc"],
                                   primary_key=is_primary,
                                   autoincrement=autoincrement))
@@ -138,6 +179,8 @@ class PrivateContract(Base):
 class PrivateAssignment(Base):
     __table__ = make_table(s275.PRIVATE_ASSIGNMENT_SCHEMA)
 
+TABLENAME_ORM_CLASS_MAP = {
+    table.__table__.name: table for table in Base.__subclasses__()}
 
 class UpdateType(Enum):
     UPDATE = 1
@@ -284,7 +327,33 @@ def verify_same_ignore_empty(current, new):
     return UpdateType.UPDATE
 
 
-def _record_to_fields(record, schema):
+def get_fk_id(session, record, fk_table_name, fk_name):
+    fk_schema = s275.TABLENAME_SCHEMA_MAP[fk_table_name]
+    fk_orm_class = TABLENAME_ORM_CLASS_MAP[fk_table_name]
+
+    # Generaate the foreign key select statement.
+    fk_logical_key =  dict(_record_to_fields(session, record,
+                                             fk_schema)["logical_key"])
+
+    # Search inside yourself. You know it be true.
+    statement = select(fk_orm_class).filter_by(**fk_logical_key)
+    rows = session.execute(statement).all()
+    if len(rows) != 1 or len(rows[0]) != 1:
+        raise ValueError(
+            f"Found {[vars(r[0]) for r in rows]} Foreign keys for "
+            f"{fk_logical_key} in {fk_orm_class}")
+    return getattr(rows[0][0], fk_name)
+
+
+def _record_to_fields(session, record, schema):
+    """Extracts values from records into two dicts for fields in the object.
+
+    An avro field is roughly a table column. This converts a row into a two
+    dictionaries, logical_key_fields and other_fields, which contain all the
+    data from the record for the given schema.
+
+    Concatenate the two dictionaries to get the full set of input column data.
+    """
     logical_key_fields = {}
     other_fields = {}
 
@@ -292,11 +361,19 @@ def _record_to_fields(record, schema):
     for f in schema['fields']:
         # Skip automatic primary keys and foreign keys. Those do not come
         # from the record.
-        if f['field_type'] == 'auto_primary_key' or 'foreign_key' in f:
+        if f['field_type'] == 'auto_primary_key':
             continue
 
-        source = f.get('source', None)
-        extractor = f.get('extractor', None)
+        if 'foreign_key' in f:
+            splits = f['foreign_key'].split('.')
+            fk_table = splits[0]
+            fk_name = splits[1]
+            source = None
+            extractor = lambda record, _: get_fk_id(session, record, fk_table,
+                                                    fk_name)
+        else:
+            source = f.get('source', None)
+            extractor = f.get('extractor', None)
 
         if extractor is None:
             if source is None:
@@ -308,12 +385,30 @@ def _record_to_fields(record, schema):
         else:
             value = extractor(record, source)
 
+        # Value to use if null.
+        if (f.get('is_logical_key', False) and
+                value is None and
+                not f.get('preserve_null', False)):
+            value = get_null_sentinel(f['field_type'])
+
+
         if f.get('is_logical_key', False):
             logical_key_fields[f['name']] = value
         else:
             other_fields[f['name']] = value
 
-    return {"logical_key": logical_key_fields, "other_fields": other_fields}
+    return {"logical_key": logical_key_fields,
+            "other_fields": other_fields}
+
+
+def _hashable_fields(session, tablename, record):
+    """Returns all fields as a sorted tuple for dedupping ease"""
+    schema = s275.TABLENAME_SCHEMA_MAP[tablename]
+    fields = _record_to_fields(session, record, schema)
+
+    all_data = tuple(sorted(
+        (fields["logical_key"] | fields["other_fields"]).items()))
+    return all_data
 
 
 def table_to_avro_rows(table, additional_tables):
@@ -338,79 +433,74 @@ def table_to_avro_rows(table, additional_tables):
 class NormalizedS275:
     def __init__(self):
         self._engine = create_engine(
-            "postgresql+psycopg2://albert:@localhost/albert",
-            echo=False).execution_options(autocommit=False)
+            "sqlite://", echo=False).execution_options(autocommit=False)
 #        self._engine = create_engine(
-#            "sqlite://", echo=False).execution_options(autocommit=False)
+#            "postgresql+psycopg2://albert:@localhost/albert",
+#            echo=False).execution_options(autocommit=False)
 
         # Key is _assignment_table id. Is a 1:1 mapping.
         self._calculated_assignment_compensation = {}
 
     def create_tables(self):
+        Base.metadata.drop_all(self._engine)
         Base.metadata.create_all(self._engine)
 
+    def _merge_impl(self, session, f, accumulate, flush,
+                       log_batch_size=10000):
+        last = time.perf_counter()
+        count = 1
+        f.seek(0)
+        for record in fastavro.reader(f):
+            count += 1
+            if count % log_batch_size == 0:
+                now = time.perf_counter()
+                print(f"Finished {count} {now - last:.2f}")
+                last = now
+                # HACK! HAKC HACK HACK!  EARLY BAIL!
+                #break
+            accumulate(record)
+        flush()
+
+    def _merge_tables(self, session, f, tablenames):
+        all_entries = {name: set() for name in tablenames}
+
+        def flush():
+            for tablename, entries in all_entries.items():
+                self.upsert(session,
+                            TABLENAME_ORM_CLASS_MAP[tablename],
+                            s275.TABLENAME_SCHEMA_MAP[tablename],
+                            entries)
+                entries.clear()
+            session.commit()
+
+        def accumulate(record):
+            # Add entires for each table
+            for tablename, entries in all_entries.items():
+                entries.add(_hashable_fields(session, tablename, record))
+
+            # Check if it needs to be flushed
+            for entries in all_entries.values():
+                if len(entries) > COMMIT_BATCH_SIZE:
+                    flush()
+                    break
+
+        self._merge_impl(session, f, accumulate, flush)
+
+
     def merge(self, f):
-        reader = fastavro.reader(f)
         with Session(self._engine) as session:
-            new_objects = []
-            for depth in range(0, 2):
-                print(f"depth: {depth}")
-                for record in reader:
-                    self._merge_one_record(session, record, depth, new_objects)
+            # Merge in waves based on dependency.
+            self._merge_tables(session, f, ['s275_report',
+                                            's275_employee',
+                                            's275_contract'])
+            self._merge_tables(session, f, ['s275_report_employee',
+                                            's275_assignment',
+                                            's275_private_employee',
+                                            's275_private_contract'])
+            self._merge_tables(session, f, ['s275_private_assignment'])
 
-                    # Commit in batches.
-                    if len(new_objects) > 10000:
-                        session.add_all(new_objects)
-                        session.commit()
-                        new_objects = []
-                session.commit()
-
-    def _merge_one_record(self, session, record, depth, new_objects):
-        report = self.upsert(record, session, Report,
-                             _record_to_fields(record, s275.REPORT_SCHEMA),
-                             new_objects)
-        employee = self.upsert(record, session, Employee,
-                               _record_to_fields(record, s275.EMPLOYEE_SCHEMA),
-                               new_objects)
-        contract = self.upsert(record, session, Contract,
-                               _record_to_fields(record, s275.CONTRACT_SCHEMA),
-                               new_objects)
-
-        if depth < 1:
-            return
-
-        self.upsert(record, session, ReportEmployee,
-                    _record_to_fields(record, s275.REPORT_EMPLOYEE_SCHEMA),
-                    new_objects,
-                    foreign_keys={"report_id": report.report_id,
-                                  "employee_id": employee.employee_id})
-
-        assignment = self.upsert(
-            record, session, Assignment,
-            _record_to_fields(record, s275.ASSIGNMENT_SCHEMA),
-            new_objects,
-            foreign_keys={"report_id": report.report_id,
-                          "employee_id": employee.employee_id,
-                          "contract_id": contract.contract_id})
-
-        self.upsert(record, session, PrivateEmployee,
-                    _record_to_fields(record, s275.PRIVATE_EMPLOYEE_SCHEMA),
-                    new_objects,
-                    foreign_keys={"employee_id": employee.employee_id})
-
-        self.upsert(
-            record, session, PrivateContract,
-            _record_to_fields(record, s275.PRIVATE_CONTRACT_SCHEMA),
-            new_objects,
-            foreign_keys={"contract_id": contract.contract_id})
-
-        if depth < 2:
-            return
-
-        self.upsert(record, session, PrivateAssignment,
-                    _record_to_fields(record, s275.PRIVATE_ASSIGNMENT_SCHEMA),
-                    foreign_keys={"assignment_id": assignment.assignment_id})
-
+    def _merge_one_record_old(self, session, record, depth, new_objects):
+        """merges one record. depth is how deep in he realted tree to merge."""
         # self._employee_table.upsert(record)
         # self._employee_calculated_table.upsert(
         #     record,
@@ -519,7 +609,41 @@ class NormalizedS275:
             schema=s275.PRIVATE_ASSIGNMENT_SCHEMA,
             table=self._private_assignment_table)
 
-    def upsert(self, record, session, orm_class, fields_dict,
+    def upsert(self, session, orm_class, schema, entries):
+        """Inserts entries into the orm_class for the given schema.
+
+        This is the heart of the record merging.  Entries set of values
+        """
+        if len(entries) == 0:
+            return
+
+        primary_key_columns = [getattr(orm_class, f['name'])
+                               for f in schema["fields"]
+                               if (f['field_type'] == 'auto_primary_key'or
+                                   f.get('is_primary_key', True))]
+
+        statement = insert(orm_class).execution_options(render_nulls=True)
+
+        # Configure behavior on overwrite in columns.
+        logical_key_columns = []
+        overwrite_columns = {}
+        for f in schema["fields"]:
+            field_name = f["name"]
+            if f.get("is_logical_key", False):
+                logical_key_columns.append(field_name)
+            else:
+                overwrite_columns[field_name] = getattr(statement.excluded,
+                                                        field_name)
+
+        statement = statement.on_conflict_do_update(
+            index_elements=logical_key_columns,
+            set_=overwrite_columns)
+
+        # Put the dict into a list so the sort order is guaranteed
+        result = session.execute(statement, [dict(e) for e in entries])
+
+
+    def upsert_old(self, record, session, orm_class, fields_dict,
                new_objects,
                foreign_keys={},
                update_disposition=verify_same):
@@ -580,6 +704,9 @@ def main():
     args = get_args(parser)
 
     normalized_s275 = NormalizedS275()
+
+    r = inspect(normalized_s275._engine)
+
     normalized_s275.create_tables()
     for f in args.infiles:
         normalized_s275.merge(f)
