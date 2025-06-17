@@ -31,8 +31,14 @@ from sqlalchemy.orm import Session
 logger = logging.getLogger(__name__)
 
 
-"""Number of items to hold before a commt"""
+"""Number of items to hold before a commit"""
 COMMIT_BATCH_SIZE = 1000
+
+"""Number of records before a log message"""
+LOG_BATCH_SIZE = 10000
+
+"""Number of records before a log message"""
+MAX_RECORDS_PER_FILE = -1
 
 
 """All objects added to a foreign key, indexed by logical key.
@@ -330,9 +336,9 @@ def verify_same_ignore_empty(current, new):
 
 
 @cache
-def get_lk_select(session, fk_table_name):
-    fk_schema = s275.TABLENAME_SCHEMA_MAP[fk_table_name]
-    fk_orm_class = TABLENAME_ORM_CLASS_MAP[fk_table_name]
+def get_lk_select(session, fk_tablename):
+    fk_schema = s275.TABLENAME_SCHEMA_MAP[fk_tablename]
+    fk_orm_class = TABLENAME_ORM_CLASS_MAP[fk_tablename]
 
     pk_columns = [f['name']
                   for f in fk_schema['fields']
@@ -345,15 +351,35 @@ def get_lk_select(session, fk_table_name):
                     if f.get('is_logical_key', False)]
     return select(getattr(fk_orm_class, pk_columns[0])).where(*where_clause)
 
+@cache
+def get_upsert_statement(session, insert, tablename):
+    schema = s275.TABLENAME_SCHEMA_MAP[tablename]
+    orm_class = TABLENAME_ORM_CLASS_MAP[tablename]
 
-def get_fk_id(session, record, fk_table_name, fk_name):
-    fk_schema = s275.TABLENAME_SCHEMA_MAP[fk_table_name]
-    fk_orm_class = TABLENAME_ORM_CLASS_MAP[fk_table_name]
+    statement = insert(orm_class).execution_options(render_nulls=True)
+
+    # Configure behavior on overwrite in columns.
+    logical_key_columns = []
+    overwrite_columns = {}
+    for f in schema["fields"]:
+        field_name = f["name"]
+        if f.get("is_logical_key", False):
+            logical_key_columns.append(field_name)
+        else:
+            overwrite_columns[field_name] = getattr(statement.excluded,
+                                                    field_name)
+    return statement.on_conflict_do_update(index_elements=logical_key_columns,
+                                           set_=overwrite_columns)
+
+
+def get_fk_id(session, record, fk_tablename, fk_name):
+    fk_schema = s275.TABLENAME_SCHEMA_MAP[fk_tablename]
+    fk_orm_class = TABLENAME_ORM_CLASS_MAP[fk_tablename]
 
     # Generaate the foreign key select statement.
     fk_logical_key =  dict(_record_to_fields(session, record,
                                              fk_schema)["logical_key"])
-    statement = get_lk_select(session, fk_table_name)
+    statement = get_lk_select(session, fk_tablename)
 
     return session.execute(statement, fk_logical_key).scalar()
 
@@ -415,13 +441,16 @@ def _record_to_fields(session, record, schema):
 
 
 def _hashable_fields(session, tablename, record):
-    """Returns all fields as a sorted tuple for dedupping ease"""
+    """Returns all tuple with logical key tuple and dict of all fields.
+
+    The logical key tuple is sorted and can be used as a deduping key.
+    """
     schema = s275.TABLENAME_SCHEMA_MAP[tablename]
     fields = _record_to_fields(session, record, schema)
 
-    all_data = tuple(sorted(
-        (fields["logical_key"] | fields["other_fields"]).items()))
-    return all_data
+    lk = tuple(sorted(fields["logical_key"]))
+    value = fields["logical_key"] | fields["other_fields"]
+    return lk, value
 
 
 def table_to_avro_rows(table, additional_tables):
@@ -462,38 +491,39 @@ class NormalizedS275:
         Base.metadata.drop_all(self._engine)
         Base.metadata.create_all(self._engine)
 
-    def _merge_impl(self, session, f, accumulate, flush,
-                       log_batch_size=10000):
+    def _merge_impl(self, session, f, accumulate, flush):
         last = time.perf_counter()
         count = 1
         f.seek(0)
         for record in fastavro.reader(f):
             count += 1
-            if count % log_batch_size == 0:
+            if count % LOG_BATCH_SIZE == 0:
                 now = time.perf_counter()
                 print(f"Finished {count} {now - last:.2f}")
                 last = now
-                # HACK! HAKC HACK HACK!  EARLY BAIL!
-                break
+
+                # Early bail for testing.
+                if MAX_RECORDS_PER_FILE != -1 and count > MAX_RECORDS_PER_FILE:
+                    break
             accumulate(record)
         flush()
 
     def _merge_tables(self, session, f, tablenames):
-        all_entries = {name: set() for name in tablenames}
+        all_entries = {name: {} for name in tablenames}
 
         def flush():
-            for tablename, entries in all_entries.items():
+            for tablename, lk_value_map in all_entries.items():
                 self.upsert(session,
-                            TABLENAME_ORM_CLASS_MAP[tablename],
-                            s275.TABLENAME_SCHEMA_MAP[tablename],
-                            entries)
-                entries.clear()
+                            tablename,
+                            lk_value_map)
+                lk_value_map.clear()
             session.commit()
 
         def accumulate(record):
             # Add entires for each table
-            for tablename, entries in all_entries.items():
-                entries.add(_hashable_fields(session, tablename, record))
+            for tablename, lk_value_map in all_entries.items():
+                lk, value = _hashable_fields(session, tablename, record)
+                lk_value_map[lk] = value
 
             # Check if it needs to be flushed
             for entries in all_entries.values():
@@ -626,39 +656,19 @@ class NormalizedS275:
             schema=s275.PRIVATE_ASSIGNMENT_SCHEMA,
             table=self._private_assignment_table)
 
-    def upsert(self, session, orm_class, schema, entries):
+    def upsert(self, session, tablename, lk_value_map):
         """Inserts entries into the orm_class for the given schema.
 
         This is the heart of the record merging.  Entries set of values
         """
-        if len(entries) == 0:
+        if len(lk_value_map) == 0:
             return
 
-        primary_key_columns = [getattr(orm_class, f['name'])
-                               for f in schema["fields"]
-                               if (f['field_type'] == 'auto_primary_key'or
-                                   f.get('is_primary_key', True))]
+        TABLENAME_ORM_CLASS_MAP[tablename],
+        s275.TABLENAME_SCHEMA_MAP[tablename],
 
-        statement = self._insert(orm_class).execution_options(
-            render_nulls=True)
-
-        # Configure behavior on overwrite in columns.
-        logical_key_columns = []
-        overwrite_columns = {}
-        for f in schema["fields"]:
-            field_name = f["name"]
-            if f.get("is_logical_key", False):
-                logical_key_columns.append(field_name)
-            else:
-                overwrite_columns[field_name] = getattr(statement.excluded,
-                                                        field_name)
-
-        statement = statement.on_conflict_do_update(
-            index_elements=logical_key_columns,
-            set_=overwrite_columns)
-
-        # Put the dict into a list so the sort order is guaranteed
-        result = session.execute(statement, [dict(e) for e in entries])
+        statement = get_upsert_statement(session, self._insert, tablename)
+        return session.execute(statement, lk_value_map.values())
 
 
     def upsert_old(self, record, session, orm_class, fields_dict,
@@ -717,12 +727,25 @@ def main():
     parser.add_argument('--engine', default="sqlite",
                         choices=['sqlite', 'postgresql'],
                         help='Which database backend to use')
+    parser.add_argument('--log-batch-size', default=10000, type=int,
+                        help='record per logging message')
+    parser.add_argument('--commit-batch-size', default=1000, type=int,
+                        help='new records before committing')
+    parser.add_argument('--max-records-per-file', default=-1, type=int,
+                        help=('Max records per avro file to process. '
+                              'Useful for tesitng'))
     parser.add_argument('infiles', nargs="+",
                         type=argparse.FileType('rb'),
-                        help='raw s275 avro files to combine"')
+                        help='raw s275 avro files to combine')
     common_logging_setup(parser)
 
     args = get_args(parser)
+
+
+    global LOG_BATCH_SIZE, COMMIT_BATCH_SIZE, MAX_RECORDS_PER_FILE
+    LOG_BATCH_SIZE = args.log_batch_size
+    COMMIT_BATCH_SIZE = args.commit_batch_size
+    MAX_RECORDS_PER_FILE = args.max_records_per_file
 
     normalized_s275 = NormalizedS275(args.engine)
 
