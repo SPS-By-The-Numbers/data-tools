@@ -5,6 +5,7 @@ import fastavro
 import logging
 import time
 from datetime import datetime
+from functools import cache
 
 from ..common import common_logging_setup, get_args
 from .schemas import s275
@@ -17,11 +18,12 @@ from sqlalchemy import Column
 from sqlalchemy import create_engine
 from sqlalchemy import ForeignKey
 from sqlalchemy import select
+from sqlalchemy import bindparam
 from sqlalchemy import Table
 from sqlalchemy import types
 from sqlalchemy import UniqueConstraint
-from sqlalchemy.dialects.sqlite import insert
-#from sqlalchemy.dialects.postgresql import insert
+from sqlalchemy.dialects.sqlite import insert as sqlite_insert
+from sqlalchemy.dialects.postgresql import insert as postgres_insert
 
 from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy.orm import Session
@@ -51,7 +53,7 @@ def get_null_sentinel(field_type):
             return datetime(month=1,day=1,year=1970)
 
         case 'int':
-            return -9999999999
+            return -999999999
 
         case _:
             raise ValueError(f"No sentinel defined for {field_type}")
@@ -327,6 +329,23 @@ def verify_same_ignore_empty(current, new):
     return UpdateType.UPDATE
 
 
+@cache
+def get_lk_select(session, fk_table_name):
+    fk_schema = s275.TABLENAME_SCHEMA_MAP[fk_table_name]
+    fk_orm_class = TABLENAME_ORM_CLASS_MAP[fk_table_name]
+
+    pk_columns = [f['name']
+                  for f in fk_schema['fields']
+                  if (f.get('is_primary_key', False) or
+                      f['field_type'] == 'auto_primary_key')]
+    if len(pk_columns) != 1:
+        raise RuntimeError(f"Multiple pk columns unsupported: {pk_columns}")
+    where_clause = [getattr(fk_orm_class, f['name']) == bindparam(f['name'])
+                    for f in fk_schema['fields']
+                    if f.get('is_logical_key', False)]
+    return select(getattr(fk_orm_class, pk_columns[0])).where(*where_clause)
+
+
 def get_fk_id(session, record, fk_table_name, fk_name):
     fk_schema = s275.TABLENAME_SCHEMA_MAP[fk_table_name]
     fk_orm_class = TABLENAME_ORM_CLASS_MAP[fk_table_name]
@@ -334,15 +353,9 @@ def get_fk_id(session, record, fk_table_name, fk_name):
     # Generaate the foreign key select statement.
     fk_logical_key =  dict(_record_to_fields(session, record,
                                              fk_schema)["logical_key"])
+    statement = get_lk_select(session, fk_table_name)
 
-    # Search inside yourself. You know it be true.
-    statement = select(fk_orm_class).filter_by(**fk_logical_key)
-    rows = session.execute(statement).all()
-    if len(rows) != 1 or len(rows[0]) != 1:
-        raise ValueError(
-            f"Found {[vars(r[0]) for r in rows]} Foreign keys for "
-            f"{fk_logical_key} in {fk_orm_class}")
-    return getattr(rows[0][0], fk_name)
+    return session.execute(statement, fk_logical_key).scalar()
 
 
 def _record_to_fields(session, record, schema):
@@ -431,12 +444,16 @@ def table_to_avro_rows(table, additional_tables):
 
 
 class NormalizedS275:
-    def __init__(self):
-        self._engine = create_engine(
-            "sqlite://", echo=False).execution_options(autocommit=False)
-#        self._engine = create_engine(
-#            "postgresql+psycopg2://albert:@localhost/albert",
-#            echo=False).execution_options(autocommit=False)
+    def __init__(self, engine_type):
+        if engine_type == 'sqlite':
+            self._insert = sqlite_insert
+            self._engine = create_engine(
+                "sqlite://", echo=False).execution_options(autocommit=False)
+        else:
+            self._insert = postgres_insert
+            self._engine = create_engine(
+                "postgresql+psycopg2://albert:@localhost/albert",
+                echo=False).execution_options(autocommit=False)
 
         # Key is _assignment_table id. Is a 1:1 mapping.
         self._calculated_assignment_compensation = {}
@@ -457,7 +474,7 @@ class NormalizedS275:
                 print(f"Finished {count} {now - last:.2f}")
                 last = now
                 # HACK! HAKC HACK HACK!  EARLY BAIL!
-                #break
+                break
             accumulate(record)
         flush()
 
@@ -622,7 +639,8 @@ class NormalizedS275:
                                if (f['field_type'] == 'auto_primary_key'or
                                    f.get('is_primary_key', True))]
 
-        statement = insert(orm_class).execution_options(render_nulls=True)
+        statement = self._insert(orm_class).execution_options(
+            render_nulls=True)
 
         # Configure behavior on overwrite in columns.
         logical_key_columns = []
@@ -696,6 +714,9 @@ def main():
                         help='Prefix for avro filenamess')
     parser.add_argument('--outdir', required=True,
                         help='directory for set of normalized avro tables"')
+    parser.add_argument('--engine', default="sqlite",
+                        choices=['sqlite', 'postgresql'],
+                        help='Which database backend to use')
     parser.add_argument('infiles', nargs="+",
                         type=argparse.FileType('rb'),
                         help='raw s275 avro files to combine"')
@@ -703,7 +724,7 @@ def main():
 
     args = get_args(parser)
 
-    normalized_s275 = NormalizedS275()
+    normalized_s275 = NormalizedS275(args.engine)
 
     r = inspect(normalized_s275._engine)
 
