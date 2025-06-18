@@ -9,7 +9,7 @@ from functools import cache
 
 from ..common import common_logging_setup, get_args
 from .schemas import s275
-from decimal import Decimal
+from decimal import Decimal, getcontext
 from enum import Enum
 from pathlib import Path
 from sqlalchemy.inspection import inspect
@@ -29,6 +29,17 @@ from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
+
+"""Precision used on the sql DECIMAL type"""
+DECIMAL_PRECISION = 38
+
+
+"""Scale used on the sql DECIMAL type."""
+DECIMAL_SCALE = 9
+
+
+"""quant() parameter for Decimals after math. ALWAYS QUANT TO AVOID ERRORS."""
+DECIMAL_QUANT_AMOUNT = Decimal(10**-9)
 
 
 """Number of items to hold before a commit"""
@@ -71,7 +82,7 @@ def to_sqlalchemy_type(field_type):
             return types.Integer
 
         case 'decimal':
-            return types.DECIMAL(38, 9)
+            return types.DECIMAL(DECIMAL_PRECISION, DECIMAL_SCALE)
 
         case 'timestamp':
             return types.TIMESTAMP
@@ -156,39 +167,41 @@ class Base(DeclarativeBase):
     pass
 
 
-class Report(Base):
-    __table__ = make_table(s275.REPORT_SCHEMA)
+class Reports(Base):
+    __table__ = make_table(s275.REPORTS_SCHEMA)
 
 
-class ReportEmployee(Base):
-    __table__ = make_table(s275.REPORT_EMPLOYEE_SCHEMA)
+class ReportEmployees(Base):
+    __table__ = make_table(s275.REPORT_EMPLOYEES_SCHEMA)
 
 
-class Employee(Base):
-    __table__ = make_table(s275.EMPLOYEE_SCHEMA)
+class Employees(Base):
+    __table__ = make_table(s275.EMPLOYEES_SCHEMA)
 
 
-class Contract(Base):
-    __table__ = make_table(s275.CONTRACT_SCHEMA)
+class Contracts(Base):
+    __table__ = make_table(s275.CONTRACTS_SCHEMA)
 
 
-class Assignment(Base):
-    __table__ = make_table(s275.ASSIGNMENT_SCHEMA)
+class Assignments(Base):
+    __table__ = make_table(s275.ASSIGNMENTS_SCHEMA)
 
 
-class PrivateEmployee(Base):
-    __table__ = make_table(s275.PRIVATE_EMPLOYEE_SCHEMA)
+class PrivateEmployees(Base):
+    __table__ = make_table(s275.PRIVATE_EMPLOYEES_SCHEMA)
 
 
-class PrivateContract(Base):
-    __table__ = make_table(s275.PRIVATE_CONTRACT_SCHEMA)
+class PrivateContracts(Base):
+    __table__ = make_table(s275.PRIVATE_CONTRACTS_SCHEMA)
 
 
-class PrivateAssignment(Base):
-    __table__ = make_table(s275.PRIVATE_ASSIGNMENT_SCHEMA)
+class PrivateAssignments(Base):
+    __table__ = make_table(s275.PRIVATE_ASSIGNMENTS_SCHEMA)
+
 
 TABLENAME_ORM_CLASS_MAP = {
     table.__table__.name: table for table in Base.__subclasses__()}
+
 
 class UpdateType(Enum):
     UPDATE = 1
@@ -202,7 +215,7 @@ def safe_div(a, b):
     if b.is_zero():
         return Decimal(0)
 
-    return a / b
+    return (a / b).quantize(DECIMAL_QUANT_AMOUNT)
 
 
 def get_decimal(record, field):
@@ -424,12 +437,16 @@ def _record_to_fields(session, record, schema):
         else:
             value = extractor(record, source)
 
-        # Value to use if null.
+        if 'foreign_key' in f and value is None:
+            raise RuntimeError(f"{f['name']} is foreign key but NULL for "
+                               f"{record}")
+
+
+        # Value to use if null found.
         if (f.get('is_logical_key', False) and
                 value is None and
                 not f.get('preserve_null', False)):
             value = get_null_sentinel(f['field_type'])
-
 
         if f.get('is_logical_key', False):
             logical_key_fields[f['name']] = value
@@ -448,7 +465,7 @@ def _hashable_fields(session, tablename, record):
     schema = s275.TABLENAME_SCHEMA_MAP[tablename]
     fields = _record_to_fields(session, record, schema)
 
-    lk = tuple(sorted(fields["logical_key"]))
+    lk = tuple(sorted(fields["logical_key"].items()))
     value = fields["logical_key"] | fields["other_fields"]
     return lk, value
 
@@ -508,8 +525,9 @@ class NormalizedS275:
             accumulate(record)
         flush()
 
-    def _merge_tables(self, session, f, tablenames):
-        all_entries = {name: {} for name in tablenames}
+    def _merge_tables(self, session, f, orm_classes):
+        all_entries = {orm_class.__table__.name: {}
+                       for orm_class in orm_classes}
 
         def flush():
             for tablename, lk_value_map in all_entries.items():
@@ -537,14 +555,12 @@ class NormalizedS275:
     def merge(self, f):
         with Session(self._engine) as session:
             # Merge in waves based on dependency.
-            self._merge_tables(session, f, ['s275_report',
-                                            's275_employee',
-                                            's275_contract'])
-            self._merge_tables(session, f, ['s275_report_employee',
-                                            's275_assignment',
-                                            's275_private_employee',
-                                            's275_private_contract'])
-            self._merge_tables(session, f, ['s275_private_assignment'])
+            self._merge_tables(session, f,
+                               [Reports, Employees, Contracts])
+            self._merge_tables(session, f,
+                               [ReportEmployees, Assignments, PrivateEmployees,
+                                PrivateContracts])
+            self._merge_tables(session, f, [PrivateAssignments])
 
     def _merge_one_record_old(self, session, record, depth, new_objects):
         """merges one record. depth is how deep in he realted tree to merge."""
@@ -622,38 +638,38 @@ class NormalizedS275:
         outdir = Path(outdir_str)
         self.write_table(
             outdir=outdir,
-            schema=s275.EMPLOYEE_SCHEMA,
+            schema=s275.EMPLOYEES_SCHEMA,
             table=self._employee_table,
             additional_tables=[self._employee_calculated_table])
 
         self.write_table(
             outdir=outdir,
-            schema=s275.CONTRACT_SCHEMA,
+            schema=s275.CONTRACTS_SCHEMA,
             table=self._contract_table)
 
         self.write_table(
             outdir=outdir,
-            schema=s275.ASSIGNMENT_SCHEMA,
+            schema=s275.ASSIGNMENTS_SCHEMA,
             table=self._assignment_table)
 
         self.write_table(
             outdir=outdir,
-            schema=s275.S275_REPORT_EMPLOYEE_SCHEMA,
+            schema=s275.S275_REPORTS_EMPLOYEE_SCHEMA,
             table=self._s275_report_employee_table)
 
         self.write_table(
             outdir=outdir,
-            schema=s275.PRIVATE_EMPLOYEE_SCHEMA,
+            schema=s275.PRIVATES_EMPLOYEE_SCHEMA,
             table=self._private_employee_data_table)
 
         self.write_table(
             outdir=outdir,
-            schema=s275.PRIVATE_CONTRACT_SCHEMA,
+            schema=s275.PRIVATES_CONTRACT_SCHEMA,
             table=self._private_contract_table)
 
         self.write_table(
             outdir=outdir,
-            schema=s275.PRIVATE_ASSIGNMENT_SCHEMA,
+            schema=s275.PRIVATES_ASSIGNMENT_SCHEMA,
             table=self._private_assignment_table)
 
     def upsert(self, session, tablename, lk_value_map):
@@ -740,6 +756,10 @@ def main():
     common_logging_setup(parser)
 
     args = get_args(parser)
+
+    # GET THIS TO MATCH YOUR DB OR YOU WILL BE SORRY DEBUGGING WHY EQUALITY
+    # FAILS RANDOMLY DUE TO ROUNDING/TRUNCATION ERRORS. #@$#$#%#%#
+    getcontext().prec = DECIMAL_PRECISION
 
 
     global LOG_BATCH_SIZE, COMMIT_BATCH_SIZE, MAX_RECORDS_PER_FILE

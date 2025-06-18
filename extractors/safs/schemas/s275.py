@@ -15,14 +15,6 @@ def to_int(record, source):
     return int(record[source])
 
 
-def percent_to_number(record, source):
-    """Some percentage values are in %. Make it into a decimal"""
-    if record[source]:
-        return record[source] / Decimal(100)
-
-    return None
-
-
 def decode_cbrtn(record, source):
     """Just pass through the data value unchanged"""
     src_val = record[source].upper()
@@ -111,8 +103,8 @@ def extract_full_name(record, source):
     return name_typo_correction(raw_full_name)
 
 
-REPORT_SCHEMA = {
-    "name": "s275_report",
+REPORTS_SCHEMA = {
+    "name": "s275_reports",
     "doc": "Represents one s275 report for one year from a district or esd",
     "fields": [
         {
@@ -174,8 +166,8 @@ REPORT_SCHEMA = {
 }
 
 
-EMPLOYEE_SCHEMA = {
-    "name": "s275_employee",
+EMPLOYEES_SCHEMA = {
+    "name": "s275_employees",
     "doc": ("Represents one employee in the s275 logically identified by a "
             "unique First, Middle, and Last name. So far there have been no "
             "collisions. Note that This table is a obfucation proxy and does "
@@ -244,8 +236,8 @@ EMPLOYEE_SCHEMA = {
     ],
 }
 
-CONTRACT_SCHEMA = {
-    "name": "s275_contract",
+CONTRACTS_SCHEMA = {
+    "name": "s275_contracts",
     "doc": ("Represents one contract in the s275. This is not a true concept "
             "in the s275 accounting manual. Rather it is an inferred set of "
             "values taken from the fields used to calculate tfinsal. In the "
@@ -324,8 +316,8 @@ CONTRACT_SCHEMA = {
     ],
 }
 
-REPORT_EMPLOYEE_SCHEMA = {
-    "name": "s275_report_employee",
+REPORT_EMPLOYEES_SCHEMA = {
+    "name": "s275_report_employees",
     "doc": ("Represents information about an employee that is unique to one "
             "s275 report such as if they are a continuing, beginning, "
             "returning, transfering, new classified-employee."),
@@ -338,14 +330,14 @@ REPORT_EMPLOYEE_SCHEMA = {
         {
             "name": "report_id",
             "field_type": "int",
-            "foreign_key": "s275_report.report_id",
+            "foreign_key": "s275_reports.report_id",
             "is_logical_key": True,
             "doc": ("s275_report this belongs to")
         },
         {
             "name": "employee_id",
             "field_type": "int",
-            "foreign_key": "s275_employee.employee_id",
+            "foreign_key": "s275_employees.employee_id",
             "is_logical_key": True,
             "doc": ("employee this belongs to")
         },
@@ -416,8 +408,8 @@ REPORT_EMPLOYEE_SCHEMA = {
     ],
 }
 
-ASSIGNMENT_SCHEMA = {
-    "name": "s275_assignment",
+ASSIGNMENTS_SCHEMA = {
+    "name": "s275_assignments",
     "doc": "Represents one assignment. Closest thing to a row in the s275",
     "fields": [
         {
@@ -428,21 +420,21 @@ ASSIGNMENT_SCHEMA = {
         {
             "name": "contract_id",
             "field_type": "int",
-            "foreign_key": "s275_contract.contract_id",
+            "foreign_key": "s275_contracts.contract_id",
             "is_logical_key": True,
             "doc": ("contract this assignment belongs to"),
         },
         {
             "name": "report_id",
             "field_type": "int",
-            "foreign_key": "s275_report.report_id",
+            "foreign_key": "s275_reports.report_id",
             "is_logical_key": True,
             "doc": ("which s275 report this belongs to")
         },
         {
             "name": "employee_id",
             "field_type": "int",
-            "foreign_key": "s275_employee.employee_id",
+            "foreign_key": "s275_employees.employee_id",
             "is_logical_key": True,
             "doc": ("(logical primary key part) employee this assignment "
                     "belongs to")
@@ -498,13 +490,6 @@ ASSIGNMENT_SCHEMA = {
                     "assigned to")
         },
         {
-            "name": "pct_of_certificated_contract",
-            "source": "asspct",
-            "field_type": "decimal",
-            "is_logical_key": True,
-            "doc": ("Percent of Certificated Contracted Time")
-        },
-        {
             "name": "fte_in_assignment",
             "source": "assfte",
             "field_type": "decimal",
@@ -515,15 +500,16 @@ ASSIGNMENT_SCHEMA = {
                     "independently be non-zero.")
         },
         {
-            "name": "percent_fte_in_assignment",
+            "name": "pct100_fte_in_assignment",
             "source": "asspct",
             "field_type": "decimal",
             "is_logical_key": True,
-            "extractor": percent_to_number,
             "doc": ("What percent of the employees total FTE are in this "
                     "assignment. Note that agrees with fte_in_assignment, but "
-                    "not total_final_salary or assignment_salary. All three "
-                    "of these can independently be non-zero.")
+                    "not total_final_salary or assignment_salary. This and the"
+                    "latter two can independently be non-zero. Value is in % "
+                    "so 100 is 100%. This is the original format and "
+                    "divding by 100 drops some fractional data. grr")
         },
         {
             "name": "hours_per_year_in_assignment",
@@ -556,8 +542,8 @@ ASSIGNMENT_SCHEMA = {
     ],
 }
 
-PRIVATE_EMPLOYEE_SCHEMA = {
-    "name": "s275_private_employee",
+PRIVATE_EMPLOYEES_SCHEMA = {
+    "name": "s275_private_employees",
     "doc": "Contains full name and demographics of the associated Employee",
     "fields": [
         {
@@ -576,7 +562,7 @@ PRIVATE_EMPLOYEE_SCHEMA = {
             "name": "employee_id",
             "field_type": "int",
             "is_logical_key": True,
-            "foreign_key": "s275_employee.employee_id",
+            "foreign_key": "s275_employees.employee_id",
             "doc": ("employee this belongs to. 1:1 relationship")
         },
         {
@@ -608,8 +594,8 @@ PRIVATE_EMPLOYEE_SCHEMA = {
     ]
 }
 
-PRIVATE_CONTRACT_SCHEMA = {
-    "name": "s275_private_contract",
+PRIVATE_CONTRACTS_SCHEMA = {
+    "name": "s275_private_contracts",
     "doc": ("Contains compensation info from the contract. Separated out "
             "since it is invasive feeling"),
     "fields": [
@@ -621,7 +607,7 @@ PRIVATE_CONTRACT_SCHEMA = {
         {
             "name": "contract_id",
             "field_type": "int",
-            "foreign_key": "s275_contract.contract_id",
+            "foreign_key": "s275_contracts.contract_id",
             "is_logical_key": True,
             "doc": ("Contract this is associated with")
         },
@@ -669,8 +655,8 @@ PRIVATE_CONTRACT_SCHEMA = {
     ]
 }
 
-PRIVATE_ASSIGNMENT_SCHEMA = {
-    "name": "s275_private_assignment",
+PRIVATE_ASSIGNMENTS_SCHEMA = {
+    "name": "s275_private_assignments",
     "doc": ("Contains compensation info related to the assignment. Separated "
             "out since it is invasive feeling"),
     "fields": [
@@ -682,7 +668,7 @@ PRIVATE_ASSIGNMENT_SCHEMA = {
         {
             "name": "assignment_id",
             "field_type": "int",
-            "foreign_key": "s275_assignment.assignment_id",
+            "foreign_key": "s275_assignments.assignment_id",
             "is_logical_key": True,
             "doc": ("(logical key) assignment this belongs to")
         },
@@ -755,14 +741,14 @@ PRIVATE_ASSIGNMENT_SCHEMA = {
 
 
 ALL_SCHEMAS = [
-    REPORT_SCHEMA,
-    EMPLOYEE_SCHEMA,
-    CONTRACT_SCHEMA,
-    REPORT_EMPLOYEE_SCHEMA,
-    ASSIGNMENT_SCHEMA,
-    PRIVATE_EMPLOYEE_SCHEMA,
-    PRIVATE_CONTRACT_SCHEMA,
-    PRIVATE_ASSIGNMENT_SCHEMA
+    REPORTS_SCHEMA,
+    EMPLOYEES_SCHEMA,
+    CONTRACTS_SCHEMA,
+    REPORT_EMPLOYEES_SCHEMA,
+    ASSIGNMENTS_SCHEMA,
+    PRIVATE_EMPLOYEES_SCHEMA,
+    PRIVATE_CONTRACTS_SCHEMA,
+    PRIVATE_ASSIGNMENTS_SCHEMA
 ]
 
 TABLENAME_SCHEMA_MAP = {s['name']: s for s in ALL_SCHEMAS}
