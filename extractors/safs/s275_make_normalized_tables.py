@@ -22,6 +22,7 @@ from sqlalchemy import bindparam
 from sqlalchemy import Table
 from sqlalchemy import types
 from sqlalchemy import UniqueConstraint
+from sqlalchemy.sql.expression import and_
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.dialects.postgresql import insert as postgres_insert
 
@@ -51,12 +52,6 @@ LOG_BATCH_SIZE = 10000
 """Number of records before a log message"""
 MAX_RECORDS_PER_FILE = -1
 
-
-"""All objects added to a foreign key, indexed by logical key.
-
-First level is table name. Next is index logic_key to id map
-
-"""
 
 def get_null_sentinel(field_type):
     match field_type:
@@ -229,13 +224,6 @@ def get_decimal(record, field):
     return value
 
 
-def has_value(a_tuple):
-    for _, v in a_tuple:
-        if v:
-            return True
-    return False
-
-
 def cmp_field(current, new, field):
     """-1 if current is fresher. 0 if equal. 1 if new is fresher"""
     if field not in new:
@@ -316,38 +304,6 @@ def employee_update(current_tuple, new_tuple):
     return _employee_update_by_value(current, new)
 
 
-def verify_same(existing_obj, fields_dict):
-    """Returns true if ORM object equals the values in fields_dict"""
-    # Sanity check the logical key.
-    for k, v in fields_dict["logical_key"].items():
-        if getattr(existing_obj, k) != v:
-            logger.error(
-                f"Expected {repr(k)} to have value {repr(v)} not "
-                f"{repr(getattr(existing_obj, k))}")
-            raise RuntimeError(
-                f"Logical Key for {existing_obj} does not match {fields_dict}")
-
-    # Verify the rest of the fields.
-    for k, v in fields_dict["other_fields"].items():
-        if getattr(existing_obj, k) != v:
-            return UpdateType.ERROR
-
-    return UpdateType.NO_CHANGE
-
-
-def verify_same_ignore_empty(current, new):
-    if current == new:
-        return UpdateType.NO_CHANGE
-
-    if has_value(current):
-        if has_value(new):
-            return UpdateType.ERROR
-        else:
-            return UpdateType.NEW_IS_EMPTY
-
-    return UpdateType.UPDATE
-
-
 @cache
 def get_lk_select(session, fk_tablename):
     fk_schema = s275.TABLENAME_SCHEMA_MAP[fk_tablename]
@@ -374,15 +330,27 @@ def get_upsert_statement(session, insert, tablename):
     # Configure behavior on overwrite in columns.
     logical_key_columns = []
     overwrite_columns = {}
+    update_where = []
     for f in schema["fields"]:
         field_name = f["name"]
-        if f.get("is_logical_key", False):
+
+        # This allows for conflict resolution.
+        if field_name == 's275_recno':
+            has_s275_recno = True
+            update_where.append(getattr(orm_class, field_name) <
+                                getattr(statement.excluded, field_name))
+        elif f.get("is_logical_key", False):
             logical_key_columns.append(field_name)
         else:
             overwrite_columns[field_name] = getattr(statement.excluded,
                                                     field_name)
-    return statement.on_conflict_do_update(index_elements=logical_key_columns,
-                                           set_=overwrite_columns)
+            update_where.append(getattr(orm_class, field_name) !=
+                                getattr(statement.excluded, field_name))
+
+    return statement.on_conflict_do_update(
+        index_elements=logical_key_columns,
+        set_=overwrite_columns,
+        where=and_(*update_where))
 
 
 def get_fk_id(session, record, fk_tablename, fk_name):
@@ -561,6 +529,17 @@ class NormalizedS275:
                                [ReportEmployees, Assignments, PrivateEmployees,
                                 PrivateContracts])
             self._merge_tables(session, f, [PrivateAssignments])
+            session.commit()
+
+    def fill_calculated_fields(self):
+        with Session(self._engine) as session:
+            # Fill in latest employee data in Employees table.
+            # TODO: this
+
+            # Calculate the assignment salary and benefits in the
+            # PrivateAssignments table.
+            # TODO: this
+            session.commit()
 
     def _merge_one_record_old(self, session, record, depth, new_objects):
         """merges one record. depth is how deep in he realted tree to merge."""
@@ -687,52 +666,6 @@ class NormalizedS275:
         return session.execute(statement, lk_value_map.values())
 
 
-    def upsert_old(self, record, session, orm_class, fields_dict,
-               new_objects,
-               foreign_keys={},
-               update_disposition=verify_same):
-
-        statement = select(orm_class).filter_by(
-            **(fields_dict["logical_key"] | foreign_keys))
-
-        rows = session.execute(statement).all()
-
-        if len(rows) > 1:
-            raise RuntimeError(f"{fields_dict} matched multiple rows {rows}")
-
-        if len(rows) > 0:
-            current = rows[0][0]
-            update_type = update_disposition(current, fields_dict)
-
-            match update_type:
-                case UpdateType.ERROR:
-                    logger.warning(f"Update failed for {fields_dict}\n"
-                                   f"\tfrom\n\t{current}")
-
-                case UpdateType.UPDATE:
-                    logger.debug(f"Updating {current} with {fields_dict}")
-                    for k, v in fields_dict["other_fields"].items():
-                        setattr(current, k, v)
-
-                case UpdateType.NO_CHANGE:
-                    logger.debug(f"No change to {current}")
-                    pass
-
-                case UpdateType.NEW_IS_EMPTY:
-                    pass
-
-            logger.debug(f"Returning {current}")
-            return current
-
-        # New item
-        new_item = orm_class(
-            **(fields_dict["logical_key"] | fields_dict["other_fields"] |
-               foreign_keys))
-        new_objects.append(new_item)
-        logger.debug(f"Adding {new_item}")
-        return new_item
-
-
 def main():
     parser = argparse.ArgumentParser(
         description='Combines raw s275 avro files into normalized tables')
@@ -761,7 +694,6 @@ def main():
     # FAILS RANDOMLY DUE TO ROUNDING/TRUNCATION ERRORS. #@$#$#%#%#
     getcontext().prec = DECIMAL_PRECISION
 
-
     global LOG_BATCH_SIZE, COMMIT_BATCH_SIZE, MAX_RECORDS_PER_FILE
     LOG_BATCH_SIZE = args.log_batch_size
     COMMIT_BATCH_SIZE = args.commit_batch_size
@@ -774,6 +706,8 @@ def main():
     normalized_s275.create_tables()
     for f in args.infiles:
         normalized_s275.merge(f)
+
+    normalized_s275.fill_calculated_fields()
 
     normalized_s275.write_all_tables(args.outdir)
 

@@ -1,4 +1,6 @@
 import logging
+import dateutil
+import hashlib
 
 from decimal import Decimal
 
@@ -61,7 +63,10 @@ def area_to_is_esd(record, source):
 
 
 def parse_datetime(record, source):
-    """Takes times of the format 08/20/14 11:37:28 and turns it to millis"""
+    """Takes formats like 08/20/14 11:37:28 and turns into a timestamp"""
+    date_str = record.get(source, None)
+    if date_str:
+        return dateutil.parser.parse(date_str)
     return None
 
 
@@ -93,7 +98,9 @@ def make_obfuscated_id(record, _):
     if not identifier:
         identifier = name_typo_correction(extract_full_name(record, _))
 
-    return identifier
+    m = hashlib.sha256()
+    m.update(identifier.encode("utf-8"))
+    return m.hexdigest()
 
 
 def extract_full_name(record, source):
@@ -312,6 +319,15 @@ CONTRACTS_SCHEMA = {
             "is_logical_key": True,
             "extractor": y_n_to_boolean,
             "doc": ("(logical key) Is Certificated")
+        },
+        {
+            "name": "s275_recno",
+            "source": "recno",
+            "field_type": "int",
+            "extractor": to_int,
+            "doc": ("Record number in 275. Needed to deduplicate. This is "
+                    "just an audit log. The duplicate entries will not be "
+                    "included.")
         }
     ],
 }
@@ -405,6 +421,15 @@ REPORT_EMPLOYEES_SCHEMA = {
                 "was not reported by the reporting district for the "
                 "previous school year.")
         },
+        {
+            "name": "s275_recno",
+            "source": "recno",
+            "field_type": "int",
+            "extractor": to_int,
+            "doc": ("Record number in 275. Needed to deduplicate. This is "
+                    "just an audit log. The duplicate entries will not be "
+                    "included.")
+        }
     ],
 }
 
@@ -504,12 +529,16 @@ ASSIGNMENTS_SCHEMA = {
             "source": "asspct",
             "field_type": "decimal",
             "is_logical_key": True,
-            "doc": ("What percent of the employees total FTE are in this "
+            "doc": ("Percentage of the employees total FTE are in this "
                     "assignment. Note that agrees with fte_in_assignment, but "
-                    "not total_final_salary or assignment_salary. This and the"
-                    "latter two can independently be non-zero. Value is in % "
-                    "so 100 is 100%. This is the original format and "
-                    "divding by 100 drops some fractional data. grr")
+                    "not total_final_salary or assignment_salary. DO NOT USE "
+                    "TO PRORATE THE SALARY AMOUNTS. It is very possible to "
+                    "have positive total_final_salary and/or "
+                    "assignment_salary with 0 FTE assigned, possibly(?) as a "
+                    "result of some roll-over bookkeeping.  Note also that "
+                    "the value here is in percernt so 100 is 100%. This is "
+                    "the original format. Dividing by 100 to normalize causes "
+                    "some precision loss from the original data.")
         },
         {
             "name": "hours_per_year_in_assignment",
@@ -533,7 +562,6 @@ ASSIGNMENTS_SCHEMA = {
             "name": "s275_recno",
             "source": "recno",
             "field_type": "int",
-            "is_logical_key": True,
             "extractor": to_int,
             "doc": ("Record number in 275. Needed to deduplicate. This is "
                     "just an audit log. The duplicate entries will not be "
@@ -590,6 +618,15 @@ PRIVATE_EMPLOYEES_SCHEMA = {
             "field_type": "string",
             "is_logical_key": True,
             "doc": ("Certificate number for certificated employees")
+        },
+        {
+            "name": "s275_recno",
+            "source": "recno",
+            "field_type": "int",
+            "extractor": to_int,
+            "doc": ("Record number in 275. Needed to deduplicate. This is "
+                    "just an audit log. The duplicate entries will not be "
+                    "included.")
         }
     ]
 }
@@ -652,6 +689,15 @@ PRIVATE_CONTRACTS_SCHEMA = {
                 "by various terms such as TRI, supplemental, stipends, and "
                 "time sheets.")
         },
+        {
+            "name": "s275_recno",
+            "source": "recno",
+            "field_type": "int",
+            "extractor": to_int,
+            "doc": ("Record number in 275. Needed to deduplicate. This is "
+                    "just an audit log. The duplicate entries will not be "
+                    "included.")
+        }
     ]
 }
 
@@ -735,6 +781,15 @@ PRIVATE_ASSIGNMENTS_SCHEMA = {
                 "assignment_other_salary should be included inside "
                 "assignment_salary but this does not seem to quite match "
                 "the f196 values.  The current calculation is a best guess.")
+        },
+        {
+            "name": "s275_recno",
+            "source": "recno",
+            "field_type": "int",
+            "extractor": to_int,
+            "doc": ("Record number in 275. Needed to deduplicate. This is "
+                    "just an audit log. The duplicate entries will not be "
+                    "included.")
         }
     ],
 }
