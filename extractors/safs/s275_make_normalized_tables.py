@@ -14,12 +14,13 @@ from enum import Enum
 from pathlib import Path
 from sqlalchemy.inspection import inspect
 
+from sqlalchemy import bindparam
 from sqlalchemy import Column
 from sqlalchemy import create_engine
 from sqlalchemy import ForeignKey
 from sqlalchemy import select
-from sqlalchemy import bindparam
 from sqlalchemy import Table
+from sqlalchemy import text
 from sqlalchemy import types
 from sqlalchemy import UniqueConstraint
 from sqlalchemy.sql.expression import and_
@@ -42,15 +43,10 @@ DECIMAL_SCALE = 9
 """quant() parameter for Decimals after math. ALWAYS QUANT TO AVOID ERRORS."""
 DECIMAL_QUANT_AMOUNT = Decimal(10**-9)
 
+class ScriptConfig:
+    __slots__ = ["commit_batch_size", "log_batch_size", "max_records_per_file"]
 
-"""Number of items to hold before a commit"""
-COMMIT_BATCH_SIZE = 1000
-
-"""Number of records before a log message"""
-LOG_BATCH_SIZE = 10000
-
-"""Number of records before a log message"""
-MAX_RECORDS_PER_FILE = -1
+g_config = ScriptConfig()
 
 
 def get_null_sentinel(field_type):
@@ -482,14 +478,15 @@ class NormalizedS275:
         f.seek(0)
         for record in fastavro.reader(f):
             count += 1
-            if count % LOG_BATCH_SIZE == 0:
+            if count % g_config.log_batch_size == 0:
                 now = time.perf_counter()
                 print(f"Finished {count} {now - last:.2f}")
                 last = now
 
-                # Early bail for testing.
-                if MAX_RECORDS_PER_FILE != -1 and count > MAX_RECORDS_PER_FILE:
-                    break
+            # Early bail for testing.
+            if (g_config.max_records_per_file != -1 and
+                    count > g_config.max_records_per_file):
+                break
             accumulate(record)
         flush()
 
@@ -513,7 +510,7 @@ class NormalizedS275:
 
             # Check if it needs to be flushed
             for entries in all_entries.values():
-                if len(entries) > COMMIT_BATCH_SIZE:
+                if len(entries) > g_config.commit_batch_size:
                     flush()
                     break
 
@@ -531,11 +528,149 @@ class NormalizedS275:
             self._merge_tables(session, f, [PrivateAssignments])
             session.commit()
 
+    def fill_employee_rollup_info(self, session):
+        """Fill in latest employee data in Employees table.
+
+        Pick the largest record number for the most recent school year.
+        """
+        raw_sql = """
+            UPDATE
+                s275_employees e
+            SET
+                c_highest_degree = t.highest_degree,
+                c_highest_degree_year = t.highest_degree_year,
+                c_experience_years = t.experience_years,
+                c_nbpts_certificate_expiration =
+                    t.nbpts_certificate_expiration,
+                c_record_ccddd = t.ccddd,
+                c_record_county_code = t.county_code,
+                c_hire_state = t.hire_state,
+                c_record_s275_recno = t.s275_recno
+            FROM (
+                SELECT
+                    re.employee_id,
+                    re.highest_degree,
+                    re.highest_degree_year,
+                    re.experience_years,
+                    re.nbpts_certificate_expiration,
+                    re.hire_state,
+                    r.ccddd,
+                    r.county_code,
+                    re.s275_recno,
+                    ROW_NUMBER() OVER (
+                        PARTITION BY re.employee_id
+                        ORDER BY r.school_starting_year DESC,
+                                    re.s275_recno DESC
+                    ) as rn
+                FROM s275_report_employees re
+                LEFT JOIN s275_reports r ON (re.report_id = r.report_id)
+            ) t
+            WHERE e.employee_id = t.employee_id
+            AND t.rn = 1
+            """
+        session.execute(text(raw_sql))
+
+    def fill_private_assignments_values(session):
+        """ Calculate the assignment total_final_salary and benefits in the
+            PrivateAssignments table.
+
+            This is very confusing. There are 3 kinds of values that are
+            updated at different times. They are as follows:
+
+            == Actual Gross Salary ==
+            This is one column: total_final_salary.
+            The value here comes from _payroll_ at end of the fiscal year and
+            is supposed to be the gross compensation for the fiscal year.
+            This is will reflect things like mid-year terminations, leaves, and
+            supplemental contracts. It is a per-employee, not a per-assignment
+            attribute.
+
+            This is supposed to be an entry for every employee on the payroll
+            at the end of year.
+
+            == Assignment Salary ==
+            These are the numbers for all employees on Oct 1st. These numbers
+            do not get updated on terminations, leaves, hires, and fires and
+            represent what the employee would have earned had they finished
+            their terms.
+
+            assignemnt_salary -- is a per-assigment attribute that determines
+            the money allocated to the position. Seems to be 0 at times which
+            probably indicates a reassignment after Oct 1st.
+
+            other_salary -- is a per-employee attribute that includes extra
+            time-driven (eg extra hours) or not time-driven (extra
+            responsibilities) salaries. These are not broken down into
+            assignments and do not get updated.
+
+            == Insurance and benefits ==
+            These are updated due to contract negotiations for everyone.
+            The are updated to represent the amount paid fo the employee
+            UNLESS the employee is terminated early. In the case of early
+            termination, these numbers, confusingly, are not prorated down
+            and similar to assignemnt_salary represent what they would have
+            been paid had they finished their term.
+
+            insurance, benefits -- both of these are per-employee values that
+            specify the insurance and benefits for the employee for the whole
+            year. These are not broken down into assignments and do not change
+            if a person is terminated early. They are updated as a result of
+            contract neogiations though.
+
+            == Interpretation ==
+            The s275 is a strange beast. First, it is just a snapshot of
+            staffing on October 1st. All hires/fires after are ignored keeping
+            the entry-set static.
+
+            Next, other than total_final_salary, there is no concept of
+            what is actually paid to an employee. It is not possible to
+            calculate the actual benefits and insurance.
+
+            Similarly, asside from the assignment_salary, there is no solid
+            indication on how an employee's time is allocated between different
+            positions. There is the fte_in_assignment and
+            pct100_fte_in_assignment but these numbers do not seem to be self
+            consistent (sometimes one is zero and the other isn't).
+
+            This makes it only possible to know informionat for employees that
+            were in the district on Oct 1st. Folks hired afterwards do not
+            show up.
+
+            For the folks listed, the following is knowable:
+
+               * the actual total gross salary
+               * the oct 1st assignments and expected salaries
+
+            Weird things that can be calculated:
+               * A guess at total insurance and benfits of oct 1st employees.
+                 but the number is odd since it reflects mid-year contract
+                 negotiations without proration.
+               * A guess at the FTE assignment per position.
+
+            Thing that can be inferred
+               * If total_final_salary is way lower than sum of all
+                 assignment_salary, there was an early termination.
+
+            Thing that can be estimated
+               * amount of budgeted insurance/benefits/other_sal per assignment
+               * amount of total_final_salary per assignment
+
+            These estimated amounts will have error because new assignments
+            can be added for a person with a total_final_salary which will
+            be given assignment_salary of 0 so that assignment will be
+            missed. Also, the insurance/benefit/other_sal numbers will be
+            updated to reflect contract negotiations.
+
+            TODO: Do we have folks with only a asssal=0 assignment and
+            non-zero total_final_salary?
+        """
+        pass
+
     def fill_calculated_fields(self):
         with Session(self._engine) as session:
-            # Fill in latest employee data in Employees table.
-            # TODO: this
+            self.fill_employee_rollup_info(session)
 
+            self.fill_private_assignments_values(session)
             # Calculate the assignment salary and benefits in the
             # PrivateAssignments table.
             # TODO: this
@@ -694,10 +829,10 @@ def main():
     # FAILS RANDOMLY DUE TO ROUNDING/TRUNCATION ERRORS. #@$#$#%#%#
     getcontext().prec = DECIMAL_PRECISION
 
-    global LOG_BATCH_SIZE, COMMIT_BATCH_SIZE, MAX_RECORDS_PER_FILE
-    LOG_BATCH_SIZE = args.log_batch_size
-    COMMIT_BATCH_SIZE = args.commit_batch_size
-    MAX_RECORDS_PER_FILE = args.max_records_per_file
+    global g_config
+    g_config.log_batch_size = args.log_batch_size
+    g_config.commit_batch_size = args.commit_batch_size
+    g_config.max_records_per_file = args.max_records_per_file
 
     normalized_s275 = NormalizedS275(args.engine)
 

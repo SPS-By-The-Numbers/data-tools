@@ -17,6 +17,11 @@ def to_int(record, source):
     return int(record[source])
 
 
+def parse_first_schoolyear(record, source):
+    """Reads the value as an int"""
+    return int(record[source].split('-')[0])
+
+
 def decode_cbrtn(record, source):
     """Just pass through the data value unchanged"""
     src_val = record[source].upper()
@@ -168,7 +173,15 @@ REPORTS_SCHEMA = {
             "extractor": parse_datetime,
             "doc": ("ceri timestamp in S275. With crasdate seems to "
                     "creation or update timestamp?")
-        }
+        },
+        {
+            "name": "school_starting_year",
+            "field_type": "string",
+            "source": "SchoolYear",
+            "extractor": parse_first_schoolyear,
+            "doc": ("(convenience) The starting school year as an integer. "
+                    "Makes sorting and comparisons easier.")
+        },
     ]
 }
 
@@ -231,6 +244,11 @@ EMPLOYEES_SCHEMA = {
                     "certification in year-month-day")
         },
         {
+            "name": "c_hire_state",
+            "field_type": "string",
+            "doc": ("Inferred most recent value of hire_state of employee")
+        },
+        {
             "name": "c_record_ccddd",
             "field_type": "int",
             "doc": ("OSPI County Disrict Code of record these fields are from")
@@ -240,6 +258,11 @@ EMPLOYEES_SCHEMA = {
             "field_type": "int",
             "doc": ("county and district code of record these fields are from")
         },
+        {
+            "name": "c_record_s275_recno",
+            "field_type": "int",
+            "doc": ("Record number in 275 that these fields are from")
+        }
     ],
 }
 
@@ -649,11 +672,12 @@ PRIVATE_CONTRACTS_SCHEMA = {
             "doc": ("Contract this is associated with")
         },
         {
+            # TODO: This should be in private_report_employee
             "name": "total_final_salary",
             "source": "tfinsal",
             "field_type": "decimal",
             "is_logical_key": True,
-            "doc": ("Final Salary for year for 1 FTE. Compare to D.6. \n\n"
+            "doc": ("Final Salary for year. Compare to D.6. \n\n"
                     "If the person’s assignment has changed or the person has "
                     "terminated employment or gone on leave, updates to the "
                     "assignment salaries and benefits are determined by what "
