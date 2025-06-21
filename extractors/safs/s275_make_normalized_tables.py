@@ -131,6 +131,11 @@ def to_sqlalchemy_columns(schema):
     return columns
 
 
+def is_primary_key(field):
+    return (field['field_type'] == 'auto_primary_key' or
+            field.get('is_primary_key', False))
+
+
 def to_sqlalchemy_constraints(schema):
     constraints = []
     logical_key = [f["name"] for f in schema["fields"]
@@ -159,35 +164,39 @@ class Base(DeclarativeBase):
 
 
 class Reports(Base):
-    __table__ = make_table(s275.REPORTS_SCHEMA)
+    __table__ = make_table(s275.REPORT_SCHEMA)
 
 
-class ReportEmployees(Base):
-    __table__ = make_table(s275.REPORT_EMPLOYEES_SCHEMA)
+class Employee(Base):
+    __table__ = make_table(s275.EMPLOYEE_SCHEMA)
 
 
-class Employees(Base):
-    __table__ = make_table(s275.EMPLOYEES_SCHEMA)
+class PrivateEmployee(Base):
+    __table__ = make_table(s275.PRIVATE_EMPLOYEE_SCHEMA,)
 
 
-class Contracts(Base):
-    __table__ = make_table(s275.CONTRACTS_SCHEMA)
+class ReportEmployee(Base):
+    __table__ = make_table(s275.REPORT_EMPLOYEE_SCHEMA)
 
 
-class Assignments(Base):
-    __table__ = make_table(s275.ASSIGNMENTS_SCHEMA)
+class PrivateReportEmployee(Base):
+    __table__ = make_table(s275.PRIVATE_REPORT_EMPLOYEE_SCHEMA)
 
 
-class PrivateEmployees(Base):
-    __table__ = make_table(s275.PRIVATE_EMPLOYEES_SCHEMA)
+class Assignment(Base):
+    __table__ = make_table(s275.ASSIGNMENT_SCHEMA)
 
 
-class PrivateContracts(Base):
-    __table__ = make_table(s275.PRIVATE_CONTRACTS_SCHEMA)
+class AssignmentFte(Base):
+    __table__ = make_table(s275.ASSIGNMENT_FTE_SCHEMA)
 
 
-class PrivateAssignments(Base):
-    __table__ = make_table(s275.PRIVATE_ASSIGNMENTS_SCHEMA)
+class PrivateAssignmentCompBase(Base):
+    __table__ = make_table(s275.PRIVATE_ASSIGNMENT_COMP_BASE_SCHEMA)
+
+
+class PrivateAssignment(Base):
+    __table__ = make_table(s275.PRIVATE_ASSIGNMENT_SCHEMA)
 
 
 TABLENAME_ORM_CLASS_MAP = {
@@ -335,9 +344,13 @@ def get_upsert_statement(session, insert, tablename):
             has_s275_recno = True
             update_where.append(getattr(orm_class, field_name) <
                                 getattr(statement.excluded, field_name))
-        elif f.get("is_logical_key", False):
+            # TODO: Find a way to count collisions.
+
+        # Make sure to allow s275_recno to be updated too.
+        if f.get("is_logical_key", False):
             logical_key_columns.append(field_name)
-        else:
+        elif not is_primary_key(f):
+            # Don't overwrite the primary key since we're updating.
             overwrite_columns[field_name] = getattr(statement.excluded,
                                                     field_name)
             update_where.append(getattr(orm_class, field_name) !=
@@ -465,9 +478,6 @@ class NormalizedS275:
                 "postgresql+psycopg2://albert:@localhost/albert",
                 echo=False).execution_options(autocommit=False)
 
-        # Key is _assignment_table id. Is a 1:1 mapping.
-        self._calculated_assignment_compensation = {}
-
     def create_tables(self):
         Base.metadata.drop_all(self._engine)
         Base.metadata.create_all(self._engine)
@@ -519,32 +529,34 @@ class NormalizedS275:
 
     def merge(self, f):
         with Session(self._engine) as session:
-            # Merge in waves based on dependency.
+            # Merge in waves based on dependency. This could be done with a
+            # top-sort of all foreign keys but it's easier to write it out
+            # manually.
             self._merge_tables(session, f,
-                               [Reports, Employees, Contracts])
-            self._merge_tables(session, f,
-                               [ReportEmployees, Assignments, PrivateEmployees,
-                                PrivateContracts])
-            self._merge_tables(session, f, [PrivateAssignments])
+                               [Reports, Employee, AssignmentFte,
+                                PrivateAssignmentCompBase])
+            self._merge_tables(session, f, [ReportEmployee, PrivateEmployee])
+            self._merge_tables(session, f, [PrivateReportEmployee, Assignment])
+            self._merge_tables(session, f, [PrivateAssignment])
             session.commit()
 
     def fill_employee_rollup_info(self, session):
-        """Fill in latest employee data in Employees table.
+        """Fill in latest employee data in Employee table.
 
         Pick the largest record number for the most recent school year.
         """
         raw_sql = """
             UPDATE
-                s275_employees e
+                s275_employee e
             SET
                 c_highest_degree = t.highest_degree,
                 c_highest_degree_year = t.highest_degree_year,
                 c_experience_years = t.experience_years,
                 c_nbpts_certificate_expiration =
                     t.nbpts_certificate_expiration,
+                c_hire_state = t.hire_state,
                 c_record_ccddd = t.ccddd,
                 c_record_county_code = t.county_code,
-                c_hire_state = t.hire_state,
                 c_record_s275_recno = t.s275_recno
             FROM (
                 SELECT
@@ -562,17 +574,17 @@ class NormalizedS275:
                         ORDER BY r.school_starting_year DESC,
                                     re.s275_recno DESC
                     ) as rn
-                FROM s275_report_employees re
-                LEFT JOIN s275_reports r ON (re.report_id = r.report_id)
+                FROM s275_report_employee re
+                LEFT JOIN s275_report r ON (re.report_id = r.report_id)
             ) t
             WHERE e.employee_id = t.employee_id
             AND t.rn = 1
             """
         session.execute(text(raw_sql))
 
-    def fill_private_assignments_values(session):
+    def fill_private_assignments_values(self, session):
         """ Calculate the assignment total_final_salary and benefits in the
-            PrivateAssignments table.
+            PrivateAssignment table.
 
             This is very confusing. There are 3 kinds of values that are
             updated at different times. They are as follows:
@@ -664,82 +676,52 @@ class NormalizedS275:
             TODO: Do we have folks with only a asssal=0 assignment and
             non-zero total_final_salary?
         """
-        pass
+        pct_of_assignments = """(COALESCE(pa.assignment_salary /
+                                NULLIF(t.all_assignment_salary, 0), 0))"""
+
+        update_private_assignment_sql = f"""
+            UPDATE
+                s275_private_assignment pa
+            SET
+              c_pct_of_assignments = { pct_of_assignments },
+
+              c_assignment_other_salary = { pct_of_assignments }
+                    * pre.other_salary,
+
+              c_assignment_insurance = { pct_of_assignments }
+                    * pre.insurance,
+
+              c_assignment_benefits = { pct_of_assignments }
+                    * pre.benefits,
+
+              c_assignment_total_final_salary = { pct_of_assignments }
+                    * pre.total_final_salary,
+
+              c_assignment_total_compensation =
+                    pa.assignment_salary +
+                    { pct_of_assignments } * pre.other_salary +
+                    { pct_of_assignments } * pre.insurance +
+                    { pct_of_assignments } * pre.benefits
+            FROM (
+                SELECT
+                    pa.s275_report_employee_id,
+                    sum(pa.assignment_salary) all_assignment_salary
+                FROM s275_private_assignment pa
+                GROUP BY
+                    pa.s275_report_employee_id
+                ) t
+            LEFT JOIN s275_private_report_employee pre on (
+                pre.s275_report_employee_id = t.s275_report_employee_id)
+
+            WHERE pa.s275_report_employee_id = t.s275_report_employee_id
+            """
+        session.execute(text(update_private_assignment_sql))
 
     def fill_calculated_fields(self):
         with Session(self._engine) as session:
             self.fill_employee_rollup_info(session)
-
             self.fill_private_assignments_values(session)
-            # Calculate the assignment salary and benefits in the
-            # PrivateAssignments table.
-            # TODO: this
             session.commit()
-
-    def _merge_one_record_old(self, session, record, depth, new_objects):
-        """merges one record. depth is how deep in he realted tree to merge."""
-        # self._employee_table.upsert(record)
-        # self._employee_calculated_table.upsert(
-        #     record,
-        #     update_disposition=employee_update)
-        # self._contract_table.upsert(record)
-        # self._assignment_table.upsert(record)
-        #  s275_employee_id = self._s275_report_employee_table.upsert(
-        #      record)
-        # self._private_employee_data_table.upsert(record)
-        # self._private_contract_table.upsert(record)
-        #  assignment_id = self._private_assignment_table.upsert(record)
-
-        # Find accumulator for assignments
-#        if s275_employee_id in assignment_accumulators:
-#            accumulator = assignment_accumulators[s275_employee_id]
-#        else:
-#            accumulator = assignment_accumulators[s275_employee_id] = {
-#                'total_assignment_salary': Decimal('0'),
-#                'assignment_entries': []
-#            }
-#
-        # Accumulate the total assignment salary for a record.
-#        assignment_salary = get_decimal(record, 'asssal')
-#        accumulator['assignment_entries'].append({
-#            'assignment_id': assignment_id,
-#            'assignment_salary': assignment_salary,
-#            'benefits': get_decimal(record, 'cman'),
-#            'insurance': get_decimal(record, 'cins'),
-#            'other_salary': get_decimal(record, 'othersal'),
-#            'total_final_salary': get_decimal(record, 'tfinsal'),
-#        })
-#        accumulator['total_assignment_salary'] += assignment_salary
-
-#    def _FIXME_accumuaate(self):
-#        # Fill in the assignment salary table.
-#        for _, accumulator in assignment_accumulators.items():
-#            total_assignment_salary = accumulator[
-#                'total_assignment_salary']
-#            for entry in accumulator['assignment_entries']:
-#                assignment_percent = safe_div(entry['assignment_salary'],
-#                                                total_assignment_salary)
-#                assignment_other_salary = (entry['other_salary'] *
-#                                            assignment_percent)
-#                assignment_insurance = (entry['insurance'] *
-#                                        assignment_percent)
-#                assignment_benefits = (entry['benefits'] *
-#                                        assignment_percent)
-#                value = {
-#                    "c_assignment_salary_percentage": assignment_percent,
-#                    "c_assignment_other_salary": assignment_other_salary,
-#                    "c_assignment_insurance": assignment_insurance,
-#                    "c_assignment_benefits": assignment_benefits,
-#                    "c_assignment_total_compensation": (
-#                        assignment_salary +
-#                        assignment_other_salary +
-#                        assignment_insurance +
-#                        assignment_benefits
-#                    ),
-#                }
-#
-#                self._calculated_assignment_compensation[
-#                    entry['assignment_id']] = value
 
     def write_table(self, outdir, schema, table, additional_tables=[]):
         with open(outdir / f"{schema['name']}.avro", "wb") as outfile:
@@ -752,19 +734,19 @@ class NormalizedS275:
         outdir = Path(outdir_str)
         self.write_table(
             outdir=outdir,
-            schema=s275.EMPLOYEES_SCHEMA,
+            schema=s275.EMPLOYEE_SCHEMA,
             table=self._employee_table,
             additional_tables=[self._employee_calculated_table])
 
         self.write_table(
             outdir=outdir,
-            schema=s275.CONTRACTS_SCHEMA,
-            table=self._contract_table)
+            schema=s275.FTE_DATA_SCHEMA,
+            table=self._fte_data_table)
 
         self.write_table(
             outdir=outdir,
-            schema=s275.ASSIGNMENTS_SCHEMA,
-            table=self._assignment_table)
+            schema=s275.ASSIGNMENT_SCHEMA,
+            table=self._assignments_table)
 
         self.write_table(
             outdir=outdir,
@@ -773,18 +755,18 @@ class NormalizedS275:
 
         self.write_table(
             outdir=outdir,
-            schema=s275.PRIVATES_EMPLOYEE_SCHEMA,
+            schema=s275.PRIVATE_EMPLOYEE_SCHEMA,
             table=self._private_employee_data_table)
 
         self.write_table(
             outdir=outdir,
-            schema=s275.PRIVATES_CONTRACT_SCHEMA,
-            table=self._private_contract_table)
+            schema=s275.PRIVATE_CONTRACTS_SCHEMA,
+            table=self._private_fte_data_table)
 
         self.write_table(
             outdir=outdir,
-            schema=s275.PRIVATES_ASSIGNMENT_SCHEMA,
-            table=self._private_assignment_table)
+            schema=s275.PRIVATE_ASSIGNMENT_SCHEMA,
+            table=self._private_assignments_table)
 
     def upsert(self, session, tablename, lk_value_map):
         """Inserts entries into the orm_class for the given schema.

@@ -12,6 +12,11 @@ def passthru(record, source):
     return record[source]
 
 
+def just_zero(_, __):
+    """return the constant 1"""
+    return 0
+
+
 def to_int(record, source):
     """Reads the value as an int"""
     return int(record[source])
@@ -115,8 +120,21 @@ def extract_full_name(record, source):
     return name_typo_correction(raw_full_name)
 
 
-REPORTS_SCHEMA = {
-    "name": "s275_reports",
+"""Fields for deduping on upsert and tracking changes"""
+UPSERT_AUDIT_FIELDS = [
+    {
+        "name": "s275_recno",
+        "source": "recno",
+        "field_type": "int",
+        "extractor": to_int,
+        "doc": ("Record number in 275. Needed to deduplicate. This is "
+                "just an audit log. The duplicate entries will not be "
+                "included.")
+    }
+]
+
+REPORT_SCHEMA = {
+    "name": "s275_report",
     "doc": "Represents one s275 report for one year from a district or esd",
     "fields": [
         {
@@ -143,13 +161,13 @@ REPORTS_SCHEMA = {
             "name": "county_code",
             "source": "cou",
             "field_type": "int",
-            "doc": ("county code for convenience. cc part of ccddd")
+            "doc": ("[convenience] county code is cc part of ccddd")
         },
         {
             "name": "district_code",
             "source": "dis",
             "field_type": "int",
-            "doc": ("district_code for convenience. ddd part of ccddd")
+            "doc": ("[convenience] district_code is ddd part of ccddd")
         },
         {
             "name": "is_esd",
@@ -179,15 +197,14 @@ REPORTS_SCHEMA = {
             "field_type": "string",
             "source": "SchoolYear",
             "extractor": parse_first_schoolyear,
-            "doc": ("(convenience) The starting school year as an integer. "
+            "doc": ("[convenience] The starting school year as an integer. "
                     "Makes sorting and comparisons easier.")
         },
     ]
 }
 
-
-EMPLOYEES_SCHEMA = {
-    "name": "s275_employees",
+EMPLOYEE_SCHEMA = {
+    "name": "s275_employee",
     "doc": ("Represents one employee in the s275 logically identified by a "
             "unique First, Middle, and Last name. So far there have been no "
             "collisions. Note that This table is a obfucation proxy and does "
@@ -256,107 +273,72 @@ EMPLOYEES_SCHEMA = {
         {
             "name": "c_record_county_code",
             "field_type": "int",
-            "doc": ("county and district code of record these fields are from")
+            "doc": ("county and district code that the c_ fields came from")
         },
         {
             "name": "c_record_s275_recno",
+            "source": "recno",
             "field_type": "int",
-            "doc": ("Record number in 275 that these fields are from")
-        }
-    ],
+            "extractor": to_int,
+            "doc": ("Record number in 275 that the c_ fields came from.")
+        },
+    ] + UPSERT_AUDIT_FIELDS,
 }
 
-CONTRACTS_SCHEMA = {
-    "name": "s275_contracts",
-    "doc": ("Represents one contract in the s275. This is not a true concept "
-            "in the s275 accounting manual. Rather it is an inferred set of "
-            "values taken from the fields used to calculate tfinsal. In the "
-            "s275, this is denoramlized and exceptionally repetitive. "
-            "Normalizing the data is a space-saving and sanity-preserving "
-            "measure"),
+PRIVATE_EMPLOYEE_SCHEMA = {
+    "name": "s275_private_employee",
+    "doc": "Contains full name and demographics of the associated Employee",
     "fields": [
         {
-            "name": "contract_id",
+            "name": "private_employee_id",
             "field_type": "auto_primary_key",
             "doc": ("primary key")
         },
         {
-            "name": "fte_hours",
-            "source": "ftehrs",
-            "field_type": "decimal",
-            "is_logical_key": True,
-            "doc": ("(logical key) Usually same for all certificated "
-                    "employees in the district. Only for duties 110 to 640.")
+            "name": "full_name",
+            "field_type": "string",
+            "extractor": extract_full_name,
+            "doc": ("(logical key) Join of First, Middle, Last through the "
+                    "Spelling Correction Table.")
         },
         {
-            "name": "fte_days",
-            "source": "ftedays",
-            "field_type": "decimal",
-            "is_logical_key": True,
-            "doc": ("(logical key) Usually same for all certificated "
-                    "employees in the district. Only for duties 110 to 640.")
-        },
-        {
-            "name": "certificated_fte",
-            "source": "certfte",
-            "field_type": "decimal",
-            "is_logical_key": True,
-            "doc": ("(logical key) Full-time equivalent (FTE) certificated "
-                    "employment is determined as defined in WAC 392-121-212.  "
-                    "Only for duties 110 to 640.")
-        },
-        {
-            "name": "classified_fte",
-            "source": "clasfte",
-            "field_type": "decimal",
-            "is_logical_key": True,
-            "doc": ("(logical key) Not in the S275 manual, but probably "
-                    "similar to certfte just suing clasbase instead")
-        },
-        {
-            "name": "certificated_base_hours",
-            "source": "certbase",
-            "field_type": "decimal",
-            "is_logical_key": True,
-            "doc": ("(logical key) Used to calculate certificated_fte")
-        },
-        {
-            "name": "classified_base_hours",
-            "source": "clasbase",
-            "field_type": "decimal",
-            "is_logical_key": True,
-            "doc": ("(logical key) Used to calculate clas_fte")
-        },
-        {
-            "name": "is_classified",
-            "source": "clasflag",
-            "field_type": "boolean",
-            "is_logical_key": True,
-            "extractor": y_n_to_boolean,
-            "doc": ("(logical key) Is Classified")
-        },
-        {
-            "name": "is_certificated",
-            "source": "certflag",
-            "field_type": "boolean",
-            "is_logical_key": True,
-            "extractor": y_n_to_boolean,
-            "doc": ("(logical key) Is Certificated")
-        },
-        {
-            "name": "s275_recno",
-            "source": "recno",
+            "name": "employee_id",
             "field_type": "int",
-            "extractor": to_int,
-            "doc": ("Record number in 275. Needed to deduplicate. This is "
-                    "just an audit log. The duplicate entries will not be "
-                    "included.")
-        }
-    ],
+            "is_logical_key": True,
+            "foreign_key": "s275_employee.employee_id",
+            "doc": ("employee this belongs to. 1:1 relationship")
+        },
+        {
+            "name": "sex",
+            "source": "sex",
+            "field_type": "string",
+            "doc": ("OSPI Demographics: Gender")
+        },
+        {
+            "name": "is_hispanic",
+            "source": "hispanic",
+            "field_type": "boolean",
+            "extractor": y_n_to_boolean,
+            "doc": ("OSPI Demographics: Hispanic")
+        },
+        {
+            "name": "race",
+            "source": "race",
+            "field_type": "string",
+            "doc": ("OSPI Demographics: Race")
+        },
+        {
+            "name": "certificate_id",
+            "source": "cert",
+            "field_type": "string",
+            "is_logical_key": True,
+            "doc": ("Certificate number for certificated employees")
+        },
+    ] + UPSERT_AUDIT_FIELDS,
 }
 
-REPORT_EMPLOYEES_SCHEMA = {
-    "name": "s275_report_employees",
+REPORT_EMPLOYEE_SCHEMA = {
+    "name": "s275_report_employee",
     "doc": ("Represents information about an employee that is unique to one "
             "s275 report such as if they are a continuing, beginning, "
             "returning, transfering, new classified-employee."),
@@ -369,14 +351,14 @@ REPORT_EMPLOYEES_SCHEMA = {
         {
             "name": "report_id",
             "field_type": "int",
-            "foreign_key": "s275_reports.report_id",
+            "foreign_key": "s275_report.report_id",
             "is_logical_key": True,
             "doc": ("s275_report this belongs to")
         },
         {
             "name": "employee_id",
             "field_type": "int",
-            "foreign_key": "s275_employees.employee_id",
+            "foreign_key": "s275_employee.employee_id",
             "is_logical_key": True,
             "doc": ("employee this belongs to")
         },
@@ -444,20 +426,71 @@ REPORT_EMPLOYEES_SCHEMA = {
                 "was not reported by the reporting district for the "
                 "previous school year.")
         },
-        {
-            "name": "s275_recno",
-            "source": "recno",
-            "field_type": "int",
-            "extractor": to_int,
-            "doc": ("Record number in 275. Needed to deduplicate. This is "
-                    "just an audit log. The duplicate entries will not be "
-                    "included.")
-        }
-    ],
+    ] + UPSERT_AUDIT_FIELDS,
 }
 
-ASSIGNMENTS_SCHEMA = {
-    "name": "s275_assignments",
+PRIVATE_REPORT_EMPLOYEE_SCHEMA = {
+    "name": "s275_private_report_employee",
+    "doc": ("Contains compensation related info for the report employee"),
+    "fields": [
+        {
+            "name": "s275_private_report_employee_id",
+            "field_type": "auto_primary_key",
+            "doc": ("primary key")
+        },
+        {
+            "name": "s275_report_employee_id",
+            "field_type": "int",
+            "foreign_key": "s275_report_employee.s275_report_employee_id",
+            "is_logical_key": True,
+            "doc": ("s275_report this belongs to")
+        },
+        {
+            "name": "total_final_salary",
+            "source": "tfinsal",
+            "field_type": "decimal",
+            "is_logical_key": True,
+            "doc": ("Final Salary for year. Compare to D.6. \n\n"
+                    "If the person’s assignment has changed or the person has "
+                    "terminated employment or gone on leave, updates to the "
+                    "assignment salaries and benefits are determined by what "
+                    "the individual would have earned had that individual "
+                    "remained in the same position and assignment as reported "
+                    "on October 1. However, total final salary is determined "
+                    "by payroll, not the snapshot. See example 2F on page 40 "
+                    "of 2024-2025 s275 personnel reporting handbook")
+        },
+        {
+            "name": "insurance",
+            "source": "cins",
+            "field_type": "decimal",
+            "is_logical_key": True,
+            "doc": ("Annual Insurance Benefits for year")
+        },
+        {
+            "name": "benefits",
+            "source": "cman",
+            "field_type": "decimal",
+            "is_logical_key": True,
+            "doc": ("Annual Manditory Benefits for year")
+        },
+        {
+            "name": "other_salary",
+            "source": "othersal",
+            "field_type": "decimal",
+            "is_logical_key": True,
+            "doc": (
+                "Other salaries from supplemental contract "
+                "(RCW 28A.400.200). For reporting purposes, such contracts "
+                "include formal and informal contracts known in the district "
+                "by various terms such as TRI, supplemental, stipends, and "
+                "time sheets.")
+        },
+    ] + UPSERT_AUDIT_FIELDS,
+}
+
+ASSIGNMENT_SCHEMA = {
+    "name": "s275_assignment",
     "doc": "Represents one assignment. Closest thing to a row in the s275",
     "fields": [
         {
@@ -466,26 +499,32 @@ ASSIGNMENTS_SCHEMA = {
             "doc": ("primary key"),
         },
         {
-            "name": "contract_id",
+            "name": "s275_report_employee_id",
             "field_type": "int",
-            "foreign_key": "s275_contracts.contract_id",
+            "foreign_key": "s275_report_employee.s275_report_employee_id",
             "is_logical_key": True,
-            "doc": ("contract this assignment belongs to"),
+            "doc": ("which s275 report and employee this assignment is for")
         },
         {
             "name": "report_id",
             "field_type": "int",
-            "foreign_key": "s275_reports.report_id",
-            "is_logical_key": True,
-            "doc": ("which s275 report this belongs to")
+            "foreign_key": "s275_report.report_id",
+            "doc": ("[convenience] which s275 report this belongs to. Can be "
+                    "joined through s275_report_employee_id")
         },
         {
             "name": "employee_id",
             "field_type": "int",
-            "foreign_key": "s275_employees.employee_id",
+            "foreign_key": "s275_employee.employee_id",
+            "doc": ("[convenience] employee this assignment belongs to. Can be"
+                    "joined through s275_report_employee_id")
+        },
+        {
+            "name": "assignment_fte_id",
+            "field_type": "int",
+            "foreign_key": "s275_assignment_fte.assignment_fte_id",
             "is_logical_key": True,
-            "doc": ("(logical primary key part) employee this assignment "
-                    "belongs to")
+            "doc": ("FTE info associated with this assignment"),
         },
         {
             "name": "school_code",
@@ -543,9 +582,9 @@ ASSIGNMENTS_SCHEMA = {
             "field_type": "decimal",
             "is_logical_key": True,
             "doc": ("How much FTE is this assignment worth.  Note that agrees "
-                    "with fte_in_assignment, but not total_final_salary or "
-                    "assignment_salary. All three of these can "
-                    "independently be non-zero.")
+                    "with pct100_fte_in_assignment, but not "
+                    "total_final_salary or assignment_salary. All three of "
+                    "these can independently be non-zero.")
         },
         {
             "name": "pct100_fte_in_assignment",
@@ -581,152 +620,102 @@ ASSIGNMENTS_SCHEMA = {
             "extractor": one_to_boolean,
             "doc": ("Does s275 consider this to be the \"major\" assignment")
         },
-        {
-            "name": "s275_recno",
-            "source": "recno",
-            "field_type": "int",
-            "extractor": to_int,
-            "doc": ("Record number in 275. Needed to deduplicate. This is "
-                    "just an audit log. The duplicate entries will not be "
-                    "included.")
-        }
-    ],
+    ] + UPSERT_AUDIT_FIELDS,
 }
 
-PRIVATE_EMPLOYEES_SCHEMA = {
-    "name": "s275_private_employees",
-    "doc": "Contains full name and demographics of the associated Employee",
+ASSIGNMENT_FTE_SCHEMA = {
+    "name": "s275_assignment_fte",
+    "doc": ("Fte related info for an assignment. This is very frequently "
+            "the same across many assignements and not frequently useful "
+            "separating it out allows for lower data sizes."),
     "fields": [
         {
-            "name": "private_employee_id",
+            "name": "assignment_fte_id",
             "field_type": "auto_primary_key",
             "doc": ("primary key")
         },
         {
-            "name": "full_name",
-            "field_type": "string",
-            "extractor": extract_full_name,
-            "doc": ("(logical key) Join of First, Middle, Last through the "
-                    "Spelling Correction Table.")
-        },
-        {
-            "name": "employee_id",
-            "field_type": "int",
+            "name": "fte_hours",
+            "source": "ftehrs",
+            "field_type": "decimal",
             "is_logical_key": True,
-            "foreign_key": "s275_employees.employee_id",
-            "doc": ("employee this belongs to. 1:1 relationship")
+            "doc": ("(logical key) Usually same for all certificated "
+                    "employees in the district. Only for duties 110 to 640.")
         },
         {
-            "name": "sex",
-            "source": "sex",
-            "field_type": "string",
-            "doc": ("OSPI Demographics: Gender")
+            "name": "fte_days",
+            "source": "ftedays",
+            "field_type": "decimal",
+            "is_logical_key": True,
+            "doc": ("(logical key) Usually same for all certificated "
+                    "employees in the district. Only for duties 110 to 640.")
         },
         {
-            "name": "is_hispanic",
-            "source": "hispanic",
+            "name": "certificated_fte",
+            "source": "certfte",
+            "field_type": "decimal",
+            "is_logical_key": True,
+            "doc": ("(logical key) Full-time equivalent (FTE) certificated "
+                    "employment is determined as defined in WAC 392-121-212.  "
+                    "Only for duties 110 to 640.")
+        },
+        {
+            "name": "classified_fte",
+            "source": "clasfte",
+            "field_type": "decimal",
+            "is_logical_key": True,
+            "doc": ("(logical key) Not in the S275 manual, but probably "
+                    "similar to certfte just suing clasbase instead")
+        },
+        {
+            "name": "is_classified",
+            "source": "clasflag",
             "field_type": "boolean",
-            "extractor": y_n_to_boolean,
-            "doc": ("OSPI Demographics: Hispanic")
-        },
-        {
-            "name": "race",
-            "source": "race",
-            "field_type": "string",
-            "doc": ("OSPI Demographics: Race")
-        },
-        {
-            "name": "certificate_id",
-            "source": "cert",
-            "field_type": "string",
             "is_logical_key": True,
-            "doc": ("Certificate number for certificated employees")
+            "extractor": y_n_to_boolean,
+            "doc": ("(logical key) Is Classified")
         },
         {
-            "name": "s275_recno",
-            "source": "recno",
-            "field_type": "int",
-            "extractor": to_int,
-            "doc": ("Record number in 275. Needed to deduplicate. This is "
-                    "just an audit log. The duplicate entries will not be "
-                    "included.")
-        }
-    ]
+            "name": "is_certificated",
+            "source": "certflag",
+            "field_type": "boolean",
+            "is_logical_key": True,
+            "extractor": y_n_to_boolean,
+            "doc": ("(logical key) Is Certificated")
+        },
+    ] + UPSERT_AUDIT_FIELDS,
 }
 
-PRIVATE_CONTRACTS_SCHEMA = {
-    "name": "s275_private_contracts",
-    "doc": ("Contains compensation info from the contract. Separated out "
-            "since it is invasive feeling"),
+PRIVATE_ASSIGNMENT_COMP_BASE_SCHEMA = {
+    "name": "s275_assignment_comp_base",
+    "doc": ("Represents compensation base numbers for an assignemnt. These "
+            "are very frequently the same across assignments and are not "
+            "super useful. Normalizing them lowers data size."),
     "fields": [
         {
-            "name": "private_contract_id",
+            "name": "private_assignment_comp_base_id",
             "field_type": "auto_primary_key",
             "doc": ("primary key")
         },
         {
-            "name": "contract_id",
-            "field_type": "int",
-            "foreign_key": "s275_contracts.contract_id",
-            "is_logical_key": True,
-            "doc": ("Contract this is associated with")
-        },
-        {
-            # TODO: This should be in private_report_employee
-            "name": "total_final_salary",
-            "source": "tfinsal",
+            "name": "certificated_base",
+            "source": "certbase",
             "field_type": "decimal",
             "is_logical_key": True,
-            "doc": ("Final Salary for year. Compare to D.6. \n\n"
-                    "If the person’s assignment has changed or the person has "
-                    "terminated employment or gone on leave, updates to the "
-                    "assignment salaries and benefits are determined by what "
-                    "the individual would have earned had that individual "
-                    "remained in the same position and assignment as reported "
-                    "on October 1. However, total final salary is determined "
-                    "by payroll, not the snapshot. See example 2F on page 40 "
-                    "of 2024-2025 s275 personnel reporting handbook")
+            "doc": ("(logical key) Base Salary for certificated compensation")
         },
         {
-            "name": "insurance",
-            "source": "cins",
+            "name": "classified_base",
+            "source": "clasbase",
             "field_type": "decimal",
             "is_logical_key": True,
-            "doc": ("Annual Insurance Benefits for year")
+            "doc": ("(logical key) Base Salary for classified compensation")
         },
-        {
-            "name": "benefits",
-            "source": "cman",
-            "field_type": "decimal",
-            "is_logical_key": True,
-            "doc": ("Annual Manditory Benefits for year")
-        },
-        {
-            "name": "other_salary",
-            "source": "othersal",
-            "field_type": "decimal",
-            "is_logical_key": True,
-            "doc": (
-                "Other salaries from supplemental contract "
-                "(RCW 28A.400.200). For reporting purposes, such contracts "
-                "include formal and informal contracts known in the district "
-                "by various terms such as TRI, supplemental, stipends, and "
-                "time sheets.")
-        },
-        {
-            "name": "s275_recno",
-            "source": "recno",
-            "field_type": "int",
-            "extractor": to_int,
-            "doc": ("Record number in 275. Needed to deduplicate. This is "
-                    "just an audit log. The duplicate entries will not be "
-                    "included.")
-        }
-    ]
+    ] + UPSERT_AUDIT_FIELDS,
 }
 
-PRIVATE_ASSIGNMENTS_SCHEMA = {
-    "name": "s275_private_assignments",
+PRIVATE_ASSIGNMENT_SCHEMA = {
+    "name": "s275_private_assignment",
     "doc": ("Contains compensation info related to the assignment. Separated "
             "out since it is invasive feeling"),
     "fields": [
@@ -738,10 +727,25 @@ PRIVATE_ASSIGNMENTS_SCHEMA = {
         {
             "name": "assignment_id",
             "field_type": "int",
-            "foreign_key": "s275_assignments.assignment_id",
+            "foreign_key": "s275_assignment.assignment_id",
             "is_logical_key": True,
             "doc": ("(logical key) assignment this belongs to")
         },
+        {
+            "name": "private_assignment_comp_base_id",
+            "field_type": "int",
+            "foreign_key": ("s275_assignment_comp_base."
+                            "private_assignment_comp_base_id"),
+            "is_logical_key": True,
+            "doc": ("(logical key) contract base compensation info")
+        },
+        {
+            "name": "s275_report_employee_id",
+            "field_type": "int",
+            "foreign_key": "s275_report_employee.s275_report_employee_id",
+            "doc": ("[convenience] report employee this belongs to.")
+        },
+
         {
             "name": "assignment_salary",
             "source": "asssal",
@@ -751,14 +755,14 @@ PRIVATE_ASSIGNMENTS_SCHEMA = {
 
         # The following are calculated fields.
         {
-            "name": "c_assignment_salary_percentage",
+            "name": "c_pct_of_assignments",
             "field_type": "decimal",
             "doc": ("Conceptually what percentage of the fte assignment is "
                     "in this assignment.  Calculated as "
                     "assignment_salary/sum(all assignment_salary in report).")
         },
         {
-            "name": "c_assignment_other_salary",
+            "name": "c_est_other_salary",
             "field_type": "decimal",
             "doc": (
                 "Conceptually how much of the other_salary is taken by this "
@@ -769,7 +773,7 @@ PRIVATE_ASSIGNMENTS_SCHEMA = {
                 "Calculated as assignment_salary_percentage * other_salary")
         },
         {
-            "name": "c_assignment_insurance",
+            "name": "c_est_insurance",
             "field_type": "decimal",
             "doc": (
                 "Conceptually how much of the insurance is taken by this "
@@ -781,7 +785,7 @@ PRIVATE_ASSIGNMENTS_SCHEMA = {
                 "Calcualted as assignment_salary_percentage * insruance")
         },
         {
-            "name": "c_assignment_benefits",
+            "name": "c_est_benefits",
             "field_type": "decimal",
             "doc": (
                 "Conceptually how much of the benefits is taken by this "
@@ -792,7 +796,15 @@ PRIVATE_ASSIGNMENTS_SCHEMA = {
                 "Calculated as assignment_salary_percentage * benefits")
         },
         {
-            "name": "c_assignment_total_compensation",
+            "name": "c_est_total_final_salary",
+            "field_type": "decimal",
+            "doc": (
+                "Conceptually, how much of the total final salary is taken "
+                "up by this assignment."
+            )
+        },
+        {
+            "name": "c_est_total_compensation",
             "field_type": "decimal",
             "doc": (
                 "Conceptually, how much of the total compensation is taken "
@@ -806,28 +818,23 @@ PRIVATE_ASSIGNMENTS_SCHEMA = {
                 "assignment_salary but this does not seem to quite match "
                 "the f196 values.  The current calculation is a best guess.")
         },
-        {
-            "name": "s275_recno",
-            "source": "recno",
-            "field_type": "int",
-            "extractor": to_int,
-            "doc": ("Record number in 275. Needed to deduplicate. This is "
-                    "just an audit log. The duplicate entries will not be "
-                    "included.")
-        }
-    ],
+    ] + UPSERT_AUDIT_FIELDS,
 }
 
 
 ALL_SCHEMAS = [
-    REPORTS_SCHEMA,
-    EMPLOYEES_SCHEMA,
-    CONTRACTS_SCHEMA,
-    REPORT_EMPLOYEES_SCHEMA,
-    ASSIGNMENTS_SCHEMA,
-    PRIVATE_EMPLOYEES_SCHEMA,
-    PRIVATE_CONTRACTS_SCHEMA,
-    PRIVATE_ASSIGNMENTS_SCHEMA
+    REPORT_SCHEMA,
+
+    EMPLOYEE_SCHEMA,
+    PRIVATE_EMPLOYEE_SCHEMA,
+
+    REPORT_EMPLOYEE_SCHEMA,
+    PRIVATE_REPORT_EMPLOYEE_SCHEMA,
+
+    ASSIGNMENT_SCHEMA,
+    ASSIGNMENT_FTE_SCHEMA,
+    PRIVATE_ASSIGNMENT_COMP_BASE_SCHEMA,
+    PRIVATE_ASSIGNMENT_SCHEMA
 ]
 
 TABLENAME_SCHEMA_MAP = {s['name']: s for s in ALL_SCHEMAS}
