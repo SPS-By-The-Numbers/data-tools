@@ -2,8 +2,6 @@ import logging
 import dateutil
 import hashlib
 
-from decimal import Decimal
-
 logger = logging.getLogger(__name__)
 
 
