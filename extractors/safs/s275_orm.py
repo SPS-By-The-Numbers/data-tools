@@ -1,7 +1,7 @@
 #!python3
 
-from decimal import Decimal, getcontext
 from datetime import datetime
+from decimal import Decimal
 
 from sqlalchemy import Column
 from sqlalchemy import create_engine
@@ -13,20 +13,8 @@ from sqlalchemy.dialects.postgresql import insert as postgres_insert
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.orm import DeclarativeBase
 
+from .schemas.common import DECIMAL_PRECISION, DECIMAL_SCALE
 from .schemas import s275
-
-
-"""Precision used on the sql DECIMAL type"""
-DECIMAL_PRECISION = 38
-getcontext().prec = DECIMAL_PRECISION
-
-
-"""Scale used on the sql DECIMAL type."""
-DECIMAL_SCALE = 9
-
-
-"""quant() parameter for Decimals after math. ALWAYS QUANT TO AVOID ERRORS."""
-DECIMAL_QUANT_AMOUNT = Decimal(10**(-DECIMAL_SCALE))
 
 
 """Sentinel number used to represent NULL"""

@@ -1,3 +1,20 @@
+#!python3
+
+from decimal import getcontext, Decimal
+
+"""Precision used on the sql DECIMAL type"""
+DECIMAL_PRECISION = 38
+getcontext().prec = DECIMAL_PRECISION
+
+
+"""Scale used on the sql DECIMAL type."""
+DECIMAL_SCALE = 9
+
+
+"""quant() parameter for Decimals after math. ALWAYS QUANT TO AVOID ERRORS."""
+DECIMAL_QUANT_AMOUNT = Decimal(10**(-DECIMAL_SCALE))
+
+
 def make_field(name, field_type, doc=None, default=None, primary_key=False):
     """Given a name and field_type, produces the right AVRO field definition"""
     if field_type == 'decimal':
@@ -15,7 +32,7 @@ def make_field(name, field_type, doc=None, default=None, primary_key=False):
             "null",
             {
                 "logicalType": "timestamp-millis",
-                "type": "int"
+                "type": "long"
             }
         ]
     else:
