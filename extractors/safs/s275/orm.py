@@ -1,47 +1,20 @@
 #!python3
 
-from datetime import datetime
-from decimal import Decimal
+import os
 
 from sqlalchemy import Column
 from sqlalchemy import create_engine
 from sqlalchemy import ForeignKey
 from sqlalchemy import Table
 from sqlalchemy import types
+from sqlalchemy import text
 from sqlalchemy import UniqueConstraint
 from sqlalchemy.dialects.postgresql import insert as postgres_insert
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.orm import DeclarativeBase
 
-from .schemas.common import DECIMAL_PRECISION, DECIMAL_SCALE
-from .schemas import s275
-
-
-"""Sentinel number used to represent NULL"""
-_NULL_NUMBER = -931415926
-
-
-def get_null_sentinel(field_type, none_instead_of_raise=False):
-    """Returns a constant that should mean null for the type"""
-    match field_type:
-        case 'decimal':
-            # Do not use NaN! Those also don't equal one another. grrr.
-            return Decimal("-INF")
-
-        case 'string':
-            return 'sqlh8'
-
-        case 'timestamp':
-            # Random early leap day is unlikely to be used anywhere.
-            return datetime(month=2, day=29, year=1972)
-
-        case 'int':
-            return _NULL_NUMBER
-
-        case _:
-            if none_instead_of_raise:
-                return None
-            raise ValueError(f"No sentinel defined for {field_type}")
+from ..avro_schema import DECIMAL_PRECISION, DECIMAL_SCALE
+from . import schemas
 
 
 def to_sqlalchemy_constraints(schema):
@@ -140,51 +113,52 @@ class Base(DeclarativeBase):
 
 
 class Report(Base):
-    __table__ = make_table(s275.REPORT_SCHEMA)
+    __table__ = make_table(schemas.REPORT_SCHEMA)
 
 
 class Employee(Base):
-    __table__ = make_table(s275.EMPLOYEE_SCHEMA)
+    __table__ = make_table(schemas.EMPLOYEE_SCHEMA)
 
 
 class PrivateEmployee(Base):
-    __table__ = make_table(s275.PRIVATE_EMPLOYEE_SCHEMA,)
+    __table__ = make_table(schemas.PRIVATE_EMPLOYEE_SCHEMA,)
 
 
 class ReportEmployee(Base):
-    __table__ = make_table(s275.REPORT_EMPLOYEE_SCHEMA)
+    __table__ = make_table(schemas.REPORT_EMPLOYEE_SCHEMA)
 
 
 class PrivateReportEmployee(Base):
-    __table__ = make_table(s275.PRIVATE_REPORT_EMPLOYEE_SCHEMA)
+    __table__ = make_table(schemas.PRIVATE_REPORT_EMPLOYEE_SCHEMA)
 
 
 class Assignment(Base):
-    __table__ = make_table(s275.ASSIGNMENT_SCHEMA)
+    __table__ = make_table(schemas.ASSIGNMENT_SCHEMA)
 
 
 class AssignmentFte(Base):
-    __table__ = make_table(s275.ASSIGNMENT_FTE_SCHEMA)
+    __table__ = make_table(schemas.ASSIGNMENT_FTE_SCHEMA)
 
 
 class PrivateAssignmentCompBase(Base):
-    __table__ = make_table(s275.PRIVATE_ASSIGNMENT_COMP_BASE_SCHEMA)
+    __table__ = make_table(schemas.PRIVATE_ASSIGNMENT_COMP_BASE_SCHEMA)
 
 
 class PrivateAssignment(Base):
-    __table__ = make_table(s275.PRIVATE_ASSIGNMENT_SCHEMA)
+    __table__ = make_table(schemas.PRIVATE_ASSIGNMENT_SCHEMA)
 
 
 class DbConnection:
-    def __init__(self, engine_type):
-        if engine_type == 'sqlite':
+    def __init__(self, args):
+        if args.engine == 'sqlite':
             self._insert = sqlite_insert
             self._engine = create_engine(
                 "sqlite://", echo=False).execution_options(autocommit=False)
         else:
             self._insert = postgres_insert
             self._engine = create_engine(
-                "postgresql+psycopg2://albert:@localhost/albert",
+                (f"postgresql+psycopg2://{args.db_user}:{args.db_password}"
+                 f"@localhost/{args.db_name}"),
                 echo=False).execution_options(autocommit=False)
 
     @property
@@ -200,6 +174,12 @@ def add_orm_arguments(parser):
     parser.add_argument('--engine', default="sqlite",
                         choices=['sqlite', 'postgresql'],
                         help='Which database backend to use')
+    parser.add_argument('--db-name', default="scratch",
+                        help='Database to connect to. Ignored in sqlite')
+    parser.add_argument('--db-user', default=os.getlogin(),
+                        help='User to connect as. Ignored in sqlite')
+    parser.add_argument('--db-password', default="",
+                        help='Password to connect with. Ignored in sqlite')
 
 
 TABLENAME_ORM_CLASS_MAP = {

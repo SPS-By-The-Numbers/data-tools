@@ -6,29 +6,28 @@ import logging
 import time
 
 from functools import cache
-
-from ..common import common_logging_setup, get_args
-from .s275_orm import add_orm_arguments
-from .s275_orm import Assignment
-from .s275_orm import AssignmentFte
-from .s275_orm import Base
-from .s275_orm import DbConnection
-from .s275_orm import Employee
-from .s275_orm import get_null_sentinel
-from .s275_orm import PrivateAssignment
-from .s275_orm import PrivateAssignmentCompBase
-from .s275_orm import PrivateEmployee
-from .s275_orm import PrivateReportEmployee
-from .s275_orm import ReportEmployee
-from .s275_orm import Report
-from .s275_orm import TABLENAME_ORM_CLASS_MAP
-from .schemas import s275
-
 from sqlalchemy import bindparam
 from sqlalchemy import select
+from sqlalchemy.orm import Session
 from sqlalchemy.sql.expression import and_
 
-from sqlalchemy.orm import Session
+from extractors.common import common_logging_setup, get_args
+from extractors.safs import avro_schema
+
+from .orm import add_orm_arguments
+from .orm import Assignment
+from .orm import AssignmentFte
+from .orm import Base
+from .orm import DbConnection
+from .orm import Employee
+from .orm import PrivateAssignment
+from .orm import PrivateAssignmentCompBase
+from .orm import PrivateEmployee
+from .orm import PrivateReportEmployee
+from .orm import ReportEmployee
+from .orm import Report
+from .orm import TABLENAME_ORM_CLASS_MAP
+from . import schemas
 
 logger = logging.getLogger(__name__)
 
@@ -40,7 +39,7 @@ def is_primary_key(field):
 
 @cache
 def get_lk_select(session, fk_tablename):
-    fk_schema = s275.TABLENAME_SCHEMA_MAP[fk_tablename]
+    fk_schema = schemas.TABLENAME_SCHEMA_MAP[fk_tablename]
     fk_orm_class = TABLENAME_ORM_CLASS_MAP[fk_tablename]
 
     pk_columns = [f['name']
@@ -57,7 +56,7 @@ def get_lk_select(session, fk_tablename):
 
 @cache
 def get_upsert_statement(session, insert, tablename):
-    schema = s275.TABLENAME_SCHEMA_MAP[tablename]
+    schema = schemas.TABLENAME_SCHEMA_MAP[tablename]
     orm_class = TABLENAME_ORM_CLASS_MAP[tablename]
 
     statement = insert(orm_class).execution_options(render_nulls=True)
@@ -92,7 +91,7 @@ def get_upsert_statement(session, insert, tablename):
 
 
 def get_fk_id(session, record, fk_tablename, fk_name):
-    fk_schema = s275.TABLENAME_SCHEMA_MAP[fk_tablename]
+    fk_schema = schemas.TABLENAME_SCHEMA_MAP[fk_tablename]
 
     # Generate the foreign key select statement.
     fk_logical_key = dict(_record_to_upsert(session, record,
@@ -139,7 +138,7 @@ def _record_to_upsert(session, record, schema):
                     value = None
                 else:
                     # Default to the passthru extrator.
-                    value = s275.passthru(record, source)
+                    value = avro_schema.passthru(record, source)
             else:
                 value = extractor(record, source)
 
@@ -147,7 +146,7 @@ def _record_to_upsert(session, record, schema):
             if (f.get('is_logical_key', False) and
                     value is None and
                     not f.get('preserve_null', False)):
-                value = get_null_sentinel(f['field_type'])
+                value = avro_schema.get_null_sentinel(f['field_type'])
 
         # Add to correct key set.
         if f.get('is_logical_key', False):
@@ -164,7 +163,7 @@ def _get_lk_bind_values(session, tablename, record):
 
     The logical key tuple is sorted and can be used as a deduping key.
     """
-    schema = s275.TABLENAME_SCHEMA_MAP[tablename]
+    schema = schemas.TABLENAME_SCHEMA_MAP[tablename]
     fields = _record_to_upsert(session, record, schema)
 
     lk = tuple(sorted(fields["logical_key"].items()))
@@ -193,11 +192,11 @@ def table_to_avro_rows(table, additional_tables):
 
 class NormalizedS275Loader(DbConnection):
     def __init__(self,
-                 engine,
+                 args,
                  log_batch_size,
                  commit_batch_size,
                  max_records_per_file):
-        super().__init__(engine)
+        super().__init__(args)
         self._log_batch_size = log_batch_size
         self._commit_batch_size = commit_batch_size
         self._max_records_per_file = max_records_per_file
@@ -245,6 +244,7 @@ class NormalizedS275Loader(DbConnection):
             # Check if it needs to be flushed
             for entries in all_entries.values():
                 if len(entries) > self._commit_batch_size:
+                    logger.info("Flushing")
                     flush()
                     break
 
@@ -272,7 +272,7 @@ class NormalizedS275Loader(DbConnection):
             return
 
         TABLENAME_ORM_CLASS_MAP[tablename],
-        s275.TABLENAME_SCHEMA_MAP[tablename],
+        schemas.TABLENAME_SCHEMA_MAP[tablename],
 
         statement = get_upsert_statement(session, self.insert, tablename)
         return session.execute(statement, lk_bind_values_map.values())
@@ -283,7 +283,7 @@ def main():
         description='Loads raw s275 avro files into normalized tables')
     parser.add_argument('--log-batch-size', default=10000, type=int,
                         help='record per logging message')
-    parser.add_argument('--commit-batch-size', default=1000, type=int,
+    parser.add_argument('--commit-batch-size', default=50000, type=int,
                         help='new records before committing')
     parser.add_argument('--drop-first', default=False, action='store_true',
                         help='Drop all tables before starting')
@@ -299,7 +299,7 @@ def main():
     args = get_args(parser)
 
     normalized_s275 = NormalizedS275Loader(
-        engine=args.engine,
+        args=args,
         log_batch_size=args.log_batch_size,
         commit_batch_size=args.commit_batch_size,
         max_records_per_file=args.max_records_per_file)

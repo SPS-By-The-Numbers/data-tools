@@ -1,11 +1,11 @@
 This directory contains code for reading in the OSPI SAFS data files
 into avro format.
 
-There are 4 types of files
- 1. `{dataset}_{format}_to_avro.py` - Conversion of a file to an avro normalizing column names.
- 2. `{dataset}_load_data.py` - Pulls results of the converted AVRO files into a RDMBS.
- 3. `{dataset}_calculate_fields.py` - Merges records, infers fields, does extra calculations, etc.
- 4.  `{dataset}_dump_tables.py` - Dumps the RDMBS into avro files. This produces the "final" result.
+There are 4 types of modules
+ 1. `{dataset}/from_access.py` - Conversion of a file to an avro normalizing column names.
+ 2. `{dataset}/load_data.py` - Pulls results of the converted AVRO files into a RDMBS.
+ 3. `{dataset}/calculate_fields.py` - Merges records, infers fields, does extra calculations, etc.
+ 4. `{dataset}/dump_tables.py` - Dumps the RDMBS into avro files. This produces the "final" result.
 
 Three datasets are supproted:
   * f195 - Budget

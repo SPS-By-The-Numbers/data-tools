@@ -1,28 +1,8 @@
-import logging
 import dateutil
 import hashlib
 
-logger = logging.getLogger(__name__)
-
-
-def passthru(record, source):
-    """Just pass through the data value unchanged"""
-    return record[source]
-
-
-def just_zero(_, __):
-    """return the constant 1"""
-    return 0
-
-
-def to_int(record, source):
-    """Reads the value as an int"""
-    return int(record[source])
-
-
-def parse_first_schoolyear(record, source):
-    """Reads the value as an int"""
-    return int(record[source].split('-')[0])
+from ..avro_schema import (to_int, parse_first_schoolyear, y_n_to_boolean,
+                           one_to_boolean)
 
 
 def decode_cbrtn(record, source):
@@ -43,25 +23,6 @@ def decode_cbrtn(record, source):
             return 'Unknown'
         case _:
             raise ValueError(src_val)
-
-
-def one_to_boolean(record, source):
-    """Converts a "1" value ot True. Everything else is False"""
-    return record[source] == '1'
-
-
-def y_n_to_boolean(record, source):
-    """Converts a "Y" and "N" value ot True/False"""
-    src_val = record[source]
-    if src_val == 'Y':
-        return True
-    elif src_val == 'N':
-        return False
-    elif src_val == '' or src_val is None:
-        return None
-    else:
-        logger.error(src_val)
-        raise ValueError(src_val)
 
 
 def area_to_is_esd(record, source):

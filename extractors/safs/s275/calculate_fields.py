@@ -3,13 +3,11 @@
 import argparse
 import logging
 
-from ..common import common_logging_setup, get_args
-
 from sqlalchemy import text
-
 from sqlalchemy.orm import Session
-from .s275_orm import DbConnection, add_orm_arguments
 
+from extractors.common import common_logging_setup, get_args
+from .orm import DbConnection, add_orm_arguments
 
 logger = logging.getLogger(__name__)
 
@@ -209,7 +207,7 @@ def main():
 
     args = get_args(parser)
 
-    calculator = NormalizedS275FieldCalculator(args.engine)
+    calculator = NormalizedS275FieldCalculator(args)
     calculator.fill_calculated_fields()
 
 
