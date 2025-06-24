@@ -17,102 +17,40 @@ complete. The mdbtools binaries are the best way to convert to a csv.
 import argparse
 import csv
 import fastavro
-from decimal import Decimal
+
+from extractors.safs import access_db, avro_schema
 
 
-def clean_string(x):
-    return x.strip()
-
-
-def title_case(x):
-    return clean_string(x).title()
-
-
-def int_or_null(x):
-    x = clean_string(x)
-    if x:
-        return int(x)
-
-    return None
-
-
-def decimal_or_null(x):
-    x = clean_string(x)
-    if x:
-        return Decimal(x).quantize(Decimal('0.000000001'))
-    return None
-
-
-def prog_act_or_null(x):
-    """Normalize Program and Activity codes.
-
-    s275 has SB and CP for ASB and Capital Projects fund. These are not
-    standard. Make up 1 codes way outside the range for them so the type
-    can be int.
-    """
-    x = clean_string(x)
-    if x == 'SB':
-        return -100
-    if x == 'CP':
-        return -200
-    return int(x)
-
-
-def make_field_type(field_name):
+def s275_col_to_avro_field_and_extractor(field_name):
     match field_name:
         case ("cou" | "dis" | "codist" | "parea" |
               "darea" | "droot" | "dsufx" | "bldgn"):
-            return ({"name": field_name,
-                     "type": ["null", "int"],
-                     "default": None,
-                     },
-                    int_or_null)
+            return (avro_schema.to_avro_field(field_name, "int"),
+                    access_db.int_or_null)
 
         case ("prog" | "act"):
-            return ({"name": field_name,
-                     "type": ["null", "int"],
-                     "default": None,
-                     },
-                    prog_act_or_null)
+            return (avro_schema.to_avro_field(field_name, "int"),
+                    access_db.program_activity_or_null)
 
         case ("asssal" | "cins" | "cman" | "certbase" | "clasbase" |
               "othersal" | "tfinsal" |
               "ftehrs" | "ftedays" | "certfte" | "clasfte" | "exp" |
               "camix1" | "asspct" | "assfte" | "asshpy" |
               "acred" | "icred" | "bcred" | "vcred"):
-            return ({"name": field_name,
-                     "type": [
-                         "null",
-                         {
-                             "type": "bytes",
-                             "logicalType": "decimal",
-                             "precision": 38,
-                             "scale": 9,
-                         }],
-                     "default": None
-                     },
-                    decimal_or_null)
+            return (avro_schema.to_avro_field(field_name, "decimal"),
+                    access_db.decimal_or_null)
 
         case "SchoolYear":
-            return ({"name": field_name,
-                     "type": ["null", "string"],
-                     "default": None
-                     },
-                    clean_string)
+            return (avro_schema.to_avro_field(field_name, "string"),
+                    access_db.clean_string)
 
         case ("FirstName" | "MiddleName" | "LastName"):
-            return ({"name": field_name,
-                     "type": ["null", "string"],
-                     "default": None
-                     },
-                    title_case)
+            return (avro_schema.to_avro_field(field_name, "string"),
+                    access_db.title_case)
 
         case _:
-            return ({"name": field_name,
-                     "type": ["null", "string"],
-                     "default": None
-                     },
-                    clean_string)
+            return (avro_schema.to_avro_field(field_name, "string"),
+                    access_db.clean_string)
 
 
 def make_schema(header):
@@ -120,13 +58,13 @@ def make_schema(header):
         "type": "record",
         "namespace": "spsbythenumbers",
         "name": "S275Data",
-        "fields": [make_field_type(h)[0] for h in header]
+        "fields": [s275_col_to_avro_field_and_extractor(h)[0] for h in header]
     }
 
 
 def convert(field_name, value):
     try:
-        return make_field_type(field_name)[1](value)
+        return s275_col_to_avro_field_and_extractor(field_name)[1](value)
     except Exception as e:
         print(f"Failed on '{field_name}' for '{value}'", e)
 

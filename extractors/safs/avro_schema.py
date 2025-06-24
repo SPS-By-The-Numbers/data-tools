@@ -18,7 +18,7 @@ _NULL_NUMBER = -931415926
 
 
 """quant() parameter for Decimals after math. ALWAYS QUANT TO AVOID ERRORS."""
-DECIMAL_QUANT_AMOUNT = Decimal(10**(-DECIMAL_SCALE))
+DECIMAL_QUANT_AMOUNT = Decimal(1) / (10**DECIMAL_SCALE)
 
 
 def get_null_sentinel(field_type, none_instead_of_raise=False):
@@ -122,6 +122,14 @@ def to_avro_type(field_type):
 
         case _:
             raise ValueError(f"Unknown Field type {field_type}")
+
+
+def to_avro_field(field_name, field_type, doc=None, default=None):
+    return {"name": field_name,
+            "type": to_avro_type(field_type),
+            "default": default,
+            "doc": doc,
+            }
 
 
 def to_avro_schema(schema):

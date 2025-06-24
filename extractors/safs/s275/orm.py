@@ -7,7 +7,6 @@ from sqlalchemy import create_engine
 from sqlalchemy import ForeignKey
 from sqlalchemy import Table
 from sqlalchemy import types
-from sqlalchemy import text
 from sqlalchemy import UniqueConstraint
 from sqlalchemy.dialects.postgresql import insert as postgres_insert
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
