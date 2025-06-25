@@ -59,7 +59,7 @@ def main():
     access_csv.add_access_csv_arguments(parser)
     args = parser.parse_args()
 
-    converter = access_csv.AccessCsvConverter("S275Data", args,
+    converter = access_csv.AccessCsvConverter("s275_data", args,
                                               get_s275_column_config)
     converter.parse()
     converter.write()

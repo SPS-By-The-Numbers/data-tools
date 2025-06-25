@@ -2,6 +2,10 @@
 
 from decimal import getcontext, Decimal
 from datetime import datetime
+import logging
+
+
+logger = logging.getLogger(__name__)
 
 
 """Precision used on the sql DECIMAL type"""
@@ -165,5 +169,10 @@ def to_avro_value(field, value):
     match field["field_type"]:
         case 'timestamp':
             return int(value.timestamp() * 1000)
+
+        case 'decimal':
+            if value.is_nan():
+                logger.warning(f"Unexpected NaN in {field['name']}")
+                return None
 
     return value

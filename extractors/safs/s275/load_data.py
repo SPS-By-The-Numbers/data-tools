@@ -142,6 +142,10 @@ def _record_to_upsert(session, record, schema):
             else:
                 value = extractor(record, source)
 
+            if (f['field_type'] == 'decimal' and value is not None and
+                    value.is_nan()):
+                logger.warning(f"Unexpected NaN for {source} in {record}")
+
             # Value to use if null found.
             if (f.get('is_logical_key', False) and
                     value is None and
@@ -195,14 +199,17 @@ class NormalizedS275Loader(DbConnection):
                  args,
                  log_batch_size,
                  commit_batch_size,
+                 flush_batch_size,
                  max_records_per_file):
         super().__init__(args)
         self._log_batch_size = log_batch_size
         self._commit_batch_size = commit_batch_size
+        self._flush_batch_size = flush_batch_size
         self._max_records_per_file = max_records_per_file
 
     def create_tables(self, drop_first):
         if drop_first:
+            logger.info("Dropping all tables")
             Base.metadata.drop_all(self.engine)
         Base.metadata.create_all(self.engine)
 
@@ -210,8 +217,10 @@ class NormalizedS275Loader(DbConnection):
         last = time.perf_counter()
         count = 1
         f.seek(0)
+        commit_count = 1
         for record in fastavro.reader(f):
             count += 1
+            commit_count += 1
             if count % self._log_batch_size == 0:
                 now = time.perf_counter()
                 print(f"Finished {count} {now - last:.2f}")
@@ -222,7 +231,13 @@ class NormalizedS275Loader(DbConnection):
                     count > self._max_records_per_file):
                 break
             accumulate(record)
+            if commit_count > self._commit_batch_size:
+                session.commit()
+                commit_count = 1
+
+        # Clean out final entries.
         flush()
+        session.commit()
 
     def _merge_tables(self, session, f, orm_classes):
         all_entries = {orm_class.__table__.name: {}
@@ -232,7 +247,6 @@ class NormalizedS275Loader(DbConnection):
             for tablename, lk_bind_values_map in all_entries.items():
                 self.upsert(session, tablename, lk_bind_values_map)
                 lk_bind_values_map.clear()
-            session.commit()
 
         def accumulate(record):
             # Add entires for each table
@@ -241,10 +255,9 @@ class NormalizedS275Loader(DbConnection):
                                                       record)
                 lk_bind_values_map[lk] = bind_values
 
-            # Check if it needs to be flushed
+            # Flush if it needs to be.
             for entries in all_entries.values():
-                if len(entries) > self._commit_batch_size:
-                    logger.info("Flushing")
+                if len(entries) > self._flush_batch_size:
                     flush()
                     break
 
@@ -283,7 +296,9 @@ def main():
         description='Loads raw s275 avro files into normalized tables')
     parser.add_argument('--log-batch-size', default=10000, type=int,
                         help='record per logging message')
-    parser.add_argument('--commit-batch-size', default=50000, type=int,
+    parser.add_argument('--commit-batch-size', default=100000, type=int,
+                        help='new records before committing')
+    parser.add_argument('--flush-batch-size', default=10000, type=int,
                         help='new records before committing')
     parser.add_argument('--drop-first', default=False, action='store_true',
                         help='Drop all tables before starting')
@@ -302,6 +317,7 @@ def main():
         args=args,
         log_batch_size=args.log_batch_size,
         commit_batch_size=args.commit_batch_size,
+        flush_batch_size=args.flush_batch_size,
         max_records_per_file=args.max_records_per_file)
 
     normalized_s275.create_tables(args.drop_first)
