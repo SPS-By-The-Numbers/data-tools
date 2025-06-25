@@ -175,25 +175,6 @@ def _get_lk_bind_values(session, tablename, record):
     return lk, bind_values
 
 
-def table_to_avro_rows(table, additional_tables):
-    """Converts a table entry into a single dict for avro serializaiton.
-
-    This will join fields in additional_tables by the primary key id of the
-    table.
-    """
-    for logical_key, data in table:
-        avro_row = dict(logical_key)
-        avro_row = avro_row | dict(data['fields'])
-
-        primary_key = data['id']
-        avro_row[table.pk_name] = primary_key
-
-        for t in additional_tables:
-            avro_row = avro_row | dict(t.find_by_id(primary_key)['fields'])
-
-        yield avro_row
-
-
 class NormalizedS275Loader(DbConnection):
     def __init__(self,
                  args,

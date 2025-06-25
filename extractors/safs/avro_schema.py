@@ -37,7 +37,8 @@ def get_null_sentinel(field_type, none_instead_of_raise=False):
     match field_type:
         case 'decimal':
             # Do not use NaN! Those also don't equal one another. grrr.
-            return Decimal("-INF")
+            # Do not use INF! This turns into NaN in some DBs!
+            return Decimal(_NULL_NUMBER) + DECIMAL_QUANT_AMOUNT
 
         case 'string':
             return 'sqlh8'
