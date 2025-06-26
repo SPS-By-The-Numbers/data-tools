@@ -88,7 +88,7 @@ def y_n_to_boolean(record, source):
         return True
     elif src_val == 'N':
         return False
-    elif src_val == '' or src_val is None:
+    elif src_val == '' or src_val == 'NULL' or src_val is None:
         return None
     else:
         raise ValueError(src_val)

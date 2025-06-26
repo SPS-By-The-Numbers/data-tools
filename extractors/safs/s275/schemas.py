@@ -117,6 +117,15 @@ REPORT_SCHEMA = {
             "doc": ("(logical key part) OSPI County Disrict Code")
         },
         {
+            "name": "report_type",
+            "source": "_report_type",
+            "field_type": "string",
+            "is_logical_key": True,
+            "doc": ("For now, one of preliminary or final. Each year can have "
+                    "two. Affects how one interprets things like "
+                    "total_final_salary")
+        },
+        {
             "name": "county_code",
             "source": "cou",
             "field_type": "int",

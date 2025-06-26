@@ -176,17 +176,13 @@ def _get_lk_bind_values(session, tablename, record):
 
 
 class NormalizedS275Loader(DbConnection):
-    def __init__(self,
-                 args,
-                 log_batch_size,
-                 commit_batch_size,
-                 flush_batch_size,
-                 max_records_per_file):
+    def __init__(self, args):
         super().__init__(args)
-        self._log_batch_size = log_batch_size
-        self._commit_batch_size = commit_batch_size
-        self._flush_batch_size = flush_batch_size
-        self._max_records_per_file = max_records_per_file
+        self._report_type = args.report_type
+        self._log_batch_size = args.log_batch_size
+        self._commit_batch_size = args.commit_batch_size
+        self._flush_batch_size = args.flush_batch_size
+        self._max_records_per_file = args.max_records_per_file
 
     def create_tables(self, drop_first):
         if drop_first:
@@ -211,6 +207,10 @@ class NormalizedS275Loader(DbConnection):
             if (self._max_records_per_file != -1 and
                     count > self._max_records_per_file):
                 break
+
+            # Add extra items to the record for extraction.
+            record["_report_type"] = self._report_type
+
             accumulate(record)
             if commit_count > self._commit_batch_size:
                 session.commit()
@@ -275,6 +275,11 @@ class NormalizedS275Loader(DbConnection):
 def main():
     parser = argparse.ArgumentParser(
         description='Loads raw s275 avro files into normalized tables')
+    parser.add_argument('--report-type', required=True,
+                        choices=['final', 'preliminary'],
+                        help=("Whether the s275 database is preliminary from "
+                              "oct 1st snapshot, or the final update end of "
+                              "year with the tfinsal + contract updates"))
     parser.add_argument('--log-batch-size', default=10000, type=int,
                         help='record per logging message')
     parser.add_argument('--commit-batch-size', default=100000, type=int,
@@ -294,12 +299,7 @@ def main():
 
     args = get_args(parser)
 
-    normalized_s275 = NormalizedS275Loader(
-        args=args,
-        log_batch_size=args.log_batch_size,
-        commit_batch_size=args.commit_batch_size,
-        flush_batch_size=args.flush_batch_size,
-        max_records_per_file=args.max_records_per_file)
+    normalized_s275 = NormalizedS275Loader(args=args)
 
     normalized_s275.create_tables(args.drop_first)
     for f in args.infiles:
