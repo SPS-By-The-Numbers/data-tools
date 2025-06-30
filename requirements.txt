@@ -1,9 +1,10 @@
-arrow
 fastavro
 google-cloud-bigquery
 google-cloud-storage
+inflection
 openpyxl
 pandas
-inflection
+pytest
+pytest-mock
 python-poppler
 zstandard
