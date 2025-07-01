@@ -11,25 +11,6 @@ import f19x
 
 logger = logging.getLogger(__name__)
 
-# Column names for type inferrence.
-RE_INT_COLUMN = re.compile(
-    r"activity_code|"
-    r"county_code|"
-    r"fund_code|"
-    r"object_code|"
-    r"district_code|"
-    r"program_code|"
-    r"revenue_code|"
-    r"codist|"
-    r"ccddd")
-RE_DECIMAL_COLUMN = re.compile(r'amount| proj| bud')
-RE_DATE_COLUMN = re.compile(r'last_updated')
-RE_BOOLEAN_COLUMN = re.compile(r'is_forecast')
-
-# Use this to force a string. It's an override that's run before the other
-# regexps so make it very specific
-RE_STR_COLUMN = re.compile(r"fund_des|fund_name")
-
 
 def normalize_name(table_name, col_name):
     """Column names drift over time. Normalize them here"""

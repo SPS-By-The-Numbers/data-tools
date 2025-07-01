@@ -1,8 +1,10 @@
 #!python3
 
+import dateutil
+import logging
+
 from decimal import getcontext, Decimal
 from datetime import datetime
-import logging
 
 
 logger = logging.getLogger(__name__)
@@ -61,6 +63,20 @@ def passthru(record, source):
     return record[source]
 
 
+def cleaned_string(record, source):
+    value = record.get(source, None)
+    if value is None:
+        return None
+    return value.trim()
+
+
+def string_with_null(record, source):
+    value = record[source].strip()
+    if not value or value == "NULL":
+        return None
+    return value
+
+
 def just_zero(_, __):
     """return the constant 1"""
     return 0
@@ -68,7 +84,31 @@ def just_zero(_, __):
 
 def to_int(record, source):
     """Reads the value as an int"""
-    return int(record[source])
+    value = cleaned_string(record, source)
+    return int(value)
+
+
+def to_int_or_null(record, source):
+    """Reads the value as an int"""
+    value = string_with_null(record, source)
+    if value is None:
+        return None
+    return int(value)
+
+
+def to_decimal_or_null(record, source):
+    value = string_with_null(record, source)
+    if value is None:
+        return None
+    return Decimal(value).quantize(DECIMAL_QUANT_AMOUNT)
+
+
+def parse_datetime(record, source):
+    """Takes formats like 08/20/14 11:37:28 and turns into a timestamp"""
+    date_str = cleaned_string(record, source)
+    if date_str:
+        return dateutil.parser.parse(date_str)
+    return None
 
 
 def parse_first_schoolyear(record, source):

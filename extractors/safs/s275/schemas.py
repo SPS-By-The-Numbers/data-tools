@@ -1,8 +1,7 @@
-import dateutil
 import hashlib
 
 from ..avro_schema import (to_int, parse_first_schoolyear, y_n_to_boolean,
-                           one_to_boolean)
+                           one_to_boolean, parse_datetime)
 
 
 def decode_cbrtn(record, source):
@@ -29,14 +28,6 @@ def area_to_is_esd(record, source):
     """area is "L" if district."""
     src_val = record[source]
     return src_val != 'L'
-
-
-def parse_datetime(record, source):
-    """Takes formats like 08/20/14 11:37:28 and turns into a timestamp"""
-    date_str = record.get(source, None)
-    if date_str:
-        return dateutil.parser.parse(date_str)
-    return None
 
 
 def name_typo_correction(name):
