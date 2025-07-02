@@ -181,12 +181,12 @@ def to_avro_schema(schema):
     """Given a schema definition, return an AVRO compatible schema dict"""
     return {
         "name": schema["name"],
-        "doc": schema["doc"],
+        "doc": schema.get("doc", None),
         "type": "record",
         "fields": [
             {
                 "name": f["name"],
-                "doc": f["doc"],
+                "doc": f.get("doc", None),
                 "type": to_avro_type(f["field_type"])
             }
             for f in schema["fields"]

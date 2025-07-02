@@ -13,12 +13,11 @@ from sqlalchemy.sql.expression import and_
 
 from extractors.common import common_logging_setup, get_args
 from extractors.safs import avro_schema
+from extractors.safs.db_connection import DbConnection, add_db_arguments
 
-from .orm import add_orm_arguments
 from .orm import Assignment
 from .orm import AssignmentFte
 from .orm import Base
-from .orm import DbConnection
 from .orm import Employee
 from .orm import PrivateAssignment
 from .orm import PrivateAssignmentCompBase
@@ -294,7 +293,7 @@ def main():
     parser.add_argument('infiles', nargs="+",
                         type=argparse.FileType('rb'),
                         help='raw s275 avro files to combine')
-    add_orm_arguments(parser)
+    add_db_arguments(parser)
     common_logging_setup(parser)
 
     args = get_args(parser)

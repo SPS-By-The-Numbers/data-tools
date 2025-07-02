@@ -16,6 +16,7 @@ def fake_normalizer(source_table):
 def fake_header_to_schema(tablename, header):
     return {
         'name': 'fakey',
+        'doc': 'fake schema',
         'fields': [
             {
                 'name': 'titem',
@@ -41,7 +42,7 @@ def test_tables(mocker):
     assert reader.tables == {"n1": "table1", "n2": "table2"}
 
 
-def test_as_avro_records(mocker):
+def test_to_avro_records(mocker):
     reader = mdb_reader.MdbReader(filename=None,
                                   tablename_normalizer=fake_normalizer,
                                   header_to_schema=fake_header_to_schema)
@@ -53,7 +54,9 @@ def test_as_avro_records(mocker):
                                            ['toothbrush  ', ' 123.00'],
                                            ['  car ', '13.01  '],
                                            ]))
-    assert list(reader.as_avro_records('n1')) == [
+    schema, records = reader.to_avro_records('n1')
+    assert schema == fake_header_to_schema(None, None)
+    assert list(records) == [
         {'titem': 'toothbrush', 'tcost': Decimal('123.00')},
         {'titem': 'car', 'tcost': Decimal('13.01')},
     ]

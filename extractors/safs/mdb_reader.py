@@ -17,12 +17,33 @@ class MdbReader:
     This class normalizes column names and parses out mdb value weirdnesses
     into stronger AVRO types. Other than that, the output should reflect what
     is in original table.  Further semantic combining is done in later stages.
+
+    additional_fields has additional columns to be added to the output. They
+    should usually be prefixed with an underscore to avoid collision. Example
+    additional_fields = [
+        {
+          'name': '_source',
+          'doc': 'originating file',
+          'field_type': 'string',
+          'value': 'abc123'
+        },
+        {
+          'name': '_school_year',
+          'doc': 'school year for dataset',
+          'field_type': 'string',
+          'value': '2013-2014'
+        },
+    ]
     """
-    def __init__(self, filename, tablename_normalizer, header_to_schema):
+    def __init__(self, filename, tablename_normalizer, header_to_schema,
+                 additional_fields=None, custom_extract_header=None,
+                 row_preprocess=None):
         self._filename = filename
         self._tablename_normalizer = tablename_normalizer
-        self._schemas = {}
         self._header_to_schema = header_to_schema
+        self._additional_fields = additional_fields
+        self._custom_extract_header = custom_extract_header
+        self._row_preprocess = row_preprocess
 
     @functools.cached_property
     def tables(self):
@@ -32,29 +53,66 @@ class MdbReader:
             for line in self._call_mdb_tables()
         }
 
-    def as_avro_records(self, tablename, skip_rows=0):
+    def to_avro_records(self, tablename):
         raw_rows = self._read_raw_rows(tablename)
 
-        # Skip rows if told to since some tables have weird headers.
-        [raw_rows.next() for x in range(skip_rows)]
+        if self._row_preprocess is not None:
+            raw_rows = self._row_preprocess(tablename, raw_rows)
 
         # Parse the header.
-        header = next(raw_rows)
+        if self._custom_extract_header is None:
+            header = next(raw_rows)
+        else:
+            header = self._custom_extract_header(tablename, raw_rows)
 
-        if tablename not in self._schemas:
-            self._schemas[tablename] = self._header_to_schema(tablename,
-                                                              header)
+        schema = self._header_to_schema(tablename, header)
+        source_tablename = self.tables[tablename]
 
-        for row in raw_rows:
-            yield self._row_to_record(self._schemas[tablename],
-                                      dict(zip(header, row)))
+        if self._additional_fields is not None:
+            schema['fields'].extend([
+                {
+                    'name': field['name'],
+                    'source': field['name'],
+                    'doc': field['doc'],
+                    'field_type': field['field_type'],
+                }
+                for field in self._additional_fields
+            ])
+        schema['fields'].append(
+            {
+                'name': '_source_table',
+                'source': '_source_table',
+                'doc': 'Original table name',
+                'field_type': 'string',
+            }
+        )
 
-    def export_avro(self, path_prefix, tablename):
-        with open(f"{path_prefix}{tablename}.avro", 'wb') as outfile:
+        def record_generator():
+            for row in raw_rows:
+                value_dict = dict(zip(header, row))
+                value_dict.update({'_source_table': source_tablename})
+                if self._additional_fields is not None:
+                    value_dict.update({f['name']: f['value']
+                                       for f in self._additional_fields})
+                yield self._row_to_record(schema, value_dict)
+        return schema, record_generator()
+
+    def export_avro(self, outdir, outprefix, tablename):
+        """Writes the tablename into a file in outdir
+
+        Args:
+            outdir is a path
+            tablename is a key from self.table
+        """
+        outpath = outdir / f"{outprefix}{tablename}.avro"
+
+        schema, record_generator = self.to_avro_records(tablename)
+
+        with outpath.open(mode='wb') as outfile:
             fastavro.writer(outfile,
                             schema=fastavro.parse_schema(
-                                self._schemas[tablename]),
-                            records=self.as_avro_records(),
+                                avro_schema.to_avro_schema(schema)),
+                            records=record_generator,
                             codec='zstandard')
 
     def _row_to_record(self, schema, row):
