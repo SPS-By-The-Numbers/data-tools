@@ -2,16 +2,13 @@
 
 import csv
 import fastavro
+import functools
 import logging
 import subprocess
 
-import functools
+from . import avro_schema
 
 logger = logging.getLogger(__name__)
-
-
-def _identity(x):
-    return x
 
 
 class MdbReader:
@@ -21,18 +18,11 @@ class MdbReader:
     into stronger AVRO types. Other than that, the output should reflect what
     is in original table.  Further semantic combining is done in later stages.
     """
-    def __init__(self, filename, tablename_normalizer, header_to_schema=None,
-                 schema=None):
+    def __init__(self, filename, tablename_normalizer, header_to_schema):
         self._filename = filename
         self._tablename_normalizer = tablename_normalizer
-        self._schema = schema
+        self._schemas = {}
         self._header_to_schema = header_to_schema
-
-        # One and only must be set
-        if (self._schema is None) == (self._header_to_schema is None):
-            raise ValueError(
-                f"schema: {self._schema} and "
-                f"header_to_schema: {self._header_to_schema}")
 
     @functools.cached_property
     def tables(self):
@@ -51,28 +41,31 @@ class MdbReader:
         # Parse the header.
         header = next(raw_rows)
 
-        if self._schema is None:
-            self._schema = self._header_to_schema(tablename, header)
+        if tablename not in self._schemas:
+            self._schemas[tablename] = self._header_to_schema(tablename,
+                                                              header)
 
         for row in raw_rows:
-            yield self._row_to_record(dict(zip(header, row)))
+            yield self._row_to_record(self._schemas[tablename],
+                                      dict(zip(header, row)))
 
     def export_avro(self, path_prefix, tablename):
         with open(f"{path_prefix}{tablename}.avro", 'wb') as outfile:
             fastavro.writer(outfile,
-                            schema=fastavro.parse_schema(self._schema),
+                            schema=fastavro.parse_schema(
+                                self._schemas[tablename]),
                             records=self.as_avro_records(),
                             codec='zstandard')
 
-    def _row_to_record(self, row):
+    def _row_to_record(self, schema, row):
         """Converts a dict of raw row values into an AVRO record
 
         row_dict maps the column name to the raw value.
         """
         record = {}
-        for f in self._schema["fields"]:
+        for f in schema["fields"]:
             if f["source"] in row:
-                extractor = f.get('extractor', _identity)
+                extractor = f.get('extractor', avro_schema.cleaned_string)
                 record[f['name']] = extractor(row, f['source'])
         return record
 

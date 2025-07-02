@@ -67,7 +67,7 @@ def cleaned_string(record, source):
     value = record.get(source, None)
     if value is None:
         return None
-    return value.trim()
+    return value.strip()
 
 
 def string_with_null(record, source):

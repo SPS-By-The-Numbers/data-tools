@@ -26,10 +26,10 @@ def main():
                            f195.tablename_normalizer,
                            header_to_schema=f195.header_to_schema)
 
-    for t in reader.tables:
-        print(t)
+    for normalized_table, source_table in reader.tables.items():
+        print(f"{normalized_table} <= {source_table}")
 
-    for r in reader.as_avro_records("object"):
+    for r in reader.as_avro_records("general_fund_expenditures"):
         print(r)
 
 
