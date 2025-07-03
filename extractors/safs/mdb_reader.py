@@ -35,40 +35,38 @@ class MdbReader:
         },
     ]
     """
-    def __init__(self, filename, tablename_normalizer, header_to_schema,
-                 additional_fields=None, custom_extract_header=None,
-                 row_preprocess=None):
+    def __init__(self, filename, config):
         self._filename = filename
-        self._tablename_normalizer = tablename_normalizer
-        self._header_to_schema = header_to_schema
-        self._additional_fields = additional_fields
-        self._custom_extract_header = custom_extract_header
-        self._row_preprocess = row_preprocess
+        self._config = config
+
+    @property
+    def config(self):
+        return self._config
 
     @functools.cached_property
     def tables(self):
         """Returns a dict mapping normalized table name to table in mdb"""
         return {
-            self._tablename_normalizer(line): line
-            for line in self._call_mdb_tables()
+            self.config.tablename_normalizer(t): t
+            for t in self._call_mdb_tables()
         }
 
     def to_avro_records(self, tablename):
         raw_rows = self._read_raw_rows(tablename)
 
-        if self._row_preprocess is not None:
-            raw_rows = self._row_preprocess(tablename, raw_rows)
+        if self.config.row_preprocess is not None:
+            raw_rows = self.config.row_preprocess(tablename, raw_rows)
 
         # Parse the header.
-        if self._custom_extract_header is None:
+        if self.config.custom_extract_header is None:
             header = next(raw_rows)
         else:
-            header = self._custom_extract_header(tablename, raw_rows)
+            header = self.config.custom_extract_header(tablename, raw_rows)
 
-        schema = self._header_to_schema(tablename, header)
+        schema = self.config.header_to_schema(tablename, header)
         source_tablename = self.tables[tablename]
 
-        if self._additional_fields is not None:
+        if self.config.additional_fields is not None:
             schema['fields'].extend([
                 {
                     'name': field['name'],
@@ -76,7 +74,7 @@ class MdbReader:
                     'doc': field['doc'],
                     'field_type': field['field_type'],
                 }
-                for field in self._additional_fields
+                for field in self.config.additional_fields
             ])
         schema['fields'].append(
             {
@@ -91,9 +89,9 @@ class MdbReader:
             for row in raw_rows:
                 value_dict = dict(zip(header, row))
                 value_dict.update({'_source_table': source_tablename})
-                if self._additional_fields is not None:
+                if self.config.additional_fields is not None:
                     value_dict.update({f['name']: f['value']
-                                       for f in self._additional_fields})
+                                       for f in self.config.additional_fields})
                 yield self._row_to_record(schema, value_dict)
         return schema, record_generator()
 

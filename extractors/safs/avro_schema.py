@@ -134,6 +134,31 @@ def y_n_to_boolean(record, source):
         raise ValueError(src_val)
 
 
+def to_boolean_or_null(record, source):
+    """Converts a "Y" and "N" value ot True/False"""
+    src_val = record.get(source, None)
+
+    # Handle the non-string values
+    if src_val is None:
+        return None
+    elif src_val is True:
+        return True
+    elif src_val is False:
+        return False
+
+    # Handle the string verions.
+    src_val = src_val.lower()
+
+    if src_val == 'y' or src_val == 'true' or src_val == '1':
+        return True
+    elif src_val == 'n' or src_val == 'false' or src_val == '0':
+        return False
+    elif src_val == '' or src_val == 'null':
+        return None
+    else:
+        raise ValueError(src_val)
+
+
 def to_avro_type(field_type):
     """Converts the field_type used in the schema to AVRO friendly defs"""
     match field_type:

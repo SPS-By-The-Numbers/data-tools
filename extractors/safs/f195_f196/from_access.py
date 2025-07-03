@@ -6,6 +6,7 @@ from pathlib import Path
 
 from extractors.safs.mdb_reader import MdbReader
 from extractors.safs.f195_f196 import f195
+from extractors.safs.f195_f196 import f196
 
 logger = logging.getLogger(__name__)
 
@@ -43,12 +44,9 @@ def main():
     ]
 
     if args.datatype == "f195":
-        reader = MdbReader(args.infile,
-                           f195.tablename_normalizer,
-                           header_to_schema=f195.header_to_schema,
-                           additional_fields=additional_fields,
-                           custom_extract_header=f195.custom_extract_header,
-                           row_preprocess=f195.row_preprocess)
+        reader = MdbReader(args.infile, f195.F195MdbConfig(additional_fields))
+    if args.datatype == "f196":
+        reader = MdbReader(args.infile, f196.F196MdbConfig(additional_fields))
 
     if args.outprefix == '[default]':
         outprefix = f"{args.datatype}-f{args.school_year}-"

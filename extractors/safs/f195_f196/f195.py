@@ -1,7 +1,8 @@
 import logging
 import re
 
-from .common import infer_field, to_bigquery_colname
+from .common import to_bigquery_colname
+from extractors.safs.inferred_schema_config import InferredSchemaConfig
 
 
 logger = logging.getLogger(__name__)
@@ -106,18 +107,6 @@ def normalize_column_name(tablename, col_name):
             return bq_col_name
 
 
-def header_to_schema(tablename, row):
-    data_fields = [infer_field(tablename, col_name, normalize_column_name,
-                               RE_STR_COLUMN, RE_INT_COLUMN, RE_DECIMAL_COLUMN,
-                               RE_DATE_COLUMN, RE_BOOLEAN_COLUMN)
-                   for col_name in row]
-    return {
-        "name": "f195",
-        "doc": "Inferred schema",
-        "fields": data_fields
-    }
-
-
 def tablename_normalizer(source_tablename):  # noqa: C901
     if 'ITEMDIC' in source_tablename:
         return "item_dict"
@@ -191,7 +180,7 @@ def pivot_all_districts(orig_rows):
         else:
             year = header[i]
             if first_col_found:
-                # No words like forecase anymore. Consider the first one real
+                # No words like forecast anymore. Consider the first one real
                 # and the others to be forecasts.
                 is_forecast = False
             else:
@@ -204,7 +193,7 @@ def pivot_all_districts(orig_rows):
         pivot_info[i] = [year, is_forecast]
 
     # Produce the new header.
-    yield ['ccddd', 'fund', 'item', 'year', 'is_forecast', 'amount']
+    yield ['ccddd', 'fund', 'item', 'projection_year', 'is_forecast', 'amount']
 
     # Produce all the rest of the pivoted rows.
     for r in orig_rows:
@@ -218,3 +207,18 @@ def row_preprocess(tablename, row_iterator):
         return pivot_all_districts(row_iterator)
 
     return row_iterator
+
+
+class F195MdbConfig(InferredSchemaConfig):
+    def __init__(self, additional_fields):
+        super().__init__(datatype="f195",
+                         tablename_normalizer=tablename_normalizer,
+                         normalize_column_name=normalize_column_name,
+                         re_str_column=RE_STR_COLUMN,
+                         re_int_column=RE_INT_COLUMN,
+                         re_decimal_column=RE_DECIMAL_COLUMN,
+                         re_date_column=RE_DATE_COLUMN,
+                         re_boolean_column=RE_BOOLEAN_COLUMN,
+                         additional_fields=additional_fields,
+                         custom_extract_header=custom_extract_header,
+                         row_preprocess=row_preprocess)
