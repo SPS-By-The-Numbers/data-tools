@@ -1,7 +1,7 @@
 import logging
 import re
 
-from .common import to_bigquery_colname
+from extractors.safs.avro_schema import to_bigquery_colname
 from extractors.safs.inferred_schema_config import InferredMdbReaderBuilder
 
 

@@ -1,8 +1,8 @@
 #!python3
 
+import inflection
 import dateutil
 import logging
-import re
 
 from decimal import getcontext, Decimal
 from datetime import datetime
@@ -119,7 +119,9 @@ def building_or_null(record, source):
     values like "TR" show up.
     """
     x = cleaned_string(record, source)
-    if x == 'TR':
+    if x == 'TR':  # From 2019-2020
+        return -100
+    if x == 'THOM':  # From 2019-2020
         return -100
     return int(x)
 
@@ -277,12 +279,10 @@ def to_avro_value(field, value):
     return value
 
 
-def camel_case_to_snake_case(x):
-    """Takes a CamelCase string and returns snake_case.
-
-    Useful for normalizing column names
-    """
-    return re.sub(r'(?<!^)(?=[A-Z])', '_', x).lower()
+def to_bigquery_colname(name):
+    """Returns a snakecase column name compatible with BigQuery"""
+    snake_case = inflection.underscore(name).lower()
+    return snake_case.replace(' ', '_')
 
 
 def make_field(name, source=None, default=None, field_type="string",
