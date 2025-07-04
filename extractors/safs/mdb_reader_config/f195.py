@@ -2,7 +2,7 @@ import logging
 import re
 
 from extractors.safs.avro_schema import to_bigquery_colname
-from extractors.safs.inferred_schema_config import InferredMdbReaderBuilder
+from .inferred_mdb_reader_builder import InferredMdbReaderBuilder
 
 
 logger = logging.getLogger(__name__)
