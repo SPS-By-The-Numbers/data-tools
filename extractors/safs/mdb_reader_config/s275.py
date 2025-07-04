@@ -15,17 +15,11 @@ def _field_from_column_name(_, column_name):
                                           field_type="int",
                                           extractor=avro_schema.to_int_or_null)
 
-        case ("prog" | "act"):
+        case ("prog" | "act" | "bldgn"):
             return avro_schema.make_field(
                 name=column_name,
                 field_type="int",
-                extractor=avro_schema.program_activity_or_null)
-
-        case "bldgn":
-            return avro_schema.make_field(
-                name=column_name,
-                field_type="int",
-                extractor=avro_schema.building_or_null)
+                extractor=avro_schema.coded_int_or_null)
 
         case ("asssal" | "cins" | "cman" | "certbase" | "clasbase" |
               "othersal" | "tfinsal" |

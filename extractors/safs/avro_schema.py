@@ -97,33 +97,34 @@ def to_int_or_null(record, source):
     return int(value)
 
 
-def program_activity_or_null(record, source):
-    """Normalize Program and Activity codes.
+def coded_int_or_null(record, source):
+    """Normalize code fields that should be ints but sometimes have letter.
 
-    s275 has SB and CP for ASB and Capital Projects fund. These are not
-    standard. Here we use negative codes which is outside the valid range for
-    them program and activity codes. This lets use use an int field.
+    The s275 in particular does this mess where in the program and activity
+    codes, it uses "SB" and "CP" to represent the "ASB" and "Captial Project"
+    funds.
+
+    Simialrly in some entries for bldgn, it uses letter codes like "TF" and
+    "THOM".
+
+    We represent these with negative numbers and construct them by concatening
+    the 7 trailing bits of each string. Since the codes so far are only only
+    ever 4 characters long, this packed 7-bit encoding allows us to represent
+    all the codes into the range of a 4-byte integer.
     """
-    x = cleaned_string(record, source)
-    if x == 'SB':
-        return -100
-    if x == 'CP':
-        return -200
-    return int(x)
+    str_bytes = cleaned_string(record, source).encode("utf-8")
+    if str_bytes is None:
+        return None
 
+    if len(str_bytes) > 4:
+        raise ValueError(f"Cannot encode {str_bytes}. Too long")
 
-def building_or_null(record, source):
-    """Normalize Building codes.
-
-    These should be numbers, but in the s275 (I hate that file) sometimes
-    values like "TR" show up.
-    """
-    x = cleaned_string(record, source)
-    if x == 'TR':  # From 2019-2020
-        return -100
-    if x == 'THOM':  # From 2019-2020
-        return -100
-    return int(x)
+    value = 0
+    for v in str_bytes:
+        if v > 127:
+            raise ValueError(f"{v} too high to encode")
+        value = (value << 7) | (v & 0x7F)
+    return -value
 
 
 def to_decimal_or_null(record, source):
