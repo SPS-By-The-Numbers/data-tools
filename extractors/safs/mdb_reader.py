@@ -122,7 +122,12 @@ class MdbReader:
         for f in schema["fields"]:
             if f["source"] in row:
                 extractor = f.get('extractor', avro_schema.cleaned_string)
-                record[f['name']] = extractor(row, f['source'])
+                try:
+                    record[f['name']] = extractor(row, f['source'])
+                except Exception:
+                    logger.error(f"Failed {f['name']} from {f['source']} in "
+                                 f"row {row}")
+                    raise
         return record
 
     def _call_mdb_tables(self):

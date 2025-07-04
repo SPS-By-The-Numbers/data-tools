@@ -2,6 +2,7 @@
 
 import dateutil
 import logging
+import re
 
 from decimal import getcontext, Decimal
 from datetime import datetime
@@ -96,11 +97,43 @@ def to_int_or_null(record, source):
     return int(value)
 
 
+def program_activity_or_null(record, source):
+    """Normalize Program and Activity codes.
+
+    s275 has SB and CP for ASB and Capital Projects fund. These are not
+    standard. Here we use negative codes which is outside the valid range for
+    them program and activity codes. This lets use use an int field.
+    """
+    x = cleaned_string(record, source)
+    if x == 'SB':
+        return -100
+    if x == 'CP':
+        return -200
+    return int(x)
+
+
+def building_or_null(record, source):
+    """Normalize Building codes.
+
+    These should be numbers, but in the s275 (I hate that file) sometimes
+    values like "TR" show up.
+    """
+    x = cleaned_string(record, source)
+    if x == 'TR':
+        return -100
+    return int(x)
+
+
 def to_decimal_or_null(record, source):
     value = string_with_null(record, source)
     if value is None:
         return None
     return Decimal(value).quantize(DECIMAL_QUANT_AMOUNT)
+
+
+def to_title_case(record, source):
+    """Turns string into title case"""
+    return cleaned_string(record, source).title()
 
 
 def parse_datetime(record, source):
@@ -242,3 +275,30 @@ def to_avro_value(field, value):
                 return None
 
     return value
+
+
+def camel_case_to_snake_case(x):
+    """Takes a CamelCase string and returns snake_case.
+
+    Useful for normalizing column names
+    """
+    return re.sub(r'(?<!^)(?=[A-Z])', '_', x).lower()
+
+
+def make_field(name, source=None, default=None, field_type="string",
+               extractor=cleaned_string):
+    """Makes field the schema.
+
+    Source is name by default.
+    field_type is string and a cleaned string is extracted.
+    """
+    if source is None:
+        source = name
+
+    return {
+        "name": name,
+        "source": source,
+        "default": default,
+        "field_type": field_type,
+        "extractor": extractor,
+    }

@@ -4,9 +4,11 @@ import argparse
 import logging
 from pathlib import Path
 
+from extractors.common import common_logging_setup, get_args
 from extractors.safs.mdb_reader import MdbReader
 from extractors.safs.f195_f196 import f195
 from extractors.safs.f195_f196 import f196
+from extractors.safs.s275 import s275_mdb_config
 
 logger = logging.getLogger(__name__)
 
@@ -16,8 +18,7 @@ def main():
         prog='f195_f196_access',
         description='Converts and access database to avro format')
 
-    parser.add_argument('--datatype', default="f196",
-                        choices=['f195', 'f196'],
+    parser.add_argument('--datatype', choices=['f195', 'f196', 's275'],
                         help='Which data type to be loading')
     parser.add_argument('--infile', required=True, help='inputfile')
     parser.add_argument('--school-year', required=True, help='eg. 2014-2015')
@@ -26,7 +27,9 @@ def main():
     parser.add_argument('--outprefix', default="[default]",
                         help='Prefix for avro files')
 
-    args = parser.parse_args()
+    common_logging_setup(parser)
+
+    args = get_args(parser)
 
     additional_fields = [
         {
@@ -44,9 +47,15 @@ def main():
     ]
 
     if args.datatype == "f195":
-        reader = MdbReader(args.infile, f195.F195MdbConfig(additional_fields))
-    if args.datatype == "f196":
-        reader = MdbReader(args.infile, f196.F196MdbConfig(additional_fields))
+        reader = MdbReader(args.infile,
+                           f195.get_mdb_reader_config(additional_fields))
+    elif args.datatype == "f196":
+        reader = MdbReader(args.infile,
+                           f196.get_mdb_reader_config(additional_fields))
+    elif args.datatype == "s275":
+        reader = MdbReader(
+            args.infile,
+            s275_mdb_config.get_mdb_reader_config(additional_fields))
 
     if args.outprefix == '[default]':
         outprefix = f"{args.datatype}-f{args.school_year}-"

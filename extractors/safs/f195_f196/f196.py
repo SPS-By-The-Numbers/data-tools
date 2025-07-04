@@ -2,7 +2,7 @@ import logging
 import re
 
 from .common import to_bigquery_colname
-from extractors.safs.inferred_schema_config import InferredSchemaConfig
+from extractors.safs.inferred_schema_config import InferredMdbReaderBuilder
 
 
 logger = logging.getLogger(__name__)
@@ -142,14 +142,15 @@ def tablename_normalizer(source_tablename):  # noqa: C901
         return None
 
 
-class F196MdbConfig(InferredSchemaConfig):
-    def __init__(self, additional_fields):
-        super().__init__(datatype="f195",
-                         tablename_normalizer=tablename_normalizer,
-                         normalize_column_name=normalize_column_name,
-                         re_str_column=RE_STR_COLUMN,
-                         re_int_column=RE_INT_COLUMN,
-                         re_decimal_column=RE_DECIMAL_COLUMN,
-                         re_date_column=RE_DATE_COLUMN,
-                         re_boolean_column=RE_BOOLEAN_COLUMN,
-                         additional_fields=additional_fields)
+def get_mdb_reader_config(additional_fields):
+    config = InferredMdbReaderBuilder(
+        datatype="f196",
+        tablename_normalizer=tablename_normalizer,
+        normalize_column_name=normalize_column_name,
+        re_str_column=RE_STR_COLUMN,
+        re_int_column=RE_INT_COLUMN,
+        re_decimal_column=RE_DECIMAL_COLUMN,
+        re_date_column=RE_DATE_COLUMN,
+        re_boolean_column=RE_BOOLEAN_COLUMN,
+        additional_fields=additional_fields)
+    return config.mdb_reader_config
