@@ -17,6 +17,7 @@ RE_INT_COLUMN = re.compile(
     r"district_code|"
     r"program_code|"
     r"revenue_code|"
+    r"category|"
     r"codist|"
     r"ccddd")
 RE_DECIMAL_COLUMN = re.compile(r'amount| proj| bud')
@@ -48,6 +49,9 @@ def normalize_column_name(tablename, col_name):
 
         case 'titles':
             return 'title'
+
+        case 'SchoolYear':
+            return 'school_year_code'
 
         # Handle weird id column
         case 'id':

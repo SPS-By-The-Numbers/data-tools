@@ -66,9 +66,6 @@ def normalize_column_name(table_name, col_name):
         case str(bq_col_name) if bq_col_name.endswith('_#'):
             return f"{bq_col_name[:-1]}code"
 
-        case 'school_year_code':
-            return 'school_year'
-
         case 'county_district_code':
             return 'ccddd'
 

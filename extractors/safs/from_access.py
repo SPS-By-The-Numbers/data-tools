@@ -37,6 +37,7 @@ def main():
             "value": Path(args.infile).name,
         },
         {
+            # TODO: This might overwrite embedded fields incorrectly.
             "name": "school_year",
             "doc": "school year for data",
             "field_type": "string",
