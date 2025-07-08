@@ -51,7 +51,7 @@ class MdbReader:
             for t in self._call_mdb_tables()
         }
 
-    def to_avro_records(self, tablename):
+    def to_records(self, tablename):
         raw_rows = self._read_raw_rows(tablename)
 
         if self.config.row_preprocess is not None:
@@ -104,7 +104,7 @@ class MdbReader:
         """
         outpath = outdir / f"{outprefix}{tablename}.avro"
 
-        schema, record_generator = self.to_avro_records(tablename)
+        schema, record_generator = self.to_records(tablename)
 
         with outpath.open(mode='wb') as outfile:
             fastavro.writer(outfile,
@@ -120,7 +120,10 @@ class MdbReader:
         """
         record = {}
         for f in schema["fields"]:
-            if f["source"] in row:
+            source = f.get("source", None)
+            if source is None:
+                continue
+            if source in row:
                 extractor = f.get('extractor', avro_schema.cleaned_string)
                 try:
                     record[f['name']] = extractor(row, f['source'])

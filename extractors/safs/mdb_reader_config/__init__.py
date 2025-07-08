@@ -34,9 +34,17 @@ class MdbReaderConfig:
 
     def header_to_schema(self, tablename, row):
         data_fields = self._fields_from_header(tablename, row)
+        sql_table_name = f"{self._datatype}_{tablename}"
         return {
-            "name": self._datatype,
+            "name": sql_table_name,
             "doc": (f"{self._datatype} schema for {tablename} inferred "
                     f"from {row}"),
-            "fields": data_fields
+            "fields": [
+                {
+                    "name": f"{sql_table_name}_id",
+                    "field_type": "auto_primary_key",
+                    "doc": "(primary key)",
+                },
+                *data_fields
+            ]
         }
