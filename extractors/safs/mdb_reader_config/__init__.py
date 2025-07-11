@@ -3,12 +3,13 @@ class MdbReaderConfig:
                  datatype,
                  tablename_normalizer,
                  fields_from_header,
-                 additional_fields=None,
+                 add_additional_fields=None, get_additional_values=None,
                  custom_extract_header=None, row_preprocess=None):
         self._datatype = datatype
         self._tablename_normalizer = tablename_normalizer
         self._fields_from_header = fields_from_header
-        self._additional_fields = additional_fields
+        self._add_additional_fields = add_additional_fields
+        self._get_additional_values = get_additional_values
         self._custom_extract_header = custom_extract_header
         self._row_preprocess = row_preprocess
 
@@ -21,8 +22,12 @@ class MdbReaderConfig:
         return self._tablename_normalizer
 
     @property
-    def additional_fields(self):
-        return self._additional_fields
+    def add_additional_fields(self):
+        return self._add_additional_fields
+
+    @property
+    def get_additional_values(self):
+        return self._get_additional_values
 
     @property
     def custom_extract_header(self):

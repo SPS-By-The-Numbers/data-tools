@@ -94,5 +94,6 @@ def make_table(schema, base):
         schema["name"],
         base.metadata,
         *to_sqlalchemy_columns(schema),
-        *to_sqlalchemy_constraints(schema)
+        *to_sqlalchemy_constraints(schema),
+        extend_existing=True
     )

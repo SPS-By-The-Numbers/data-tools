@@ -3,9 +3,11 @@
 import argparse
 import inflection
 import logging
+import re
 
 from pathlib import Path
 from sqlalchemy import insert
+from sqlalchemy import delete
 from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy.orm import Session
 
@@ -19,59 +21,216 @@ from .orm import make_table
 logger = logging.getLogger(__name__)
 
 
+def infer_datatype(filename):
+    for source_tablename in MdbReader.call_mdb_tables(filename):
+        if 'BudgetGeneralFund' in source_tablename:
+            return 'f195'
+        if 'ActualsGeneralFund' in source_tablename:
+            return 'f196'
+        if 'S275' in source_tablename or 'S-275' in source_tablename:
+            return 's275'
+
+    raise ValueError(f"Unable to infer datatype of {filename}")
+
+
 class Base(DeclarativeBase):
     pass
 
 
-class DbLoader(DbConnection):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+class DataLoader(DbConnection):
+    def __init__(self, args, **kwargs):
+        super().__init__(args, **kwargs)
         self._orm_classes = {}
+        self.write_avro = args.write_avro
+        self.write_db = args.write_db
+        self.db_drop_first = args.db_drop_first
+        self.outprefix = args.outprefix
+        self.outdir = args.outdir
+        self._has_loaded = set()
 
-    def add_table(self, schema):
+    def add_orm_table(self, schema):
         table_name = schema["name"]
-        class_name = inflection.camelize(table_name)
-        new_class = type(class_name,
-                         (Base,),
-                         {"__table__": make_table(schema, Base)})
-        self._orm_classes[table_name] = new_class
-        return new_class
+        orm_class = self._orm_classes.get(table_name, None)
+        if orm_class is None:
+            class_name = inflection.camelize(table_name)
+            orm_class = type(class_name,
+                             (Base,),
+                             {"__table__": make_table(schema, Base)})
+            self._orm_classes[table_name] = orm_class
 
-    def load_values(self, schema, rows, drop_first):
-        orm_class = self.add_table(schema)
-#        if drop_first:
-#            orm_class.drop(self.engine)
-#        orm_class.create(self.engine)
-        Base.metadata.create_all(self.engine)
+        return orm_class
+
+    def load_values(self, schema, rows, drop_first, is_new_table):
+        orm_class = self.add_orm_table(schema)
+        if drop_first:
+            orm_class.__table__.drop(self.engine, checkfirst=True)
+
+        if drop_first or is_new_table:
+            orm_class.__table__.create(self.engine, checkfirst=True)
 
         with Session(self.engine) as session:
             statement = insert(orm_class)
             current_batch = []
             rows_since_commit = 0
+
+            has_cleared_old_data = False
+
             for r in rows:
+                if not has_cleared_old_data:
+                    # Delete old entries
+                    delete_statement = (
+                        delete(orm_class)
+                        .where(orm_class._source_table == r['_source_table'])
+                        .where(orm_class.school_year == r['school_year']))
+                    logger.info(f"Deleting '{r['_source_table']}' and "
+                                f"'{r['school_year']}' from {schema['name']}")
+                    session.execute(delete_statement)
+                    has_cleared_old_data = True
+
                 rows_since_commit += 1
                 current_batch.append(r)
-                if len(current_batch) > 1000:
+                if len(current_batch) > 100000:
+                    logger.info(f"Executing batch for {schema['name']}")
                     session.execute(statement, current_batch)
                     current_batch.clear()
-                if rows_since_commit > 100000:
+                if rows_since_commit > 1000000:
+                    logger.info(f"Committing for {schema['name']}")
                     session.commit()
                     rows_since_commit = 0
 
             if len(current_batch) > 0:
+                logger.info(f"Final batch for {schema['name']}")
                 session.execute(statement, current_batch)
+            logger.info(f"Final commit for {schema['name']}")
             session.commit()
 
+    def process_file(self, filename):
+        reader = self._make_reader(filename)
 
-def main():
+        if self.write_db:
+            for normalized_table, source_table in reader.tables.items():
+                is_new_table = normalized_table not in self._has_loaded
+                drop_first = self.db_drop_first and is_new_table
+
+                schema, record_generator = reader.to_records(normalized_table)
+                self.load_values(schema, record_generator, drop_first,
+                                 is_new_table)
+                self._has_loaded.add(normalized_table)
+
+        if self.write_avro:
+            if self.outprefix == '[default]':
+                # TODO: This needs to get the school year from the data.
+                outprefix = f"{self.datatype}-"
+            else:
+                outprefix = self.outprefix
+
+            outdir = Path(self.outdir)
+            outdir.mkdir(exist_ok=True)
+            for normalized_table, source_table in reader.tables.items():
+                print(f"{normalized_table} <= {source_table}")
+                reader.export_avro(outdir, outprefix, normalized_table)
+
+    def _make_reader(self, filename):
+        def get_additional_values(schema, tablename, all_tables):
+            source = Path(filename).name
+            values = {"_source": source}
+
+            if 'school_year' not in schema['fields']:
+                values.update(_get_additional_school_year(
+                    schema, tablename, all_tables, source))
+            return values
+
+        datatype = infer_datatype(filename)
+
+        match datatype:
+            case "f195":
+                return MdbReader(
+                    filename,
+                    f195.get_mdb_reader_config(add_additional_fields,
+                                               get_additional_values))
+            case "f196":
+                return MdbReader(
+                    filename,
+                    f196.get_mdb_reader_config(add_additional_fields,
+                                               get_additional_values))
+            case "s275":
+                return MdbReader(
+                    filename,
+                    s275.get_mdb_reader_config(add_additional_fields,
+                                               get_additional_values))
+            case _:
+                raise ValueError(f"Unknown datatype {datatype}")
+
+
+def add_additional_fields(schema):
+    """Adds _source. Also adds school_year field if not already there."""
+    schema['fields'].append(
+        {
+            "name": "_source",
+            "doc": "Source file for data",
+            "field_type": "string",
+        })
+
+    if 'school_year' not in schema['fields']:
+        schema['fields'].append(
+            {
+                # TODO: This might overwrite embedded fields incorrectly.
+                "name": "school_year",
+                "source": "school_year",
+                "doc": "school year for data",
+                "field_type": "string",
+            })
+
+
+def _get_additional_school_year(schema, tablename, all_tables, source):
+    orig_table_name = all_tables['item_numbers']
+    match orig_table_name[0:5]:
+        case '1415A' | '1415B':
+            return {"school_year": "2014-2015"}
+
+        case '1516A' | '1516B':
+            return {"school_year": "2015-2016"}
+
+        case '1617A' | '1617B':
+            return {"school_year": "2016-2017"}
+
+        case '1718A' | '1718B':
+            return {"school_year": "2017-2018"}
+
+        case '1819A' | '1819B':
+            return {"school_year": "2018-2019"}
+
+        case '1920A' | '1920B':
+            return {"school_year": "2019-2020"}
+
+        case '2021A' | '2021B':
+            return {"school_year": "2020-2021"}
+
+        case '2022A' | '2022B':
+            # They typed the table name here.
+            return {"school_year": "2021-2022"}
+
+        case '2022-':
+            return {"school_year": "2022-2023"}
+
+        case '2023-':
+            return {"school_year": "2023-2024"}
+
+        case '2024-':
+            return {"school_year": "2024-2025"}
+
+    source_year_guess = re.match(r'\d\d\d\d-\d\d\d\d', source)
+    if source_year_guess is not None:
+        return {"school_year": source_year_guess[0]}
+
+    raise ValueError(f"Cannot infer school year from {orig_table_name}")
+
+
+def _parse_args():
     parser = argparse.ArgumentParser(
-        prog='f195_f196_access',
+        prog='from_access',
         description='Converts and access database to avro format')
 
-    parser.add_argument('--datatype', choices=['f195', 'f196', 's275'],
-                        help='Which data type to be loading')
-    parser.add_argument('--infile', required=True, help='inputfile')
-    parser.add_argument('--school-year', required=True, help='eg. 2014-2015')
     parser.add_argument('--outdir', help='output directory for AVRO')
     parser.add_argument('--outprefix', default="[default]",
                         help='Prefix for avro files')
@@ -81,61 +240,23 @@ def main():
                         help='Should write to a database')
     parser.add_argument('--db-drop-first', action="store_true",
                         help='Should drop the table before loading')
+    parser.add_argument('infiles', nargs="+", help='raw f195 files to combine')
 
     common_logging_setup(parser)
     add_db_arguments(parser)
 
-    args = get_args(parser)
+    return get_args(parser)
+
+
+def main():
+    args = _parse_args()
 
     if args.write_avro and not args.outdir:
         raise ValueError("outdir is empty")
 
-    additional_fields = [
-        {
-            "name": "_source",
-            "doc": "Source file for data",
-            "field_type": "string",
-            "value": Path(args.infile).name,
-        },
-        {
-            # TODO: This might overwrite embedded fields incorrectly.
-            "name": "school_year",
-            "doc": "school year for data",
-            "field_type": "string",
-            "value": args.school_year,
-        },
-    ]
-
-    if args.datatype == "f195":
-        reader = MdbReader(args.infile,
-                           f195.get_mdb_reader_config(additional_fields))
-    elif args.datatype == "f196":
-        reader = MdbReader(args.infile,
-                           f196.get_mdb_reader_config(additional_fields))
-    elif args.datatype == "s275":
-        reader = MdbReader(args.infile,
-                           s275.get_mdb_reader_config(additional_fields))
-
-
-    if args.write_db:
-        db_loader = DbLoader(args)
-
-        for normalized_table, source_table in reader.tables.items():
-            schema, record_generator = reader.to_records(normalized_table)
-            db_loader.load_values(schema, record_generator, args.db_drop_first)
-
-
-    if args.write_avro:
-        if args.outprefix == '[default]':
-            outprefix = f"{args.datatype}-f{args.school_year}-"
-        else:
-            outprefix = args.outprefix
-
-        outdir = Path(args.outdir)
-        outdir.mkdir(exist_ok=True)
-        for normalized_table, source_table in reader.tables.items():
-            print(f"{normalized_table} <= {source_table}")
-            reader.export_avro(outdir, outprefix, normalized_table)
+    loader = DataLoader(args)
+    for filename in args.infiles:
+        loader.process_file(filename)
 
 
 if __name__ == '__main__':

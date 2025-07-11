@@ -46,10 +46,9 @@ class MdbReader:
     @functools.cached_property
     def tables(self):
         """Returns a dict mapping normalized table name to table in mdb"""
-        return {
-            self.config.tablename_normalizer(t): t
-            for t in self._call_mdb_tables()
-        }
+        raw_entries = [(self.config.tablename_normalizer(t), t)
+                       for t in MdbReader.call_mdb_tables(self._filename)]
+        return {k: v for k, v in raw_entries if k is not None}
 
     def to_records(self, tablename):
         raw_rows = self._read_raw_rows(tablename)
@@ -65,17 +64,6 @@ class MdbReader:
 
         schema = self.config.header_to_schema(tablename, header)
         source_tablename = self.tables[tablename]
-
-        if self.config.additional_fields is not None:
-            schema['fields'].extend([
-                {
-                    'name': field['name'],
-                    'source': field['name'],
-                    'doc': field['doc'],
-                    'field_type': field['field_type'],
-                }
-                for field in self.config.additional_fields
-            ])
         schema['fields'].append(
             {
                 'name': '_source_table',
@@ -85,13 +73,21 @@ class MdbReader:
             }
         )
 
+        if self.config.add_additional_fields is not None:
+            self.config.add_additional_fields(schema)
+
         def record_generator():
             for row in raw_rows:
                 value_dict = dict(zip(header, row))
                 value_dict.update({'_source_table': source_tablename})
-                if self.config.additional_fields is not None:
-                    value_dict.update({f['name']: f['value']
-                                       for f in self.config.additional_fields})
+                if self.config.get_additional_values is not None:
+                    additional_values = self.config.get_additional_values(
+                        schema,
+                        tablename,
+                        self.tables)
+                    value_dict.update(
+                        {name: value
+                         for name, value in additional_values.items()})
                 yield self._row_to_record(schema, value_dict)
         return schema, record_generator()
 
@@ -133,9 +129,10 @@ class MdbReader:
                     raise
         return record
 
-    def _call_mdb_tables(self):
+    @staticmethod
+    def call_mdb_tables(filename):
         """Executes mdb-tables and returns iterable over table names."""
-        proc = subprocess.Popen(['mdb-tables', '-1', self._filename],
+        proc = subprocess.Popen(['mdb-tables', '-1', filename],
                                 stdout=subprocess.PIPE)
 
         while True:

@@ -41,7 +41,7 @@ def normalize_column_name(tablename, col_name):
         case 'dist':
             return 'district_code'
 
-        case 'codist':
+        case 'codist' | 'co_dist':
             return 'ccddd'
 
         case 'categories':
@@ -128,7 +128,7 @@ def tablename_normalizer(source_tablename):  # noqa: C901
         return "program"
     elif 'REVENUE' in source_tablename:
         return "revenue"
-    elif ('CapitalProjectRevenues' in source_tablename
+    elif ('CapitalProjectRevenue' in source_tablename
           or 'CapitalRevenues' in source_tablename):
         return "capital_project_revenues"
     elif 'DebtServiceRevenues' in source_tablename:
@@ -144,8 +144,7 @@ def tablename_normalizer(source_tablename):  # noqa: C901
     elif 'All Districts' in source_tablename:
         return "all_districts"
     else:
-        logger.error(f"!!! Unexpected Table {source_tablename}")
-        return None
+        raise ValueError(f"!!! Unexpected Table {source_tablename}")
 
 
 def custom_extract_header(tablename, row_iterator):
@@ -213,7 +212,7 @@ def row_preprocess(tablename, row_iterator):
     return row_iterator
 
 
-def get_mdb_reader_config(additional_fields):
+def get_mdb_reader_config(add_additional_fields, get_additional_values):
     config = InferredMdbReaderBuilder(
         datatype="f195",
         tablename_normalizer=tablename_normalizer,
@@ -223,7 +222,8 @@ def get_mdb_reader_config(additional_fields):
         re_decimal_column=RE_DECIMAL_COLUMN,
         re_date_column=RE_DATE_COLUMN,
         re_boolean_column=RE_BOOLEAN_COLUMN,
-        additional_fields=additional_fields,
+        add_additional_fields=add_additional_fields,
+        get_additional_values=get_additional_values,
         custom_extract_header=custom_extract_header,
         row_preprocess=row_preprocess)
     return config.mdb_reader_config

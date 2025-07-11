@@ -94,6 +94,9 @@ def normalize_column_name(table_name, col_name):
         case 'revenue':
             return 'revenue_code'
 
+        case str(bq_col_name) if bq_col_name.startswith('field'):
+            return None
+
         case _:
             return bq_col_name
 
@@ -134,12 +137,28 @@ def tablename_normalizer(source_tablename):  # noqa: C901
         return "trans_vehicle_revenues"
     elif 'ItemNumbers' in source_tablename:
         return "item_numbers"
-    else:
-        logger.error(f"!!! Unexpected Tables {source_tablename}")
+    elif 'AllRevFund' in source_tablename:
         return None
+    else:
+        raise ValueError(f"!!! Unexpected Tables {source_tablename}")
 
 
-def get_mdb_reader_config(additional_fields):
+def _is_weird_row(row):
+    # Skip weird notes in the domain tables
+    if row[0].startswith('For complete descriptions of'):
+        return True
+
+    return False
+
+
+def row_preprocess(tablename, row_iterator):
+    for row in row_iterator:
+        if _is_weird_row(row):
+            continue
+        yield row
+
+
+def get_mdb_reader_config(add_additional_fields, get_additional_values):
     config = InferredMdbReaderBuilder(
         datatype="f196",
         tablename_normalizer=tablename_normalizer,
@@ -149,5 +168,7 @@ def get_mdb_reader_config(additional_fields):
         re_decimal_column=RE_DECIMAL_COLUMN,
         re_date_column=RE_DATE_COLUMN,
         re_boolean_column=RE_BOOLEAN_COLUMN,
-        additional_fields=additional_fields)
+        add_additional_fields=add_additional_fields,
+        get_additional_values=get_additional_values,
+        row_preprocess=row_preprocess)
     return config.mdb_reader_config
