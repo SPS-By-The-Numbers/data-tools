@@ -1,19 +1,7 @@
 import inflection
 
 from .. import avro_schema
-
-_MDB_AUDIT_FIELDS = [
-    {
-        "name": "_source",
-        "field_type": "string",
-        "doc": "Source file for data",
-    },
-    {
-        "name": "_source_table",
-        "field_type": "string",
-        "doc": "Original table name",
-    }
-]
+from .common import AUDIT_FIELDS
 
 
 def _make_school_year_district_fields(is_logical_key):
@@ -142,7 +130,7 @@ def _make_revenues_schema(fund_name):
                 "doc": ("Listed in the Actuals General Fund Revenues table. "
                         "Unsure what it is used for"),
             },
-        ] | _MDB_AUDIT_FIELDS
+        ] + AUDIT_FIELDS
     }
 
 
@@ -341,7 +329,7 @@ GENERAL_FUND_EXPENDITURES = {
                     "1.0 is 100%"),
         },
 
-    ] | _MDB_AUDIT_FIELDS
+    ] + AUDIT_FIELDS
 }
 
 
@@ -439,5 +427,13 @@ OSPI_ITEMS = {
                     "and item_code."),
         },
 
-    ] | _MDB_AUDIT_FIELDS
+    ] + AUDIT_FIELDS
 }
+
+ALL_SCHEMAS = [
+    GENERAL_FUND_EXPENDITURES,
+    DEBT_SERVICE_REVENUES,
+    CAPITAL_PROJECTS_REVENUES,
+    TRANS_VEHICLE_REVENUES,
+    OSPI_ITEMS,
+]

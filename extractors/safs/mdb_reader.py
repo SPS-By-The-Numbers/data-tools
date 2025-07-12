@@ -85,9 +85,7 @@ class MdbReader:
                         schema,
                         tablename,
                         self.tables)
-                    value_dict.update(
-                        {name: value
-                         for name, value in additional_values.items()})
+                    value_dict.update(additional_values)
                 yield self._row_to_record(schema, value_dict)
         return schema, record_generator()
 
