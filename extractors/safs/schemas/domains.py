@@ -1,4 +1,12 @@
-from .common import AUDIT_FIELDS
+from . import common
+
+AUDIT_FIELDS = [
+    {
+        "name": "school_year",
+        "field_type": "string",
+        "doc": "School year the record comes from",
+    },
+] + common.AUDIT_FIELDS
 
 
 def make_domain_table(domain, descriptive_name,
@@ -50,7 +58,17 @@ DOMAIN_PROGRAM = make_domain_table(
             'field_type': 'string',
             'doc': ("Our attempt to simplify categories into useful analysis "
                     "buckets. The sps_budget_program_category tends to "
-                    "over-group things.")
+                    "over-group things."),
+        },
+        {
+            'name': 'short_description',
+            'field_type': 'string',
+            'doc': "Short description sometimes given by f196 domain tables.",
+        },
+        {
+            'name': 'notes',
+            'field_type': 'string',
+            'doc': "Notes included by short description.",
         },
     ])
 
@@ -96,6 +114,8 @@ DOMAIN_CCDDD = make_domain_table(
             'doc': "The ESD this district is part of"
         },
     ])
+
+DOMAIN_COUNTY = make_domain_table('county', 'County')
 
 DOMAIN_SCHOOL = make_domain_table(
     'school', 'School/Location designation',
@@ -150,6 +170,7 @@ ALL_SCHEMAS = [
     DOMAIN_OBJECT,
     DOMAIN_NCES,
     DOMAIN_CCDDD,
+    DOMAIN_COUNTY,
     DOMAIN_FUND,
     DOMAIN_SUBFUND,
     DOMAIN_DUTY_ROOT,

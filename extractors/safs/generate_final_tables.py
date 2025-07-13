@@ -23,8 +23,12 @@ class Base(DeclarativeBase):
     pass
 
 
-def _get_most_recent_domain(columns, table, partition_by,
+def _get_most_recent_domain(columns, table, primary_keys,
                             order_by="school_year"):
+    partition_by = ', '.join(primary_keys)
+
+    # Raw source tables will have no error checking for nullness of pks.
+    null_remove = ' AND '.join([f'{pk} IS NOT NULL' for pk in primary_keys])
     return f"""
         SELECT
             {columns}
@@ -34,18 +38,59 @@ def _get_most_recent_domain(columns, table, partition_by,
                 ROW_NUMBER() OVER(partition by {partition_by}
                                   ORDER BY {order_by} DESC) AS rn
             FROM {table}
+            WHERE {null_remove}
             )
         WHERE rn=1
     """
 
 
-def _make_insert(target_table, columns, select_sql):
+def _make_insert(target_table, columns, conflict_clause, conflict_where,
+                 select_sql):
+    set_clause = ', '.join([f"{c}=EXCLUDED.{c}" for c in columns])
     return f"""
     INSERT INTO
         {target_table}
-        ({columns})
-    {select_sql}
+        ({', '.join(columns)})
+        {select_sql}
+    ON CONFLICT({conflict_clause})
+    DO UPDATE SET {set_clause}
+    WHERE {conflict_where}
     """
+
+
+def _make_upsert(source_table, target_table, column_map, primary_keys):
+    select_sql = _get_most_recent_domain(
+        ', '.join(column_map.keys()),
+        source_table,
+        primary_keys
+    )
+
+    return text(_make_insert(
+        target_table,
+        column_map.values(),
+        ', '.join(primary_keys),
+        f'{target_table}.school_year < EXCLUDED.school_year',
+        select_sql))
+
+
+def _prefixes_for_domain(domain):
+    match domain:
+        case 'program' | 'activity' | 'object':
+            return ['f195', 'f196']
+
+        case 'nces' | 'subfund':
+            # return ['f196']
+            return []
+
+        case 'duty_root' | 'duty_suffix':
+            # return ['s275']
+            return []
+
+        case 'ccddd' | 'county':
+            return ['f195']
+
+        case 'fund':
+            return ['f195']
 
 
 class FinalTableGenerator(DbConnection):
@@ -81,27 +126,52 @@ class FinalTableGenerator(DbConnection):
 
     def _populate_domain_tables(self, session):
         logger.info("Populating domain")
+        session.execute(
+            _make_upsert('f195_program',
+                         'd_program',
+                         {
+                             'program_code': 'program_code',
+                             'title': 'program',
+                         },
+                         ['program_code']
+                         ))
+        session.execute(
+            _make_upsert('f196_program',
+                         'd_program',
+                         {
+                             'program_code': 'program_code',
+                             'description': 'program',
+                         },
+                         ['program_code']
+                         ))
+        return
+
         for schema in domains.ALL_SCHEMAS:
             target_tablename = schema['name']
-            source_tablename = target_tablename[2:]  # strip leading d_
-            source_tablename = f"f195_{source_tablename}"
             field_list = [(f['name'], f['source']) for f in schema['fields']
                           if f.get('source', None) is not None]
             primary_keys = [f['source'] for f in schema['fields']
                             if f.get('is_primary_key', False)]
 
-            select_sql = _get_most_recent_domain(
-                ', '.join([f[1] for f in field_list]),
-                source_tablename,
-                ', '.join(primary_keys)
-            )
+            domain = target_tablename[2:]  # strip leading d_
+            for prefix in _prefixes_for_domain(domain):
+                source_tablename = f"{prefix}_{domain}"
 
-            insert_sql = _make_insert(target_tablename,
-                                      ', '.join([f[0] for f in field_list]),
-                                      select_sql)
+                select_sql = _get_most_recent_domain(
+                    ', '.join([f[1] for f in field_list]),
+                    source_tablename,
+                    primary_keys
+                )
+
+                insert_sql = _make_insert(
+                    target_tablename,
+                    [f[0] for f in field_list],
+                    ', '.join(primary_keys),
+                    f'{target_tablename}.school_year < EXCLUDED.school_year',
+                    select_sql)
 
 
-            session.execute(text(insert_sql))
+                session.execute(text(insert_sql))
             break
 
 
