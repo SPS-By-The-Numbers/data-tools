@@ -11,6 +11,7 @@ AUDIT_FIELDS = [
 
 def make_domain_table(domain, descriptive_name,
                       additional_fields=[],
+                      primary_key_override=None,
                       source_descriptive_col_override=None,
                       description_col_override=None):
     description_col = domain
@@ -21,13 +22,17 @@ def make_domain_table(domain, descriptive_name,
     if source_descriptive_col_override is not None:
         source_descriptive_col = source_descriptive_col_override
 
+    primary_key = f"{domain}_code"
+    if primary_key_override is not None:
+        primary_key = primary_key_override
+
     return {
         "name": f"d_{domain}",
         "doc": f"Domain table for OSPI {descriptive_name}",
         "fields": [
             {
-                "name": f"{domain}_code",
-                "source": f"{domain}_code",
+                "name": primary_key,
+                "source": primary_key,
                 "field_type": "int",
                 "is_primary_key": True,
                 "doc": f"OSPI {descriptive_name} Code",
@@ -90,6 +95,11 @@ DOMAIN_ACTIVITY = make_domain_table(
                     "buckets. The sps_budget_activity_category tends to "
                     "group things in a way that obscures what's happening.")
         },
+        {
+            'name': 'short_description',
+            'field_type': 'string',
+            'doc': "Short description sometimes given by f196 domain tables.",
+        },
     ])
 
 DOMAIN_OBJECT = make_domain_table(
@@ -101,17 +111,31 @@ DOMAIN_OBJECT = make_domain_table(
             'field_type': 'boolean',
             'doc': "Mostly Object is useful for dividing comp vs non-comp"
         },
+        {
+            'name': 'short_description',
+            'field_type': 'string',
+            'doc': "Short description sometimes given by f196 domain tables.",
+        },
     ])
 
 DOMAIN_NCES = make_domain_table('nces', 'NCES')
 
 DOMAIN_CCDDD = make_domain_table(
-    'ccddd', 'County and District',
+    'ccddd',
+    'County and District',
+    primary_key_override='ccddd',
+    description_col_override="district",
     additional_fields=[
         {
-            'name': 'esd',
+            'name': 'county_code',
             'field_type': 'int',
-            'doc': "The ESD this district is part of"
+            'doc': "OSPI code for the county this district is part of",
+        },
+        {
+            'name': 'district_code',
+            'field_type': 'int',
+            'doc': ("OSPI code for the district. ccddd is almost always used "
+                    "instead."),
         },
     ])
 

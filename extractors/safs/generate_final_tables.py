@@ -39,6 +39,7 @@ def _get_most_recent_domain(columns, table, primary_keys,
                                   ORDER BY {order_by} DESC) AS rn
             FROM {table}
             WHERE {null_remove}
+            AND school_year is not NULL
             )
         WHERE rn=1
     """
@@ -58,39 +59,19 @@ def _make_insert(target_table, columns, conflict_clause, conflict_where,
     """
 
 
-def _make_upsert(source_table, target_table, column_map, primary_keys):
+def _make_upsert(source_table, target_table, column_map, unique_columns):
     select_sql = _get_most_recent_domain(
         ', '.join(column_map.keys()),
         source_table,
-        primary_keys
+        unique_columns
     )
 
     return text(_make_insert(
         target_table,
         column_map.values(),
-        ', '.join(primary_keys),
-        f'{target_table}.school_year < EXCLUDED.school_year',
+        ', '.join(unique_columns),
+        f'{target_table}.school_year <= EXCLUDED.school_year',
         select_sql))
-
-
-def _prefixes_for_domain(domain):
-    match domain:
-        case 'program' | 'activity' | 'object':
-            return ['f195', 'f196']
-
-        case 'nces' | 'subfund':
-            # return ['f196']
-            return []
-
-        case 'duty_root' | 'duty_suffix':
-            # return ['s275']
-            return []
-
-        case 'ccddd' | 'county':
-            return ['f195']
-
-        case 'fund':
-            return ['f195']
 
 
 class FinalTableGenerator(DbConnection):
@@ -125,55 +106,204 @@ class FinalTableGenerator(DbConnection):
         return orm_classes
 
     def _populate_domain_tables(self, session):
-        logger.info("Populating domain")
+        self._populate_domain_program(session)
+        self._populate_domain_activity(session)
+        self._populate_domain_object(session)
+        self._populate_domain_nces(session)
+        self._populate_domain_ccddd(session)
+        self._populate_domain_county(session)
+        self._populate_domain_school(session)
+        self._populate_domain_fund(session)
+        self._populate_domain_subfund(session)
+        self._populate_domain_duty_root(session)
+        self._populate_domain_duty_suffix(session)
+
+    def _populate_domain_program(self, session):
+        logger.info("Populating d_program")
         session.execute(
-            _make_upsert('f195_program',
-                         'd_program',
-                         {
-                             'program_code': 'program_code',
-                             'title': 'program',
-                         },
-                         ['program_code']
-                         ))
-        session.execute(
-            _make_upsert('f196_program',
-                         'd_program',
-                         {
+            _make_upsert(source_table='f196_program',
+                         target_table='d_program',
+                         column_map={
                              'program_code': 'program_code',
                              'description': 'program',
+                             'short_description': 'short_description',
+                             'notes': 'notes',
+                             'school_year': 'school_year',
+                             '_source': '_source',
+                             '_source_table': '_source_table',
                          },
-                         ['program_code']
+                         unique_columns=['program_code']
                          ))
+        session.execute(
+            _make_upsert(source_table='f195_program',
+                         target_table='d_program',
+                         column_map={
+                             'program_code': 'program_code',
+                             'title': 'program',
+                             'school_year': 'school_year',
+                             '_source': '_source',
+                             '_source_table': '_source_table',
+                         },
+                         unique_columns=['program_code']
+                         ))
+
+    def _populate_domain_activity(self, session):
+        logger.info("Populating d_activity")
+        session.execute(
+            _make_upsert(source_table='f196_activity',
+                         target_table='d_activity',
+                         column_map={
+                             'activity_code': 'activity_code',
+                             'description': 'activity',
+                             'short_description': 'short_description',
+                             'school_year': 'school_year',
+                             '_source': '_source',
+                             '_source_table': '_source_table',
+                         },
+                         unique_columns=['activity_code']
+                         ))
+        session.execute(
+            _make_upsert(source_table='f195_activity',
+                         target_table='d_activity',
+                         column_map={
+                             'activity_code': 'activity_code',
+                             'description': 'activity',
+                             'school_year': 'school_year',
+                             '_source': '_source',
+                             '_source_table': '_source_table',
+                         },
+                         unique_columns=['activity_code']
+                         ))
+
+    def _populate_domain_object(self, session):
+        session.execute(
+            _make_upsert(source_table='f196_object',
+                         target_table='d_object',
+                         column_map={
+                             'object_code': 'object_code',
+                             'description': 'object',
+                             'short_description': 'short_description',
+                             'school_year': 'school_year',
+                             '_source': '_source',
+                             '_source_table': '_source_table',
+                         },
+                         unique_columns=['object_code']
+                         ))
+
+    def _populate_domain_nces(self, session):
+        logger.info("skipping d_nces")
         return
 
-        for schema in domains.ALL_SCHEMAS:
-            target_tablename = schema['name']
-            field_list = [(f['name'], f['source']) for f in schema['fields']
-                          if f.get('source', None) is not None]
-            primary_keys = [f['source'] for f in schema['fields']
-                            if f.get('is_primary_key', False)]
+    def _populate_domain_ccddd(self, session):
+        logger.info("Populating d_ccddd")
+        session.execute(
+            _make_upsert(source_table='f195_ccddd',
+                         target_table='d_ccddd',
+                         column_map={
+                             'ccddd': 'ccddd',
+                             'name': 'district',
+                             'county_code': 'county_code',
+                             'district_code': 'district_code',
+                             'school_year': 'school_year',
+                             '_source': '_source',
+                             '_source_table': '_source_table',
+                         },
+                         unique_columns=['ccddd']
+                         ))
 
-            domain = target_tablename[2:]  # strip leading d_
-            for prefix in _prefixes_for_domain(domain):
-                source_tablename = f"{prefix}_{domain}"
+    def _populate_domain_county(self, session):
+        logger.info("Populating d_county")
+        session.execute(
+            _make_upsert(source_table='f195_county',
+                         target_table='d_county',
+                         column_map={
+                             'county_code': 'county_code',
+                             'name': 'county',
+                             'school_year': 'school_year',
+                             '_source': '_source',
+                             '_source_table': '_source_table',
+                         },
+                         unique_columns=['county_code']
+                         ))
 
-                select_sql = _get_most_recent_domain(
-                    ', '.join([f[1] for f in field_list]),
-                    source_tablename,
-                    primary_keys
-                )
+    def _populate_domain_school(self, session):
+        logger.info("Skipping d_school")
+        return
+        session.execute(
+            _make_upsert(source_table='f195_county',
+                         target_table='d_county',
+                         column_map={
+                             'county_code': 'county_code',
+                             'name': 'county',
+                             'school_year': 'school_year',
+                             '_source': '_source',
+                             '_source_table': '_source_table',
+                         },
+                         unique_columns=['county_code']
+                         ))
 
-                insert_sql = _make_insert(
-                    target_tablename,
-                    [f[0] for f in field_list],
-                    ', '.join(primary_keys),
-                    f'{target_tablename}.school_year < EXCLUDED.school_year',
-                    select_sql)
+    def _populate_domain_fund(self, session):
+        logger.info("Populating d_fund")
+        session.execute(
+            _make_upsert(source_table='f195_fund',
+                         target_table='d_fund',
+                         column_map={
+                             'fund_code': 'fund_code',
+                             'fund_name': 'fund',
+                             'school_year': 'school_year',
+                             '_source': '_source',
+                             '_source_table': '_source_table',
+                         },
+                         unique_columns=['fund_code']
+                         ))
 
+    def _populate_domain_subfund(self, session):
+        logger.info("Skipping d_subfund")
+        return
+        session.execute(
+            _make_upsert(source_table='f195_fund',
+                         target_table='d_fund',
+                         column_map={
+                             'fund_code': 'fund_code',
+                             'fund_name': 'fund',
+                             'school_year': 'school_year',
+                             '_source': '_source',
+                             '_source_table': '_source_table',
+                         },
+                         unique_columns=['fund_code']
+                         ))
 
-                session.execute(text(insert_sql))
-            break
+    def _populate_domain_duty_root(self, session):
+        logger.info("Skipping d_duty_root")
+        return
+        session.execute(
+            _make_upsert(source_table='f195_fund',
+                         target_table='d_fund',
+                         column_map={
+                             'fund_code': 'fund_code',
+                             'fund_name': 'fund',
+                             'school_year': 'school_year',
+                             '_source': '_source',
+                             '_source_table': '_source_table',
+                         },
+                         unique_columns=['fund_code']
+                         ))
 
+    def _populate_domain_duty_suffix(self, session):
+        logger.info("Skipping d_duty_suffix")
+        return
+        session.execute(
+            _make_upsert(source_table='f195_fund',
+                         target_table='d_fund',
+                         column_map={
+                             'fund_code': 'fund_code',
+                             'fund_name': 'fund',
+                             'school_year': 'school_year',
+                             '_source': '_source',
+                             '_source_table': '_source_table',
+                         },
+                         unique_columns=['fund_code']
+                         ))
 
     def _populate_general_fund_expenditures(self):
         pass
