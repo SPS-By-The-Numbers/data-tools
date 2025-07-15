@@ -94,6 +94,9 @@ def normalize_column_name(table_name, col_name):
         case 'revenue':
             return 'revenue_code'
 
+        case 'title':
+            return 'description'
+
         case str(bq_col_name) if bq_col_name.startswith('field'):
             return None
 
@@ -129,7 +132,8 @@ def tablename_normalizer(source_tablename):  # noqa: C901
         return "general_fund_expenditures"
     elif 'GeneralFundRevenues' in source_tablename:
         return "general_fund_revenues"
-    elif 'ChildGenerlFundExpenditures' in source_tablename:
+    elif ('ChildGenerlFundExpenditures' in source_tablename or
+          'child_general_fund_expenditures' in source_tablename):
         return "child_general_fund_expenditures"
     elif 'RevenuesAndExpenditures' in source_tablename:
         return "revenues_and_expenditures"
@@ -158,7 +162,7 @@ def row_preprocess(tablename, row_iterator):
         yield row
 
 
-def get_mdb_reader_config(add_additional_fields, get_additional_values):
+def get_reader_config(add_additional_fields, get_additional_values):
     config = InferredMdbReaderBuilder(
         datatype="f196",
         tablename_normalizer=tablename_normalizer,

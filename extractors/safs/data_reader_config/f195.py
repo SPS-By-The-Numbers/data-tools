@@ -47,8 +47,8 @@ def normalize_column_name(tablename, col_name):
         case 'categories':
             return 'category'
 
-        case 'titles':
-            return 'title'
+        case 'title' | 'titles':
+            return 'description'
 
         case 'SchoolYear':
             return 'school_year_code'
@@ -153,7 +153,7 @@ def custom_extract_header(tablename, row_iterator):
     if tablename == 'revenue' and header[0] == 'Field1':
         logger.warning("Skipping first two rows in revenue table")
         next(row_iterator)
-        return ['revenue_code', 'title', 'category']
+        return ['revenue_code', 'description', 'category']
     return header
 
 
@@ -212,7 +212,7 @@ def row_preprocess(tablename, row_iterator):
     return row_iterator
 
 
-def get_mdb_reader_config(add_additional_fields, get_additional_values):
+def get_reader_config(add_additional_fields, get_additional_values):
     config = InferredMdbReaderBuilder(
         datatype="f195",
         tablename_normalizer=tablename_normalizer,

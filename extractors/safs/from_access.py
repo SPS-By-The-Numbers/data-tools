@@ -12,25 +12,13 @@ from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy.orm import Session
 
 from extractors.common import common_logging_setup, get_args
-from extractors.safs.mdb_reader import MdbReader
-from extractors.safs.mdb_reader_config import (f195, f196, s275)
+from extractors.safs.data_reader import DataReader, CsvRawReader, MdbRawReader
+from extractors.safs.data_reader_config import (f195, f196, s275)
 
 from .db_connection import DbConnection, add_db_arguments
 from .orm import make_table
 
 logger = logging.getLogger(__name__)
-
-
-def infer_datatype(filename):
-    for source_tablename in MdbReader.call_mdb_tables(filename):
-        if 'BudgetGeneralFund' in source_tablename:
-            return 'f195'
-        if 'ActualsGeneralFund' in source_tablename:
-            return 'f196'
-        if 'S275' in source_tablename or 'S-275' in source_tablename:
-            return 's275'
-
-    raise ValueError(f"Unable to infer datatype of {filename}")
 
 
 class Base(DeclarativeBase):
@@ -133,95 +121,92 @@ class DataLoader(DbConnection):
     def _make_reader(self, filename):
         def get_additional_values(schema, tablename, all_tables):
             source = Path(filename).name
-            values = {"_source": source}
+            values = {}
 
             if 'school_year' not in schema['fields']:
                 values.update(_get_additional_school_year(
                     schema, tablename, all_tables, source))
             return values
 
-        datatype = infer_datatype(filename)
+        if filename.endswith('csv'):
+            raw_reader = CsvRawReader(filename)
+        else:
+            raw_reader = MdbRawReader(filename)
+
+        datatype = raw_reader.datatype()
 
         match datatype:
             case "f195":
-                return MdbReader(
-                    filename,
-                    f195.get_mdb_reader_config(add_additional_fields,
-                                               get_additional_values))
+                return DataReader(
+                    raw_reader,
+                    f195.get_reader_config(add_additional_fields,
+                                           get_additional_values))
             case "f196":
-                return MdbReader(
-                    filename,
-                    f196.get_mdb_reader_config(add_additional_fields,
-                                               get_additional_values))
+                return DataReader(
+                    raw_reader,
+                    f196.get_reader_config(add_additional_fields,
+                                           get_additional_values))
             case "s275":
-                return MdbReader(
-                    filename,
-                    s275.get_mdb_reader_config(add_additional_fields,
-                                               get_additional_values))
+                return DataReader(
+                    raw_reader,
+                    s275.get_reader_config(add_additional_fields,
+                                           get_additional_values))
             case _:
                 raise ValueError(f"Unknown datatype {datatype}")
 
 
 def add_additional_fields(schema):
-    """Adds _source. Also adds school_year field if not already there."""
-    schema['fields'].append(
-        {
-            "name": "_source",
-            "doc": "Source file for data",
-            "field_type": "string",
-        })
-
+    """Adds school_year field if not already there."""
     if 'school_year' not in schema['fields']:
         schema['fields'].append(
             {
-                # TODO: This might overwrite embedded fields incorrectly.
                 "name": "school_year",
-                "source": "school_year",
+                "source": "_school_year",
                 "doc": "school year for data",
                 "field_type": "string",
             })
 
 
 def _get_additional_school_year(schema, tablename, all_tables, source):
-    orig_table_name = all_tables['item_numbers']
+    orig_table_name = all_tables.get('item_numbers', '')
     match orig_table_name[0:5]:
         case '1415A' | '1415B':
-            return {"school_year": "2014-2015"}
+            return {"_school_year": "2014-2015"}
 
         case '1516A' | '1516B':
-            return {"school_year": "2015-2016"}
+            return {"_school_year": "2015-2016"}
 
         case '1617A' | '1617B':
-            return {"school_year": "2016-2017"}
+            return {"_school_year": "2016-2017"}
 
         case '1718A' | '1718B':
-            return {"school_year": "2017-2018"}
+            return {"_school_year": "2017-2018"}
 
         case '1819A' | '1819B':
-            return {"school_year": "2018-2019"}
+            return {"_school_year": "2018-2019"}
 
         case '1920A' | '1920B':
-            return {"school_year": "2019-2020"}
+            return {"_school_year": "2019-2020"}
 
         case '2021A' | '2021B':
-            return {"school_year": "2020-2021"}
+            return {"_school_year": "2020-2021"}
 
         case '2022A' | '2022B':
             # They typed the table name here.
-            return {"school_year": "2021-2022"}
+            return {"_school_year": "2021-2022"}
 
         case '2022-':
-            return {"school_year": "2022-2023"}
+            return {"_school_year": "2022-2023"}
 
         case '2023-':
-            return {"school_year": "2023-2024"}
+            return {"_school_year": "2023-2024"}
 
         case '2024-':
-            return {"school_year": "2024-2025"}
+            return {"_school_year": "2024-2025"}
 
     source_year_guess = re.match(r'\d\d\d\d-\d\d\d\d', source)
     if source_year_guess is not None:
-        return {"school_year": source_year_guess[0]}
+        return {"_school_year": source_year_guess[0]}
 
     raise ValueError(f"Cannot infer school year from {orig_table_name}")
 

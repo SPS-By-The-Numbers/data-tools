@@ -63,7 +63,7 @@ def tablename_normalizer(tablename):
     return f"s275_{m[2]}"
 
 
-def get_mdb_reader_config(add_additional_fields, get_additional_values):
+def get_reader_config(add_additional_fields, get_additional_values):
     return MdbReaderConfig(
         datatype="s275",
         tablename_normalizer=tablename_normalizer,
