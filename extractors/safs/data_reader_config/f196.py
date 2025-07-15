@@ -107,39 +107,46 @@ def normalize_column_name(table_name, col_name):
 def tablename_normalizer(source_tablename):  # noqa: C901
     if 'Item Dictionary' in source_tablename:
         return "item_dict"
-    elif ('P-A-Os - Activities' in source_tablename
-          or 'ACTIVITY' in source_tablename
-          or 'Activity #' in source_tablename):
+    elif ('P-A-Os - Activities' in source_tablename or
+          'ACTIVITY' in source_tablename or
+          'Activity #' in source_tablename):
         return "activity"
-    elif ('P-A-Os - Objects' in source_tablename
-          or 'OBJECT' in source_tablename
-          or 'Object #' in source_tablename):
+    elif ('P-A-Os - Objects' in source_tablename or
+          'OBJECT' in source_tablename or
+          'Object #' in source_tablename):
         return "object"
-    elif ('P-A-Os - Programs' in source_tablename
-          or 'PROGRAM' in source_tablename
-          or 'Program' in source_tablename):
+    elif ('P-A-Os - Programs' in source_tablename or
+          'PROGRAM' in source_tablename or
+          'Program' in source_tablename):
         return "program"
     elif 'CCDDD' in source_tablename:
         return "ccddd"
     elif 'REVENUE' in source_tablename:
         return "revenue"
-    elif ('CapitalProjectRevenues' in source_tablename
-          or 'CapitalRevenues' in source_tablename):
+    elif ('CapitalProjectRevenues' in source_tablename or
+          'CapitalRevenues' in source_tablename or
+          'capital_project_revenues' in source_tablename):
         return "capital_project_revenues"
-    elif 'DebtServiceRevenues' in source_tablename:
+    elif ('DebtServiceRevenues' in source_tablename or
+          "debt_service_revenues" in source_tablename):
         return "debt_service_revenues"
-    elif 'GeneralFundExpenditures' in source_tablename:
+    elif ('GeneralFundExpenditures' in source_tablename or
+          "general_fund_expenditures" in source_tablename):
         return "general_fund_expenditures"
-    elif 'GeneralFundRevenues' in source_tablename:
+    elif ('GeneralFundRevenues' in source_tablename or
+          "general_fund_revenues" in source_tablename):
         return "general_fund_revenues"
     elif ('ChildGenerlFundExpenditures' in source_tablename or
           'child_general_fund_expenditures' in source_tablename):
         return "child_general_fund_expenditures"
-    elif 'RevenuesAndExpenditures' in source_tablename:
+    elif ('RevenuesAndExpenditures' in source_tablename or
+          "revenues_and_expenditures" in source_tablename):
         return "revenues_and_expenditures"
-    elif 'TransVehicleRevenues' in source_tablename:
+    elif ('TransVehicleRevenues' in source_tablename or
+          'trans_vehicle_revenues' in source_tablename):
         return "trans_vehicle_revenues"
-    elif 'ItemNumbers' in source_tablename:
+    elif ('ItemNumbers' in source_tablename or
+          'item_numbers' in source_tablename):
         return "item_numbers"
     elif 'AllRevFund' in source_tablename:
         return None
