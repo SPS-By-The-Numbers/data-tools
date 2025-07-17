@@ -32,7 +32,6 @@ class InferredMdbReaderBuilder:
         return self._mdb_reader_config
 
     def _fields_from_header(self, tablename, row):
-        print(row)
         raw_fields = [self._infer_field(tablename, col_name)
                       for col_name in row]
         return [f for f in raw_fields if f is not None]

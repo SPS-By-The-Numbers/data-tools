@@ -50,8 +50,12 @@ class XslxRawReader:
         return self._datatype
 
     def read_raw_rows(self, raw_tablename):
-        df = pd.read_excel(self._filepath, sheet_name=raw_tablename)
-        df = df.drop(columns=[df.columns[0]])
+        # Don't parse the first row as that is manually processed later.
+        df = pd.read_excel(self._filepath, sheet_name=raw_tablename,
+                           header=None)
+
+        # Remove all the random blank rows folks put in.
+        df = df.dropna(how='all')
 
         # Assume the first row is the header.
         columns_to_drop = []
@@ -192,7 +196,6 @@ class DataReader:
             header = self.config.custom_extract_header(tablename, raw_rows)
 
         schema = self.config.header_to_schema(tablename, header)
-        source_tablename = self.tables[tablename]
         schema['fields'].extend(
             [
                 {
@@ -217,7 +220,7 @@ class DataReader:
             for row in raw_rows:
                 value_dict = dict(zip(header, row))
                 value_dict.update({
-                    '_source_table': source_tablename,
+                    '_source_table': source_table,
                     '_source': self._reader.filename,
                 })
                 if self.config.get_additional_values is not None:
