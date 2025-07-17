@@ -14,6 +14,11 @@ from . import avro_schema
 logger = logging.getLogger(__name__)
 
 
+def _strip_str_only(val):
+    if isinstance(val, str):
+        return val.strip()
+    return val
+
 def _parse_structured_csv_filename(filename):
     """Parses 2021-2022-f196-table_name.csv to (2021-2022, f196, table_name)"""
     m = re.match(r"^(\d{4}-\d{4})-([^-]*)-(.*).csv$", filename)
@@ -51,8 +56,6 @@ class XslxRawReader:
         # Assume the first row is the header.
         columns_to_drop = []
         for index, header_value in df.iloc[0].items():
-            logger.info(f"index:{index}")
-            logger.info(f"header_value:{header_value}")
             if not isinstance(header_value, str):
                 columns_to_drop.append(index)
 
@@ -62,7 +65,7 @@ class XslxRawReader:
                         f"{df.columns}")
 
         for row in df.values:
-            yield row
+            yield [_strip_str_only(v) for v in row]
 
 
 class CsvRawReader:
@@ -179,7 +182,6 @@ class DataReader:
     def to_records(self, tablename):
         source_table = self.tables[tablename]
         raw_rows = self._reader.read_raw_rows(source_table)
-
         if self.config.row_preprocess is not None:
             raw_rows = self.config.row_preprocess(tablename, raw_rows)
 
@@ -225,6 +227,7 @@ class DataReader:
                         self.tables)
                     value_dict.update(additional_values)
                 yield self._row_to_record(schema, value_dict)
+
         return schema, record_generator()
 
     def export_avro(self, outdir, outprefix, tablename):

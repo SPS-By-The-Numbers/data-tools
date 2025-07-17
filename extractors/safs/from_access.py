@@ -122,7 +122,7 @@ class DataLoader(DbConnection):
                 reader.export_avro(outdir, outprefix, normalized_table)
 
         for normalized_table, source_table in reader.tables.items():
-            print(normalized_table, source_table)
+            print('output: ', normalized_table, source_table)
 
     def _make_reader(self, filename):
         def get_additional_values(schema, tablename, all_tables):

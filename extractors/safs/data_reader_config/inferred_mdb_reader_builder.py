@@ -39,7 +39,6 @@ class InferredMdbReaderBuilder:
 
     def _infer_field(self, table_name, col_name):
         """Given a table and a raw column name, generate a schema field."""
-        print(col_name)
         col_name = col_name.replace('\ufeff', '').strip()
         name = self._normalize_column_name(table_name, col_name)
 

@@ -35,10 +35,10 @@ RE_STR_COLUMN = re.compile(r"fund_des|fund_name")
 
 def normalize_column_name(table_name, col_name):
     """Column names drift over time. Normalize them here"""
-    bq_col_name = to_bigquery_colname(col_name)
+    bq_col_name = to_bigquery_colname(col_name.strip())
 
     match bq_col_name:
-        case 'codist' | 'county_district_code':
+        case 'codist' | 'county_district_code' | 'district_id':
             return 'ccddd'
 
         # Suffix numeric values with '_code'
@@ -94,6 +94,12 @@ def normalize_column_name(table_name, col_name):
 
         case 'title':
             return 'description'
+
+        case 'school___district':
+            return 'school_district'
+
+        case 'school_id':
+            return 'school_code'
 
         case str(bq_col_name) if bq_col_name.startswith('field'):
             return None
