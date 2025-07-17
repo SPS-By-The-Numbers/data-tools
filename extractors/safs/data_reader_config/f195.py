@@ -23,6 +23,7 @@ RE_INT_COLUMN = re.compile(
 RE_DECIMAL_COLUMN = re.compile(r'amount| proj| bud')
 RE_DATE_COLUMN = re.compile(r'last_updated')
 RE_BOOLEAN_COLUMN = re.compile(r'is_forecast')
+RE_CODED_INT_COLUMN = re.compile('$^')
 
 # Use this to force a string. It's an override that's run before the other
 # regexps so make it very specific
@@ -222,6 +223,7 @@ def get_reader_config(add_additional_fields, get_additional_values):
         re_decimal_column=RE_DECIMAL_COLUMN,
         re_date_column=RE_DATE_COLUMN,
         re_boolean_column=RE_BOOLEAN_COLUMN,
+        re_coded_int_column=RE_CODED_INT_COLUMN,
         add_additional_fields=add_additional_fields,
         get_additional_values=get_additional_values,
         custom_extract_header=custom_extract_header,

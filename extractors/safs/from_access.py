@@ -12,7 +12,8 @@ from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy.orm import Session
 
 from extractors.common import common_logging_setup, get_args
-from extractors.safs.data_reader import DataReader, CsvRawReader, MdbRawReader
+from extractors.safs.data_reader import (DataReader, CsvRawReader,
+                                         MdbRawReader, XslxRawReader)
 from extractors.safs.data_reader_config import (f195, f196, s275)
 
 from .db_connection import DbConnection, add_db_arguments
@@ -97,13 +98,15 @@ class DataLoader(DbConnection):
 
         if self.write_db:
             for normalized_table, source_table in reader.tables.items():
-                is_new_table = normalized_table not in self._has_loaded
+                schema, record_generator = reader.to_records(normalized_table)
+                raw_table_name = schema['name']
+
+                is_new_table = raw_table_name not in self._has_loaded
                 drop_first = self.db_drop_first and is_new_table
 
-                schema, record_generator = reader.to_records(normalized_table)
                 self.load_values(schema, record_generator, drop_first,
                                  is_new_table)
-                self._has_loaded.add(normalized_table)
+                self._has_loaded.add(raw_table_name)
 
         if self.write_avro:
             if self.outprefix == '[default]':
@@ -115,8 +118,11 @@ class DataLoader(DbConnection):
             outdir = Path(self.outdir)
             outdir.mkdir(exist_ok=True)
             for normalized_table, source_table in reader.tables.items():
-                print(f"{normalized_table} <= {source_table}")
+                logger.info(f"{normalized_table} <= {source_table}")
                 reader.export_avro(outdir, outprefix, normalized_table)
+
+        for normalized_table, source_table in reader.tables.items():
+            print(normalized_table, source_table)
 
     def _make_reader(self, filename):
         def get_additional_values(schema, tablename, all_tables):
@@ -130,6 +136,8 @@ class DataLoader(DbConnection):
 
         if filename.endswith('csv'):
             raw_reader = CsvRawReader(filename)
+        elif filename.endswith('xlsx'):
+            raw_reader = XslxRawReader(filename)
         else:
             raw_reader = MdbRawReader(filename)
 
@@ -151,6 +159,13 @@ class DataLoader(DbConnection):
                     raw_reader,
                     s275.get_reader_config(add_additional_fields,
                                            get_additional_values))
+
+            case 'f196-codes':
+                return DataReader(
+                    raw_reader,
+                    f196.get_reader_config(add_additional_fields,
+                                           get_additional_values))
+
             case _:
                 raise ValueError(f"Unknown datatype {datatype}")
 

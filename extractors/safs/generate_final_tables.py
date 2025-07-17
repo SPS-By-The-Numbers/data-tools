@@ -5,7 +5,6 @@ import inflection
 import logging
 
 from extractors.common import common_logging_setup, get_args
-from sqlalchemy import select
 from sqlalchemy import text
 from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy.orm import Session
@@ -92,15 +91,14 @@ class FinalTableGenerator(DbConnection):
             self._populate_domain_tables(session)
             session.commit()
 
-
     def _create_orm_classes(self, schemas):
         orm_classes = {}
         for schema in schemas:
             table_name = schema["name"]
             class_name = inflection.camelize(table_name)
             orm_class = type(class_name,
-                            (Base,),
-                            {"__table__": make_table(schema, Base)})
+                             (Base,),
+                             {"__table__": make_table(schema, Base)})
             orm_classes[table_name] = orm_class
 
         return orm_classes
@@ -139,7 +137,7 @@ class FinalTableGenerator(DbConnection):
                          target_table='d_program',
                          column_map={
                              'program_code': 'program_code',
-                             'title': 'program',
+                             'description': 'program',
                              'school_year': 'school_year',
                              '_source': '_source',
                              '_source_table': '_source_table',

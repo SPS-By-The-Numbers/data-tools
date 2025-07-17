@@ -9,8 +9,12 @@ logger = logging.getLogger(__name__)
 
 
 # Column names for type inferrence.
-RE_INT_COLUMN = re.compile(
-    r"accounting_item_id$|"
+RE_INT_COLUMN = re.compile(r"accounting_item_id$")
+RE_DECIMAL_COLUMN = re.compile(r'amount| proj| bud')
+RE_DATE_COLUMN = re.compile(r'last_updated')
+RE_BOOLEAN_COLUMN = re.compile(r'is_forecast')
+
+RE_CODED_INT_COLUMN = re.compile(
     r"activity_code$|"
     r"county_code$|"
     r"fund_code$|"
@@ -23,9 +27,6 @@ RE_INT_COLUMN = re.compile(
     r"revenue_code$|"
     r"codist$|"
     r"ccddd$")
-RE_DECIMAL_COLUMN = re.compile(r'amount| proj| bud')
-RE_DATE_COLUMN = re.compile(r'last_updated')
-RE_BOOLEAN_COLUMN = re.compile(r'is_forecast')
 
 # Use this to force a string. It's an override that's run before the other
 # regexps so make it very specific
@@ -37,7 +38,7 @@ def normalize_column_name(table_name, col_name):
     bq_col_name = to_bigquery_colname(col_name)
 
     match bq_col_name:
-        case 'codist':
+        case 'codist' | 'county_district_code':
             return 'ccddd'
 
         # Suffix numeric values with '_code'
@@ -65,9 +66,6 @@ def normalize_column_name(table_name, col_name):
         # Rename things with "#" as code
         case str(bq_col_name) if bq_col_name.endswith('_#'):
             return f"{bq_col_name[:-1]}code"
-
-        case 'county_district_code':
-            return 'ccddd'
 
         case str(bq_col_name) if (bq_col_name.endswith('_description___short')
                                   or bq_col_name == 'short_desc'
@@ -105,15 +103,18 @@ def normalize_column_name(table_name, col_name):
 
 
 def tablename_normalizer(source_tablename):  # noqa: C901
-    if 'Item Dictionary' in source_tablename:
+    if ('Item Dictionary' in source_tablename or
+            'Items' in source_tablename):
         return "item_dict"
     elif ('P-A-Os - Activities' in source_tablename or
           'ACTIVITY' in source_tablename or
-          'Activity #' in source_tablename):
+          'Activity #' in source_tablename or
+          'Activities' in source_tablename):
         return "activity"
     elif ('P-A-Os - Objects' in source_tablename or
           'OBJECT' in source_tablename or
-          'Object #' in source_tablename):
+          'Object #' in source_tablename or
+          'Objects' in source_tablename):
         return "object"
     elif ('P-A-Os - Programs' in source_tablename or
           'PROGRAM' in source_tablename or
@@ -121,8 +122,21 @@ def tablename_normalizer(source_tablename):  # noqa: C901
         return "program"
     elif 'CCDDD' in source_tablename:
         return "ccddd"
-    elif 'REVENUE' in source_tablename:
+    elif ('REVENUE' in source_tablename or
+          'Revenues' in source_tablename):
         return "revenue"
+    elif 'ESDs' in source_tablename:
+        return 'esd'
+    elif 'Districts' in source_tablename:
+        return 'district'
+    elif 'Schools' in source_tablename:
+        return 'school'
+    elif 'NCES' in source_tablename:
+        return 'nces'
+    elif 'Funds' in source_tablename:
+        return 'fund'
+    elif 'Sub Fund' in source_tablename:
+        return 'sub_fund'
     elif ('CapitalProjectRevenues' in source_tablename or
           'CapitalRevenues' in source_tablename or
           'capital_project_revenues' in source_tablename):
@@ -130,15 +144,15 @@ def tablename_normalizer(source_tablename):  # noqa: C901
     elif ('DebtServiceRevenues' in source_tablename or
           "debt_service_revenues" in source_tablename):
         return "debt_service_revenues"
+    elif ('ChildGenerlFundExpenditures' in source_tablename or
+          'child_general_fund_expenditures' in source_tablename):
+        return "child_general_fund_expenditures"
     elif ('GeneralFundExpenditures' in source_tablename or
           "general_fund_expenditures" in source_tablename):
         return "general_fund_expenditures"
     elif ('GeneralFundRevenues' in source_tablename or
           "general_fund_revenues" in source_tablename):
         return "general_fund_revenues"
-    elif ('ChildGenerlFundExpenditures' in source_tablename or
-          'child_general_fund_expenditures' in source_tablename):
-        return "child_general_fund_expenditures"
     elif ('RevenuesAndExpenditures' in source_tablename or
           "revenues_and_expenditures" in source_tablename):
         return "revenues_and_expenditures"
@@ -148,7 +162,9 @@ def tablename_normalizer(source_tablename):  # noqa: C901
     elif ('ItemNumbers' in source_tablename or
           'item_numbers' in source_tablename):
         return "item_numbers"
-    elif 'AllRevFund' in source_tablename:
+    elif ('AllRevFund' in source_tablename or
+          'Enrollment' in source_tablename or
+          'Edits' in source_tablename):
         return None
     else:
         raise ValueError(f"!!! Unexpected Tables {source_tablename}")
@@ -156,7 +172,9 @@ def tablename_normalizer(source_tablename):  # noqa: C901
 
 def _is_weird_row(row):
     # Skip weird notes in the domain tables
-    if row[0].startswith('For complete descriptions of'):
+    first_cell = row[0]
+    if (isinstance(first_cell, str) and
+            first_cell.startswith('For complete descriptions of')):
         return True
 
     return False
@@ -179,6 +197,7 @@ def get_reader_config(add_additional_fields, get_additional_values):
         re_decimal_column=RE_DECIMAL_COLUMN,
         re_date_column=RE_DATE_COLUMN,
         re_boolean_column=RE_BOOLEAN_COLUMN,
+        re_coded_int_column=RE_CODED_INT_COLUMN,
         add_additional_fields=add_additional_fields,
         get_additional_values=get_additional_values,
         row_preprocess=row_preprocess)

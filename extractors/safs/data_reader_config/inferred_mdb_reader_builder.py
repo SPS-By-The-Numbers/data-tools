@@ -6,9 +6,9 @@ class InferredMdbReaderBuilder:
     """Makes a MdbReader that will infers the avro schema by column name"""
     def __init__(self, datatype, tablename_normalizer, normalize_column_name,
                  re_str_column, re_int_column, re_decimal_column,
-                 re_date_column, re_boolean_column, add_additional_fields=None,
-                 get_additional_values=None, custom_extract_header=None,
-                 row_preprocess=None):
+                 re_date_column, re_boolean_column, re_coded_int_column,
+                 add_additional_fields=None, get_additional_values=None,
+                 custom_extract_header=None, row_preprocess=None):
 
         self._normalize_column_name = normalize_column_name
         self._re_str_column = re_str_column
@@ -16,6 +16,7 @@ class InferredMdbReaderBuilder:
         self._re_decimal_column = re_decimal_column
         self._re_date_column = re_date_column
         self._re_boolean_column = re_boolean_column
+        self._re_coded_int_column = re_coded_int_column
 
         self._mdb_reader_config = MdbReaderConfig(
             datatype,
@@ -31,12 +32,14 @@ class InferredMdbReaderBuilder:
         return self._mdb_reader_config
 
     def _fields_from_header(self, tablename, row):
+        print(row)
         raw_fields = [self._infer_field(tablename, col_name)
                       for col_name in row]
         return [f for f in raw_fields if f is not None]
 
     def _infer_field(self, table_name, col_name):
         """Given a table and a raw column name, generate a schema field."""
+        print(col_name)
         col_name = col_name.replace('\ufeff', '').strip()
         name = self._normalize_column_name(table_name, col_name)
 
@@ -60,6 +63,9 @@ class InferredMdbReaderBuilder:
         elif self._re_int_column.match(name_lower):
             return {"field_type": "int",
                     "extractor": avro_schema.to_int_or_null}
+        elif self._re_coded_int_column.match(name_lower):
+            return {"field_type": "int",
+                    "extractor": avro_schema.coded_int_or_null}
         elif self._re_decimal_column.match(name_lower):
             return {"field_type": "decimal",
                     "extractor": avro_schema.to_decimal_or_null}

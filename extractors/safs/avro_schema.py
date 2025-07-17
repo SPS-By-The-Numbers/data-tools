@@ -68,7 +68,11 @@ def cleaned_string(record, source):
     value = record.get(source, None)
     if value is None:
         return None
-    return value.strip()
+    elif isinstance(cleaned_string, str):
+        return value.strip()
+    else:
+        # Source data is already some other type. Just pass through.
+        return value
 
 
 def string_with_null(record, source):
@@ -112,7 +116,15 @@ def coded_int_or_null(record, source):
     ever 4 characters long, this packed 7-bit encoding allows us to represent
     all the codes into the range of a 4-byte integer.
     """
-    str_bytes = cleaned_string(record, source).encode("utf-8")
+    cleaned_value = cleaned_string(record, source)
+    try:
+        return int(cleaned_value)
+    except ValueError:
+        # Fall through into encoding.
+        pass
+
+    # Assume it's a string
+    str_bytes = cleaned_value.encode("utf-8")
     if str_bytes is None:
         return None
 

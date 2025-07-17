@@ -4,6 +4,7 @@ import csv
 import fastavro
 import functools
 import logging
+import pandas as pd
 import re
 import subprocess
 
@@ -15,11 +16,53 @@ logger = logging.getLogger(__name__)
 
 def _parse_structured_csv_filename(filename):
     """Parses 2021-2022-f196-table_name.csv to (2021-2022, f196, table_name)"""
-    m = re.match(r"(\d{4}-\d{4})-([^-]*)-(.*).csv", filename)
+    m = re.match(r"^(\d{4}-\d{4})-([^-]*)-(.*).csv$", filename)
     if m is None:
         raise ValueError(f"Invalid {filename}")
 
     return (m[1], m[2], m[3])
+
+
+class XslxRawReader:
+    def __init__(self, filepath):
+        self._filepath = filepath
+
+        m = re.match(r"^(\d{4}-\d{4})-(.*).xlsx$", self.filename)
+        if m is None:
+            raise ValueError(f"Invalid {filepath}")
+        self._school_year = m[1]
+        self._datatype = m[2]
+        self._filepath = filepath
+
+    @property
+    def filename(self):
+        return Path(self._filepath).name
+
+    def read_raw_tables(self):
+        return {v: v for v in pd.ExcelFile(self._filepath).sheet_names}
+
+    def datatype(self):
+        return self._datatype
+
+    def read_raw_rows(self, raw_tablename):
+        df = pd.read_excel(self._filepath, sheet_name=raw_tablename)
+        df = df.drop(columns=[df.columns[0]])
+
+        # Assume the first row is the header.
+        columns_to_drop = []
+        for index, header_value in df.iloc[0].items():
+            logger.info(f"index:{index}")
+            logger.info(f"header_value:{header_value}")
+            if not isinstance(header_value, str):
+                columns_to_drop.append(index)
+
+        if len(columns_to_drop) > 0:
+            df = df.drop(columns=columns_to_drop)
+            logger.info(f"Dropping columns: {columns_to_drop}. Left over are "
+                        f"{df.columns}")
+
+        for row in df.values:
+            yield row
 
 
 class CsvRawReader:
@@ -215,7 +258,10 @@ class DataReader:
             if source in row:
                 extractor = f.get('extractor', avro_schema.cleaned_string)
                 try:
-                    record[f['name']] = extractor(row, f['source'])
+                    value = extractor(row, f['source'])
+                    if value is None:
+                        value = avro_schema.get_null_sentinel(f['field_type'])
+                    record[f['name']] = value
                 except Exception:
                     logger.error(f"Failed {f['name']} from {f['source']} in "
                                  f"row {row}")
