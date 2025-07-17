@@ -92,7 +92,7 @@ def normalize_column_name(table_name, col_name):
         case 'revenue':
             return 'revenue_code'
 
-        case 'title' | 'program_f196':
+        case 'title':
             return 'description'
 
         case 'school___district':
@@ -115,18 +115,15 @@ def tablename_normalizer(source_tablename):  # noqa: C901
     elif ('P-A-Os - Activities' in source_tablename or
           'ACTIVITY' in source_tablename or
           'Activity #' in source_tablename or
-          'activities' in source_tablename or
           'Activities' in source_tablename):
         return "activity"
     elif ('P-A-Os - Objects' in source_tablename or
           'OBJECT' in source_tablename or
           'Object #' in source_tablename or
-          'object' in source_tablename or
           'Objects' in source_tablename):
         return "object"
     elif ('P-A-Os - Programs' in source_tablename or
           'PROGRAM' in source_tablename or
-          'programs' in source_tablename or
           'Program' in source_tablename):
         return "program"
     elif 'CCDDD' in source_tablename:
@@ -136,17 +133,13 @@ def tablename_normalizer(source_tablename):  # noqa: C901
         return "revenue"
     elif 'ESDs' in source_tablename:
         return 'esd'
-    elif ('districts' in source_tablename or
-          'Districts' in source_tablename):
+    elif 'Districts' in source_tablename:
         return 'district'
-    elif ('schools' in source_tablename or
-          'Schools' in source_tablename):
+    elif 'Schools' in source_tablename:
         return 'school'
-    elif ('nces' in source_tablename or
-          'NCES' in source_tablename):
+    elif 'NCES' in source_tablename:
         return 'nces'
-    elif ('funds' in source_tablename or
-          'Funds' in source_tablename):
+    elif 'Funds' in source_tablename:
         return 'fund'
     elif 'Sub Fund' in source_tablename:
         return 'sub_fund'
@@ -175,12 +168,6 @@ def tablename_normalizer(source_tablename):  # noqa: C901
     elif ('ItemNumbers' in source_tablename or
           'item_numbers' in source_tablename):
         return "item_numbers"
-    elif 'duty_root' in source_tablename:
-        return 'duty_root'
-    elif 'duty_suffix' in source_tablename:
-        return 'duty_suffix'
-    elif 'fake_names' in source_tablename:
-        return 'fake_names'
     elif ('AllRevFund' in source_tablename or
           'Enrollment' in source_tablename or
           'Edits' in source_tablename):

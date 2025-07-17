@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 from extractors.common import common_logging_setup, get_args
 from extractors.safs.data_reader import (DataReader, CsvRawReader,
                                          MdbRawReader, XslxRawReader)
-from extractors.safs.data_reader_config import (f195, f196, s275)
+from extractors.safs.data_reader_config import (f195, f196, s275, spsbtn)
 
 from .db_connection import DbConnection, add_db_arguments
 from .orm import make_table
@@ -149,7 +149,7 @@ class DataLoader(DbConnection):
                     raw_reader,
                     f195.get_reader_config(add_additional_fields,
                                            get_additional_values))
-            case "f196":
+            case "f196" | "f196-codes":
                 return DataReader(
                     raw_reader,
                     f196.get_reader_config(add_additional_fields,
@@ -160,11 +160,11 @@ class DataLoader(DbConnection):
                     s275.get_reader_config(add_additional_fields,
                                            get_additional_values))
 
-            case 'f196-codes':
+            case "spsbtn":
                 return DataReader(
                     raw_reader,
-                    f196.get_reader_config(add_additional_fields,
-                                           get_additional_values))
+                    spsbtn.get_reader_config(add_additional_fields,
+                                             get_additional_values))
 
             case _:
                 raise ValueError(f"Unknown datatype {datatype}")
