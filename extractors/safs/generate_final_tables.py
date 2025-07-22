@@ -59,6 +59,11 @@ def _make_insert(target_table, columns, conflict_clause, conflict_where,
 
 
 def _make_upsert(source_table, target_table, column_map, unique_columns):
+    """Merges the source table into the target table.
+
+    column_map is a dictionary of column names. Key is source. Value is
+    destination.
+    """
     select_sql = _get_most_recent_domain(
         ', '.join(column_map.keys()),
         source_table,
@@ -119,13 +124,28 @@ class FinalTableGenerator(DbConnection):
     def _populate_domain_program(self, session):
         logger.info("Populating d_program")
         session.execute(
+            _make_upsert(source_table='spsbtn_programs',
+                         target_table='d_program',
+                         column_map={
+                             'program_code': 'program_code',
+                             'program_f196': 'program',
+                             'sps_program_grouping_augmented':
+                                'sps_program_grouping',
+                             'sps_program_grouping':
+                                'raw_sps_program_grouping',
+                             'program_per_pupil': 'per_pupil_program',
+                             'school_year': 'school_year',
+                             '_source': '_source',
+                             '_source_table': '_source_table',
+                         },
+                         unique_columns=['program_code']
+                         ))
+        session.execute(
             _make_upsert(source_table='f196_program',
                          target_table='d_program',
                          column_map={
                              'program_code': 'program_code',
                              'description': 'program',
-                             'short_description': 'short_description',
-                             'notes': 'notes',
                              'school_year': 'school_year',
                              '_source': '_source',
                              '_source_table': '_source_table',
@@ -148,12 +168,25 @@ class FinalTableGenerator(DbConnection):
     def _populate_domain_activity(self, session):
         logger.info("Populating d_activity")
         session.execute(
+            _make_upsert(source_table='spsbtn_activities',
+                         target_table='d_activity',
+                         column_map={
+                             'activity_code': 'activity_code',
+                             'activity': 'activity',
+                             'sps_budget_category': 'sps_activity_category',
+                             'collapsed': 'simplfied_activity',
+                             'school_year': 'school_year',
+                             '_source': '_source',
+                             '_source_table': '_source_table',
+                         },
+                         unique_columns=['activity_code']
+                         ))
+        session.execute(
             _make_upsert(source_table='f196_activity',
                          target_table='d_activity',
                          column_map={
                              'activity_code': 'activity_code',
                              'description': 'activity',
-                             'short_description': 'short_description',
                              'school_year': 'school_year',
                              '_source': '_source',
                              '_source_table': '_source_table',
@@ -175,12 +208,24 @@ class FinalTableGenerator(DbConnection):
 
     def _populate_domain_object(self, session):
         session.execute(
+            _make_upsert(source_table='spsbtn_object',
+                         target_table='d_object',
+                         column_map={
+                             'object_code': 'object_code',
+                             'object_description': 'object',
+                             'object_type': 'object_type',
+                             'school_year': 'school_year',
+                             '_source': '_source',
+                             '_source_table': '_source_table',
+                         },
+                         unique_columns=['object_code']
+                         ))
+        session.execute(
             _make_upsert(source_table='f196_object',
                          target_table='d_object',
                          column_map={
                              'object_code': 'object_code',
                              'description': 'object',
-                             'short_description': 'short_description',
                              'school_year': 'school_year',
                              '_source': '_source',
                              '_source_table': '_source_table',
@@ -189,8 +234,30 @@ class FinalTableGenerator(DbConnection):
                          ))
 
     def _populate_domain_nces(self, session):
-        logger.info("skipping d_nces")
-        return
+        session.execute(
+            _make_upsert(source_table='spsbtn_nces',
+                         target_table='d_nces',
+                         column_map={
+                             'nces_code': 'nces_code',
+                             'nces_description': 'nces',
+                             'school_year': 'school_year',
+                             '_source': '_source',
+                             '_source_table': '_source_table',
+                         },
+                         unique_columns=['nces_code']
+                         ))
+        session.execute(
+            _make_upsert(source_table='f196_nces',
+                         target_table='d_nces',
+                         column_map={
+                             'nces_code': 'nces_code',
+                             'description': 'nces',
+                             'school_year': 'school_year',
+                             '_source': '_source',
+                             '_source_table': '_source_table',
+                         },
+                         unique_columns=['nces_code']
+                         ))
 
     def _populate_domain_ccddd(self, session):
         logger.info("Populating d_ccddd")
@@ -225,23 +292,78 @@ class FinalTableGenerator(DbConnection):
                          ))
 
     def _populate_domain_school(self, session):
-        logger.info("Skipping d_school")
-        return
+        logger.info("Populating d_school")
+        # TODO: Incorportate the sps btn schools override once we get it more
+        # normalized.
         session.execute(
-            _make_upsert(source_table='f195_county',
-                         target_table='d_county',
+            _make_upsert(source_table='f196_school',
+                         target_table='d_school',
                          column_map={
-                             'county_code': 'county_code',
-                             'name': 'county',
+                             'school_code': 'school_code',
+                             'school_district': 'school_and_district',
+                             'school_year': 'school_year',
+                             'ccddd': 'ccddd',
+                             '_source': '_source',
+                             '_source_table': '_source_table',
+                         },
+                         unique_columns=['school_code']
+                         ))
+
+        # The domain table has school and district with a dash at the end.
+        # Extract just the school name.
+        session.execute(
+            text(
+                """
+                UPDATE d_school
+                SET school = TRIM(SUBSTRING(school_and_district FROM 1 FOR
+                    CASE
+                        WHEN POSITION('-' IN school_and_district) > 0
+                        THEN LENGTH(school_and_district) -
+                                POSITION('-' IN REVERSE(school_and_district))
+                        ELSE LENGTH(school_and_district)
+                    END
+                ))
+                WHERE school_and_district IS NOT NULL;
+                """
+            )
+        )
+
+        # District office seems to be all school codes < 1500.
+        session.execute(
+            text(
+                """
+                UPDATE d_school
+                SET is_district_office = (school_code <= 1500)
+                """
+            )
+        )
+
+    def _populate_domain_fund(self, session):
+        logger.info("Populating d_fund")
+        session.execute(
+            _make_upsert(source_table='spsbtn_funds',
+                         target_table='d_fund',
+                         column_map={
+                             'fund_code': 'fund_code',
+                             'fund': 'fund',
                              'school_year': 'school_year',
                              '_source': '_source',
                              '_source_table': '_source_table',
                          },
-                         unique_columns=['county_code']
+                         unique_columns=['fund_code']
                          ))
-
-    def _populate_domain_fund(self, session):
-        logger.info("Populating d_fund")
+        session.execute(
+            _make_upsert(source_table='f196_fund',
+                         target_table='d_fund',
+                         column_map={
+                             'fund_code': 'fund_code',
+                             'description': 'fund',
+                             'school_year': 'school_year',
+                             '_source': '_source',
+                             '_source_table': '_source_table',
+                         },
+                         unique_columns=['fund_code']
+                         ))
         session.execute(
             _make_upsert(source_table='f195_fund',
                          target_table='d_fund',
@@ -256,51 +378,94 @@ class FinalTableGenerator(DbConnection):
                          ))
 
     def _populate_domain_subfund(self, session):
-        logger.info("Skipping d_subfund")
-        return
+        logger.info("Populating d_sub_fund")
         session.execute(
-            _make_upsert(source_table='f195_fund',
-                         target_table='d_fund',
+            _make_upsert(source_table='spsbtn_sub_funds',
+                         target_table='d_sub_fund',
                          column_map={
-                             'fund_code': 'fund_code',
-                             'fund_name': 'fund',
+                             'sub_fund_code': 'sub_fund_code',
+                             'sub_fund': 'sub_fund',
                              'school_year': 'school_year',
                              '_source': '_source',
                              '_source_table': '_source_table',
                          },
-                         unique_columns=['fund_code']
+                         unique_columns=['sub_fund_code']
+                         ))
+        session.execute(
+            _make_upsert(source_table='f196_sub_fund',
+                         target_table='d_sub_fund',
+                         column_map={
+                             'sub_fund_code': 'sub_fund_code',
+                             'description': 'sub_fund',
+                             'school_year': 'school_year',
+                             '_source': '_source',
+                             '_source_table': '_source_table',
+                         },
+                         unique_columns=['sub_fund_code']
                          ))
 
     def _populate_domain_duty_root(self, session):
-        logger.info("Skipping d_duty_root")
-        return
+        logger.info("Populating d_duty_root")
         session.execute(
-            _make_upsert(source_table='f195_fund',
-                         target_table='d_fund',
+            _make_upsert(source_table='spsbtn_duty_root',
+                         target_table='d_duty_root',
                          column_map={
-                             'fund_code': 'fund_code',
-                             'fund_name': 'fund',
+                             'duty_root': 'duty_root',
+                             'duty_name': 'duty_name',
+                             'original_duty_pattern':
+                                'original_duty_code_pattern',
+                             'duty_category': 'duty_name_category',
+                             'duty_name_description': 'duty_name_description',
                              'school_year': 'school_year',
                              '_source': '_source',
                              '_source_table': '_source_table',
                          },
-                         unique_columns=['fund_code']
+                         unique_columns=['duty_root']
+                         ))
+        session.execute(
+            _make_upsert(source_table='f196_duty_root',
+                         target_table='d_duty_root',
+                         column_map={
+                             'duty_root': 'duty_root',
+                             'duty_name': 'duty_name',
+                             'duty_category': 'duty_name_category',
+                             'duty_name_description': 'duty_name_description',
+                             'school_year': 'school_year',
+                             '_source': '_source',
+                             '_source_table': '_source_table',
+                         },
+                         unique_columns=['duty_root']
                          ))
 
     def _populate_domain_duty_suffix(self, session):
         logger.info("Skipping d_duty_suffix")
-        return
         session.execute(
-            _make_upsert(source_table='f195_fund',
-                         target_table='d_fund',
+            _make_upsert(source_table='spsbtn_duty_suffix',
+                         target_table='d_duty_suffix',
                          column_map={
-                             'fund_code': 'fund_code',
-                             'fund_name': 'fund',
+                             'duty_suffix': 'duty_suffix',
+                             'contract_type': 'duty_contract_type',
+                             'contract_type_description':
+                                'duty_contract_description',
                              'school_year': 'school_year',
                              '_source': '_source',
                              '_source_table': '_source_table',
                          },
-                         unique_columns=['fund_code']
+                         unique_columns=['duty_suffix']
+                         ))
+        session.execute(
+            _make_upsert(source_table='f196_duty_suffix',
+                         target_table='d_duty_suffix',
+                         column_map={
+                             'duty_suffix': 'duty_suffix',
+                             'contract_type': 'duty_contract_type',
+                             'contract_type_description':
+                                'duty_contract_description',
+                             'school_year': 'school_year',
+                             '_source': '_source',
+                             '_source_table': '_source_table',
+                         },
+                         unique_columns=['duty_suffix']
                          ))
 
     def _populate_general_fund_expenditures(self):

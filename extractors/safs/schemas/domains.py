@@ -52,28 +52,22 @@ DOMAIN_PROGRAM = make_domain_table(
     source_descriptive_col_override="title",
     additional_fields=[
         {
-            'name': 'sps_budget_program_category',
+            'name': 'sps_program_grouping',
             'field_type': 'string',
-            'doc': ("OSPI Programs in the SPS Budget are divided into "
-                    "categories because most folks think of the budgets in "
-                    "groups")
+            'doc': ("Grouping of programs used in SPS's budget book augmented"
+                    "with some more groupings for programs that aren't "
+                    "listed"),
         },
         {
-            'name': 'simplfied_program',
+            'name': 'raw_sps_program_grouping',
             'field_type': 'string',
-            'doc': ("Our attempt to simplify categories into useful analysis "
-                    "buckets. The sps_budget_program_category tends to "
-                    "over-group things."),
+            'doc': ("Grouping of programs used in SPS's budget book. Some "
+                    "programs are not listed and will not have a value")
         },
         {
-            'name': 'short_description',
+            'name': 'per_pupil_program',
             'field_type': 'string',
-            'doc': "Short description sometimes given by f196 domain tables.",
-        },
-        {
-            'name': 'notes',
-            'field_type': 'string',
-            'doc': "Notes included by short description.",
+            'doc': ("Name for the program used in the OSPI per-pupil report")
         },
     ])
 
@@ -82,11 +76,11 @@ DOMAIN_ACTIVITY = make_domain_table(
     source_descriptive_col_override="description",
     additional_fields=[
         {
-            'name': 'sps_budget_activity_category',
+            'name': 'sps_activity_category',
             'field_type': 'string',
-            'doc': ("OSPI Activities in the SPS Budget are divided into "
-                    "categories because most folks think of the budgets "
-                    "in groups")
+            'doc': ("Used in the SPS Budget.  The OSPI Activities in the "
+                    "SPS Budget are divided into categories because most "
+                    "folks think of the budgets in these groups")
         },
         {
             'name': 'simplfied_activity',
@@ -95,11 +89,6 @@ DOMAIN_ACTIVITY = make_domain_table(
                     "buckets. The sps_budget_activity_category tends to "
                     "group things in a way that obscures what's happening.")
         },
-        {
-            'name': 'short_description',
-            'field_type': 'string',
-            'doc': "Short description sometimes given by f196 domain tables.",
-        },
     ])
 
 DOMAIN_OBJECT = make_domain_table(
@@ -107,14 +96,9 @@ DOMAIN_OBJECT = make_domain_table(
     source_descriptive_col_override="description",
     additional_fields=[
         {
-            'name': 'is_compensation',
-            'field_type': 'boolean',
-            'doc': "Mostly Object is useful for dividing comp vs non-comp"
-        },
-        {
-            'name': 'short_description',
+            'name': 'object_type',
             'field_type': 'string',
-            'doc': "Short description sometimes given by f196 domain tables.",
+            'doc': "One of finance, compensation, or non-compensation.",
         },
     ])
 
@@ -143,7 +127,18 @@ DOMAIN_COUNTY = make_domain_table('county', 'County')
 
 DOMAIN_SCHOOL = make_domain_table(
     'school', 'School/Location designation',
+    description_col_override="school_and_district",
     additional_fields=[
+        {
+            'name': 'ccddd',
+            'field_type': 'int',
+            'doc': "County District code for the district of this school",
+        },
+        {
+            'name': 'school',
+            'field_type': 'string',
+            'doc': "Just the school name",
+        },
         {
             'name': 'is_district_office',
             'field_type': 'boolean',
@@ -158,19 +153,27 @@ DOMAIN_SCHOOL = make_domain_table(
 
 DOMAIN_FUND = make_domain_table('fund', 'Fund')
 
-DOMAIN_SUBFUND = make_domain_table('subfund', 'Sub Fund')
+DOMAIN_SUBFUND = make_domain_table('sub_fund', 'Sub Fund')
 
 DOMAIN_DUTY_ROOT = make_domain_table(
     'duty_root', 'Duty Root',
-    description_col_override="duty_title",
+    primary_key_override='duty_root',
+    description_col_override="duty_name",
     additional_fields=[
         {
-            'name': 'duty_category',
+            'name': 'original_duty_code_pattern',
+            'field_type': 'string',
+            'doc': ("The original pattern for the duty code that the "
+                    "duty_root is inferred from. Pattern should match the "
+                    "S275 reporting manual")
+        },
+        {
+            'name': 'duty_name_category',
             'field_type': 'string',
             'doc': "The basic classification of the duty"
         },
         {
-            'name': 'duty_description',
+            'name': 'duty_name_description',
             'field_type': 'string',
             'doc': "Description of the duty name"
         },
@@ -179,10 +182,11 @@ DOMAIN_DUTY_ROOT = make_domain_table(
 
 DOMAIN_DUTY_SUFFIX = make_domain_table(
     'duty_suffix', 'Duty Suffix',
-    description_col_override="contract_type",
+    primary_key_override='duty_suffix',
+    description_col_override="duty_contract_type",
     additional_fields=[
         {
-            'name': 'contract_description',
+            'name': 'duty_contract_description',
             'field_type': 'string',
             'doc': "Description of the contract type"
         },
@@ -196,6 +200,7 @@ ALL_SCHEMAS = [
     DOMAIN_CCDDD,
     DOMAIN_COUNTY,
     DOMAIN_FUND,
+    DOMAIN_SCHOOL,
     DOMAIN_SUBFUND,
     DOMAIN_DUTY_ROOT,
     DOMAIN_DUTY_SUFFIX,
