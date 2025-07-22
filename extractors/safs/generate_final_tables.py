@@ -79,13 +79,15 @@ def _make_upsert(source_table, target_table, column_map, unique_columns):
         select_sql))
 
 
-def _populate_revenue_table(self, session, data_type, fund_name):
-    logger.info("Populating general_fund_expenditures with child actuals")
+def _populate_revenue_table(session, data_type, fund_name):
+    table_name = f"{fund_name}_revenues"
+    logger.info(f"Populating {table_name} with child actuals")
 
     extra_columns = ""
     extra_values = ""
 
     if data_type == 'Actuals':
+        source_table_prefix="f196"
         extra_columns = f"""
             accounting_item_id,
             actuals_{fund_name}_revenues_id,
@@ -94,11 +96,15 @@ def _populate_revenue_table(self, session, data_type, fund_name):
             t.accounting_item_id,
             t.actuals_{fund_name}_revenues_id,
         """
+    else:
+        source_table_prefix="f195"
 
     session.execute(text(
         f"""
-        INSERT INTO {fund_name}_revenues (
+        INSERT INTO {table_name} (
             data_type,
+
+            ccddd,
             fund_code,
             fund,
 
@@ -121,8 +127,9 @@ def _populate_revenue_table(self, session, data_type, fund_name):
             _source_table
         )
         SELECT
-            'Budget',
+            '{data_type}',
 
+            t.ccddd,
             t.fund_code,
             f.fund,
 
@@ -144,7 +151,7 @@ def _populate_revenue_table(self, session, data_type, fund_name):
                 AS school_starting_year,
             t._source,
             t._source_table
-        FROM f196_{fund_name}_revenues t
+        FROM {source_table_prefix}_{fund_name}_revenues t
         LEFT JOIN d_fund f ON (t.fund_code = f.fund_code)
         LEFT JOIN d_revenue r ON (t.revenue_code = r.revenue_code)
         LEFT JOIN d_program p ON (r.program_code = p.program_code)
@@ -173,7 +180,7 @@ class FinalTableGenerator(DbConnection):
             self._populate_general_fund_expenditures_from_actuals(session)
             self._populate_general_fund_expenditures_from_child_actuals(
                 session)
-            self._populate_debt_service_fund_revenues(session)
+            self._populate_debt_service_revenues(session)
             self._populate_capital_projects_revenues(session)
             self._populate_trans_vehicle_revenues(session)
             self._populate_ospi_items(session)
@@ -394,7 +401,12 @@ class FinalTableGenerator(DbConnection):
                  UPDATE d_revenue
                  SET
                     program_code = revenue_code % 100,
-                    category_code = FLOOR(revenue_code/1000) * 1000,
+                    category_code = FLOOR(revenue_code/1000) * 1000
+                 """))
+        session.execute(
+            text("""
+                 UPDATE d_revenue
+                 SET
                     category = CASE
                         WHEN FLOOR(category_code / 1000) = 1
                             THEN 'Local Taxes'
@@ -812,14 +824,17 @@ class FinalTableGenerator(DbConnection):
             """
         ))
 
-    def _populate_debt_service_fund_revenues(self, session):
-        pass
+    def _populate_debt_service_revenues(self, session):
+        _populate_revenue_table(session, "Budget", "debt_service")
+        _populate_revenue_table(session, "Actuals", "debt_service")
 
     def _populate_capital_projects_revenues(self, session):
-        pass
+        _populate_revenue_table(session, "Budget", "capital_project")
+        _populate_revenue_table(session, "Actuals", "capital_project")
 
     def _populate_trans_vehicle_revenues(self, session):
-        pass
+        _populate_revenue_table(session, "Budget", "trans_vehicle")
+        _populate_revenue_table(session, "Actuals", "trans_vehicle")
 
     def _populate_ospi_items(self, session):
         pass

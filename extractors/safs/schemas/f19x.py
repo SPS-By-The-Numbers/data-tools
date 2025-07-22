@@ -350,7 +350,7 @@ GENERAL_FUND_EXPENDITURES = {
 
 DEBT_SERVICE_REVENUES = _make_revenues_schema("debt_service")
 
-CAPITAL_PROJECTS_REVENUES = _make_revenues_schema("capital_projects")
+CAPITAL_PROJECT_REVENUES = _make_revenues_schema("capital_project")
 
 TRANS_VEHICLE_REVENUES = _make_revenues_schema("trans_vehicle")
 
@@ -448,7 +448,7 @@ OSPI_ITEMS = {
 ALL_SCHEMAS = [
     GENERAL_FUND_EXPENDITURES,
     DEBT_SERVICE_REVENUES,
-    CAPITAL_PROJECTS_REVENUES,
+    CAPITAL_PROJECT_REVENUES,
     TRANS_VEHICLE_REVENUES,
     OSPI_ITEMS,
 ]
