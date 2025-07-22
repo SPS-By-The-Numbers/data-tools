@@ -192,6 +192,27 @@ DOMAIN_DUTY_SUFFIX = make_domain_table(
         },
     ])
 
+DOMAIN_REVENUE = make_domain_table(
+    'revenue', 'Revenues',
+    additional_fields=[
+        {
+            'name': 'category_code',
+            'field_type': 'int',
+            'doc': "category of the revenue code. It's the thousanths place"
+        },
+        {
+            'name': 'category',
+            'field_type': 'string',
+            'doc': "Name of the category"
+        },
+        {
+            'name': 'program_code',
+            'field_type': 'int',
+            'doc': ("Program this category is resricted to. Just the last "
+                    "2 digits of the revenue_code. If 0, it's unrestricted.")
+        },
+    ])
+
 ALL_SCHEMAS = [
     DOMAIN_PROGRAM,
     DOMAIN_ACTIVITY,
@@ -200,6 +221,7 @@ ALL_SCHEMAS = [
     DOMAIN_CCDDD,
     DOMAIN_COUNTY,
     DOMAIN_FUND,
+    DOMAIN_REVENUE,
     DOMAIN_SCHOOL,
     DOMAIN_SUBFUND,
     DOMAIN_DUTY_ROOT,

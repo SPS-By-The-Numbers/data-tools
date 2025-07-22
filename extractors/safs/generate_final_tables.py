@@ -9,6 +9,7 @@ from sqlalchemy import text
 from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy.orm import Session
 
+from .avro_schema import get_null_sentinel
 from .db_connection import DbConnection, add_db_arguments
 from .orm import make_table
 from .schemas import f19x
@@ -44,7 +45,7 @@ def _get_most_recent_domain(columns, table, primary_keys,
     """
 
 
-def _make_insert(target_table, columns, conflict_clause, conflict_where,
+def _make_insert_impl(target_table, columns, conflict_clause, conflict_where,
                  select_sql):
     set_clause = ', '.join([f"{c}=EXCLUDED.{c}" for c in columns])
     return f"""
@@ -70,12 +71,86 @@ def _make_upsert(source_table, target_table, column_map, unique_columns):
         unique_columns
     )
 
-    return text(_make_insert(
+    return text(_make_insert_impl(
         target_table,
         column_map.values(),
         ', '.join(unique_columns),
         f'{target_table}.school_year <= EXCLUDED.school_year',
         select_sql))
+
+
+def _populate_revenue_table(self, session, data_type, fund_name):
+    logger.info("Populating general_fund_expenditures with child actuals")
+
+    extra_columns = ""
+    extra_values = ""
+
+    if data_type == 'Actuals':
+        extra_columns = f"""
+            accounting_item_id,
+            actuals_{fund_name}_revenues_id,
+        """
+        extra_values = f"""
+            t.accounting_item_id,
+            t.actuals_{fund_name}_revenues_id,
+        """
+
+    session.execute(text(
+        f"""
+        INSERT INTO {fund_name}_revenues (
+            data_type,
+            fund_code,
+            fund,
+
+            revenue_code,
+            revenue,
+
+            category_code,
+            category,
+
+            program_code,
+            program,
+
+            amount,
+
+            {extra_columns}
+
+            school_year,
+            school_starting_year,
+            _source,
+            _source_table
+        )
+        SELECT
+            'Budget',
+
+            t.fund_code,
+            f.fund,
+
+            t.revenue_code,
+            r.revenue,
+
+            r.category_code,
+            r.category,
+
+            r.program_code,
+            p.program,
+
+            t.amount,
+
+            {extra_values}
+
+            t.school_year,
+            CAST(SPLIT_PART(t.school_year, '-', 1) AS INTEGER)
+                AS school_starting_year,
+            t._source,
+            t._source_table
+        FROM f196_{fund_name}_revenues t
+        LEFT JOIN d_fund f ON (t.fund_code = f.fund_code)
+        LEFT JOIN d_revenue r ON (t.revenue_code = r.revenue_code)
+        LEFT JOIN d_program p ON (r.program_code = p.program_code)
+        LIMIT 100
+        """
+    ))
 
 
 class FinalTableGenerator(DbConnection):
@@ -94,6 +169,14 @@ class FinalTableGenerator(DbConnection):
         logger.info("Populating tables")
         with Session(self.engine) as session:
             self._populate_domain_tables(session)
+            self._populate_general_fund_expenditures_from_budget(session)
+            self._populate_general_fund_expenditures_from_actuals(session)
+            self._populate_general_fund_expenditures_from_child_actuals(
+                session)
+            self._populate_debt_service_fund_revenues(session)
+            self._populate_capital_projects_revenues(session)
+            self._populate_trans_vehicle_revenues(session)
+            self._populate_ospi_items(session)
             session.commit()
 
     def _create_orm_classes(self, schemas):
@@ -115,6 +198,7 @@ class FinalTableGenerator(DbConnection):
         self._populate_domain_nces(session)
         self._populate_domain_ccddd(session)
         self._populate_domain_county(session)
+        self._populate_domain_revenue(session)
         self._populate_domain_school(session)
         self._populate_domain_fund(session)
         self._populate_domain_subfund(session)
@@ -291,6 +375,49 @@ class FinalTableGenerator(DbConnection):
                          unique_columns=['county_code']
                          ))
 
+    def _populate_domain_revenue(self, session):
+        logger.info("Populating d_revenue")
+        session.execute(
+            _make_upsert(source_table='f195_revenue',
+                         target_table='d_revenue',
+                         column_map={
+                             'revenue_code': 'revenue_code',
+                             'description': 'revenue',
+                             'school_year': 'school_year',
+                             '_source': '_source',
+                             '_source_table': '_source_table',
+                         },
+                         unique_columns=['revenue_code']
+                         ))
+        session.execute(
+            text("""
+                 UPDATE d_revenue
+                 SET
+                    program_code = revenue_code % 100,
+                    category_code = FLOOR(revenue_code/1000) * 1000,
+                    category = CASE
+                        WHEN FLOOR(category_code / 1000) = 1
+                            THEN 'Local Taxes'
+                        WHEN FLOOR(category_code / 1000) = 2
+                            THEN 'Local Non-tax'
+                        WHEN FLOOR(category_code / 1000) = 3
+                            THEN 'State-General Purpose'
+                        WHEN FLOOR(category_code / 1000) = 4
+                            THEN 'State-Special Purpose'
+                        WHEN FLOOR(category_code / 1000) = 5
+                            THEN 'Federal-General Purpose'
+                        WHEN FLOOR(category_code / 1000) = 6
+                            THEN 'Federal-Special Purpose'
+                        WHEN FLOOR(category_code / 1000) = 7
+                            THEN 'Revenues from Other School Districts'
+                        WHEN FLOOR(category_code / 1000) = 8
+                            THEN 'Revenues from Other Agencies and Associations'
+                        WHEN FLOOR(category_code / 1000) = 9
+                            THEN 'Other Financing Sources'
+                    END
+                 """
+        ))
+
     def _populate_domain_school(self, session):
         logger.info("Populating d_school")
         # TODO: Incorportate the sps btn schools override once we get it more
@@ -438,7 +565,7 @@ class FinalTableGenerator(DbConnection):
                          ))
 
     def _populate_domain_duty_suffix(self, session):
-        logger.info("Skipping d_duty_suffix")
+        logger.info("Populating d_duty_suffix")
         session.execute(
             _make_upsert(source_table='spsbtn_duty_suffix',
                          target_table='d_duty_suffix',
@@ -468,19 +595,233 @@ class FinalTableGenerator(DbConnection):
                          unique_columns=['duty_suffix']
                          ))
 
-    def _populate_general_fund_expenditures(self):
+    def _populate_general_fund_expenditures_from_budget(self, session):
+        logger.info("Populating general_fund_expenditures with budget data")
+        session.execute(text(
+            f"""
+            INSERT INTO general_fund_expenditures (
+                -- constant data
+                data_type,
+                fund_code,
+                fund,
+
+                -- "nulled" columns for f195
+                school_code,
+                sub_fund_code,
+                nces_code,
+
+                -- Real data
+                ccddd,
+                district,
+                county,
+                program_code,
+                program,
+                activity_code,
+                activity,
+                object_code,
+                object,
+                amount,
+                school_year,
+                school_starting_year,
+                _source,
+                _source_table
+            )
+            SELECT
+                'Budget',
+                1,
+                f.fund,
+
+                {get_null_sentinel('int')},
+                {get_null_sentinel('int')},
+                {get_null_sentinel('int')},
+
+                t.ccddd,
+                c.district,
+                co.county,
+                t.program_code,
+                p.program,
+                t.activity_code,
+                a.activity,
+                t.object_code,
+                o.object,
+                t.amount,
+                t.school_year,
+                CAST(SPLIT_PART(t.school_year, '-', 1) AS INTEGER)
+                    AS school_starting_year,
+                t._source,
+                t._source_table
+            FROM f195_general_fund_expenditures t
+            LEFT JOIN d_ccddd c ON (t.ccddd = c.ccddd)
+            LEFT JOIN d_county co ON (c.county_code = co.county_code)
+            LEFT JOIN d_program p ON (t.program_code = p.program_code)
+            LEFT JOIN d_activity a ON (t.activity_code = a.activity_code)
+            LEFT JOIN d_object o ON (t.object_code = o.object_code)
+            LEFT JOIN d_fund f ON (1 = f.fund_code)
+            LIMIT 100
+            """
+        ))
+
+    def _populate_general_fund_expenditures_from_actuals(self, session):
+        logger.info("Populating general_fund_expenditures with actuals data")
+        session.execute(text(
+            f"""
+            INSERT INTO general_fund_expenditures (
+                -- constant data
+                data_type,
+                fund_code,
+                fund,
+
+                -- "nulled" columns for f196 top-level table
+                school_code,
+                sub_fund_code,
+                nces_code,
+
+                -- Real data
+                accounting_item_id,
+                actuals_general_fund_expenditures_id,
+
+                ccddd,
+                district,
+                county,
+                program_code,
+                program,
+                activity_code,
+                activity,
+                object_code,
+                object,
+                amount,
+                school_year,
+                school_starting_year,
+                _source,
+                _source_table
+            )
+            SELECT
+                'Actuals',
+                1,
+                f.fund,
+
+                {get_null_sentinel('int')},
+                {get_null_sentinel('int')},
+                {get_null_sentinel('int')},
+
+                t.accounting_item_id,
+                t.actuals_general_fund_expenditures_id,
+
+                t.ccddd,
+                c.district,
+                co.county,
+                t.program_code,
+                p.program,
+                t.activity_code,
+                a.activity,
+                t.object_code,
+                o.object,
+                t.amount,
+                t.school_year,
+                CAST(SPLIT_PART(t.school_year, '-', 1) AS INTEGER)
+                    AS school_starting_year,
+                t._source,
+                t._source_table
+            FROM f196_general_fund_expenditures t
+            LEFT JOIN d_ccddd c ON (t.ccddd = c.ccddd)
+            LEFT JOIN d_county co ON (c.county_code = co.county_code)
+            LEFT JOIN d_program p ON (t.program_code = p.program_code)
+            LEFT JOIN d_activity a ON (t.activity_code = a.activity_code)
+            LEFT JOIN d_object o ON (t.object_code = o.object_code)
+            LEFT JOIN d_fund f ON (1 = f.fund_code)
+            LIMIT 100
+            """
+        ))
+
+    def _populate_general_fund_expenditures_from_child_actuals(self, session):
+        logger.info("Populating general_fund_expenditures with child actuals")
+        session.execute(text(
+            """
+            INSERT INTO general_fund_expenditures (
+                data_type,
+
+                fund_code,
+                fund,
+
+                accounting_item_id,
+                actuals_child_general_fund_expenditures_id,
+
+                ccddd,
+                district,
+                county,
+                school_code,
+                school,
+                is_district_office,
+                program_code,
+                program,
+                activity_code,
+                activity,
+                object_code,
+                object,
+                sub_fund_code,
+                sub_fund,
+                nces_code,
+                nces,
+                amount,
+                school_year,
+                school_starting_year,
+                _source,
+                _source_table
+            )
+            SELECT
+                'Actuals',
+                1,
+                f.fund,
+
+                t.accounting_item_id,
+                t.actuals_child_general_fund_expenditures_id,
+
+                t.ccddd,
+                c.district,
+                co.county,
+                t.school_code,
+                s.school,
+                s.is_district_office,
+                t.program_code,
+                p.program,
+                t.activity_code,
+                a.activity,
+                t.object_code,
+                o.object,
+                t.sub_fund_code,
+                sf.sub_fund,
+                t.nces_code,
+                n.nces,
+                t.amount,
+                t.school_year,
+                CAST(SPLIT_PART(t.school_year, '-', 1) AS INTEGER)
+                    AS school_starting_year,
+                t._source,
+                t._source_table
+            FROM f196_child_general_fund_expenditures t
+            LEFT JOIN d_ccddd c ON (t.ccddd = c.ccddd)
+            LEFT JOIN d_county co ON (c.county_code = co.county_code)
+            LEFT JOIN d_school s ON (t.school_code = s.school_code)
+            LEFT JOIN d_program p ON (t.program_code = p.program_code)
+            LEFT JOIN d_activity a ON (t.activity_code = a.activity_code)
+            LEFT JOIN d_object o ON (t.object_code = o.object_code)
+            LEFT JOIN d_fund f ON (1 = f.fund_code)
+            LEFT JOIN d_sub_fund sf ON (t.sub_fund_code = sf.sub_fund_code)
+            LEFT JOIN d_nces n ON (t.nces_code = n.nces_code)
+            LIMIT 100
+            """
+        ))
+
+    def _populate_debt_service_fund_revenues(self, session):
         pass
 
-    def _populate_debt_service_fund_revenues(self):
+    def _populate_capital_projects_revenues(self, session):
         pass
 
-    def _populate_capital_projects_revenues(self):
+    def _populate_trans_vehicle_revenues(self, session):
         pass
 
-    def _populate_trans_vehicle_revenues(self):
-        pass
-
-    def _populate_ospi_items(self):
+    def _populate_ospi_items(self, session):
         pass
 
 

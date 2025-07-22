@@ -7,7 +7,7 @@ from .common import AUDIT_FIELDS
 def _make_school_year_district_fields(is_logical_key):
     return [
         {
-            "name": "school_year_code",
+            "name": "school_year",
             "source": "school_year_code",
             "field_type": "string",
             "is_logical_key": is_logical_key,
@@ -60,10 +60,10 @@ def _make_revenues_schema(fund_name):
             *_make_school_year_district_fields(is_logical_key=True),
 
             {
-                "name": "revenue_code",
-                "field_type": "int",
+                "name": "data_type",
+                "field_type": "string",
                 "is_logical_key": True,
-                "doc": "OSPI Revenue code",
+                "doc": "Budget or Actual",
             },
 
             {
@@ -74,11 +74,25 @@ def _make_revenues_schema(fund_name):
                         "so unioning tables is easier"),
             },
 
-            #  Core data
             {
-                "name": "amount",
-                "field_type": "decimal",
-                "doc": "Amount of for this line item",
+                "name": "fund",
+                "extractor": None,
+                "field_type": "string",
+                "doc": ("Same for one fund. Kept for consistency if joining "
+                        "data."),
+            },
+
+            {
+                "name": "revenue_code",
+                "field_type": "int",
+                "is_logical_key": True,
+                "doc": "OSPI Revenue code",
+            },
+
+            {
+                "name": "revenue",
+                "field_type": "string",
+                "doc": "Description of revenue_code",
             },
 
             {
@@ -93,6 +107,7 @@ def _make_revenues_schema(fund_name):
                 "field_type": "string",
                 "doc": "OSPI Revenue Category.",
             },
+
 
             {
                 "name": "program_code",
@@ -109,9 +124,9 @@ def _make_revenues_schema(fund_name):
             },
 
             {
-                "name": "revenue_title",
-                "field_type": "string",
-                "doc": "Title associated with the revenue_code",
+                "name": "amount",
+                "field_type": "decimal",
+                "doc": "Amount of for this line item",
             },
 
             {
@@ -174,6 +189,14 @@ GENERAL_FUND_EXPENDITURES = {
             "extractor": None,
             "field_type": "string",
             "doc": "Name of school building",
+        },
+
+        {
+            "name": "is_district_office",
+            "extractor": None,
+            "field_type": "boolean",
+            "doc": ("Convenience for tracking if the building is the district "
+                    "office"),
         },
 
         {
@@ -295,14 +318,6 @@ GENERAL_FUND_EXPENDITURES = {
         },
 
         # Calculated data.
-        {
-            "name": "c_is_district_office",
-            "extractor": None,
-            "field_type": "boolean",
-            "doc": ("Convenience for tracking if the building is the district "
-                    "office"),
-        },
-
         {
             "name": "c_should_be_district_office",
             "extractor": None,
