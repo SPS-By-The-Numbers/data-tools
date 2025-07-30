@@ -17,7 +17,7 @@ def _make_school_year_district_fields(is_logical_key):
         {
             "name": "school_starting_year",
             "source": "school_year_code",
-            "field_type": "string",
+            "field_type": "int",
             "extractor": avro_schema.parse_first_schoolyear,
             "doc": ("[convenience] The starting school year as an integer. "
                     "Makes sorting and comparisons easier.")
@@ -176,6 +176,14 @@ GENERAL_FUND_EXPENDITURES = {
         },
 
         {
+            "name": "has_school",
+            "extractor": None,
+            "field_type": "boolean",
+            "doc": ("[convenience] If the row has school breakdowns. The same "
+                    "as checking for school_code is NULL")
+        },
+
+        {
             "name": "school_code",
             "field_type": "int",
             "is_logical_key": True,
@@ -319,7 +327,7 @@ GENERAL_FUND_EXPENDITURES = {
 
         # Calculated data.
         {
-            "name": "c_should_be_district_office",
+            "name": "c_in_school_allocated_staff",
             "extractor": None,
             "field_type": "boolean",
             "doc": ("Similar to c_is_district_office, but appiles some custom "
@@ -348,27 +356,23 @@ GENERAL_FUND_EXPENDITURES = {
 }
 
 
+GENERAL_FUND_REVENUES = _make_revenues_schema("general_fund")
+
 DEBT_SERVICE_REVENUES = _make_revenues_schema("debt_service")
 
 CAPITAL_PROJECT_REVENUES = _make_revenues_schema("capital_project")
 
 TRANS_VEHICLE_REVENUES = _make_revenues_schema("trans_vehicle")
 
-OSPI_ITEMS = {
-    "name": "ospi_items",
-    "doc": "Random accounting calculations and data OSPI likes to have",
+BUDGET_ITEMS = {
+    "name": "budget_items",
+    "doc": ("Accounting calculations and data that OSPI uses to build the "
+            "f195 report pdfs. Has begining/ending balances"),
     "fields": [
         {
-            "name": "ospi_item_id",
+            "name": "budget_item_id",
             "field_type": "auto_primary_key",
             "doc": ("primary key"),
-        },
-
-        {
-            "name": "data_type",
-            "field_type": "string",
-            "is_logical_key": True,
-            "doc": "Budget or Actual",
         },
 
         *_make_school_year_district_fields(is_logical_key=True),
@@ -377,8 +381,7 @@ OSPI_ITEMS = {
             "name": "fund_code",
             "field_type": "int",
             "is_logical_key": True,
-            "doc": ("OSPI fund code. Always the same for one fund. Kept "
-                    "so unioning tables is easier"),
+            "doc": "OSPI fund code.",
         },
 
         {
@@ -390,33 +393,70 @@ OSPI_ITEMS = {
 
         {
             "name": "item_code",
-            "field_type": "int",
+            "field_type": "string",
             "is_logical_key": True,
             "doc": "Identifier for this specific dataum or calculation.",
         },
 
         {
-            "name": "description",
+            "name": "item",
             "field_type": "string",
             "doc": "Amount of for this line item",
         },
 
         {
-            "name": "is_calculated",
-            "field_type": "boolean",
-            "doc": "In f196, items are labeled if they are calculated.",
+            "name": "amount",
+            "field_type": "decimal",
+            "doc": "Amount of for this line item",
         },
 
+    ] + AUDIT_FIELDS
+}
+
+ACTUALS_ITEMS = {
+    "name": "actuals_items",
+    "doc": ("Accounting calculations and data that OSPI uses to build the "
+            "f196 report pdfs. /hass begining/ending balances"),
+    "fields": [
         {
-            "name": "is_retained",
-            "field_type": "boolean",
-            "doc": "In f196, items are labeled if they are retained (??).",
+            "name": "actuals_item_id",
+            "field_type": "auto_primary_key",
+            "doc": ("primary key"),
         },
 
+        *_make_school_year_district_fields(is_logical_key=True),
+
         {
-            "name": "general_ledger_code",
+            "name": "fund_code",
             "field_type": "int",
-            "doc": "In f196, items may have a general ledge code associated.",
+            "is_logical_key": True,
+            "doc": "OSPI fund code.",
+        },
+
+        {
+            "name": "fund",
+            "extractor": None,
+            "field_type": "string",
+            "doc": "Same for one fund. Kept for consistency if joining data.",
+        },
+
+        {
+            "name": "item_code",
+            "field_type": "string",
+            "is_logical_key": True,
+            "doc": "Identifier for this specific dataum or calculation.",
+        },
+
+        {
+            "name": "item",
+            "field_type": "string",
+            "doc": "Amount of for this line item",
+        },
+
+        {
+            "name": "general_ledger_code_list",
+            "field_type": "string",
+            "doc": "List of general leader codes that maybe associated.",
         },
 
         {
@@ -447,8 +487,12 @@ OSPI_ITEMS = {
 
 ALL_SCHEMAS = [
     GENERAL_FUND_EXPENDITURES,
+
+    GENERAL_FUND_REVENUES,
     DEBT_SERVICE_REVENUES,
     CAPITAL_PROJECT_REVENUES,
     TRANS_VEHICLE_REVENUES,
-    OSPI_ITEMS,
+
+    BUDGET_ITEMS,
+    ACTUALS_ITEMS,
 ]

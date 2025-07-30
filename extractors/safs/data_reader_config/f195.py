@@ -68,12 +68,23 @@ def normalize_column_name(tablename, col_name):
         case 'county':
             return 'county_code'
 
-        case 'itemcode':
-            # The 2024-2025 budget uses itemcode in general_fund_revenues for
+        case 'item_code':
+            # The 2024-2025 f195 uses itemcode as a unified dictionary in
+            # their ITEMDICT1 but really its program, activity, object like
+            # ususal.
             # some reason.
-            if tablename == 'general_fund_revenues':
-                return 'revenue_code'
-            return 'item_code'
+            match tablename:
+                case ('general_fund_revenues' |
+                      'capital_project_revenues' |
+                      'debt_service_revenues' |
+                      'trans_vehicle_revenues'):
+                    return 'revenue_code'
+
+                case 'item_numbers':
+                    return 'item_code'
+
+                case _:
+                    raise ValueError(tablename)
 
         case 'item':
             if tablename == 'trans_vehicle_revenues':

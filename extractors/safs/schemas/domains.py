@@ -9,8 +9,18 @@ AUDIT_FIELDS = [
 ] + common.AUDIT_FIELDS
 
 
+AUDIT_FIELDS_SCHOOL_YEAR_PK = [
+    f if f['name'] != 'school_year' else f | {
+        'is_logical_key': True,
+        'is_primary_key': True,
+    }
+    for f in AUDIT_FIELDS]
+
+
 def make_domain_table(domain, descriptive_name,
                       additional_fields=[],
+                      is_school_year_lk=False,
+                      primary_key_type='int',
                       primary_key_override=None,
                       source_descriptive_col_override=None,
                       description_col_override=None):
@@ -26,6 +36,10 @@ def make_domain_table(domain, descriptive_name,
     if primary_key_override is not None:
         primary_key = primary_key_override
 
+
+    audit_fields = (AUDIT_FIELDS_SCHOOL_YEAR_PK
+                    if is_school_year_lk else AUDIT_FIELDS)
+
     return {
         "name": f"d_{domain}",
         "doc": f"Domain table for OSPI {descriptive_name}",
@@ -33,8 +47,9 @@ def make_domain_table(domain, descriptive_name,
             {
                 "name": primary_key,
                 "source": primary_key,
-                "field_type": "int",
+                "field_type": primary_key_type,
                 "is_primary_key": True,
+                "is_logical_key": True,
                 "doc": f"OSPI {descriptive_name} Code",
             },
             {
@@ -43,7 +58,7 @@ def make_domain_table(domain, descriptive_name,
                 "field_type": "string",
                 "doc": f"Human readable name for {descriptive_name}",
             },
-        ] + additional_fields + AUDIT_FIELDS
+        ] + additional_fields + audit_fields
     }
 
 
@@ -151,7 +166,16 @@ DOMAIN_SCHOOL = make_domain_table(
         },
     ])
 
-DOMAIN_FUND = make_domain_table('fund', 'Fund')
+DOMAIN_FUND = make_domain_table(
+    'fund', 'Fund',
+    additional_fields=[
+        {
+            'name': 'fund_des',
+            'field_type': 'string',
+            'doc': ("Fund short-code used in the f195 item tables instead of "
+                    "a fund code. Not sure why there are alternte codes.")
+        },
+    ])
 
 DOMAIN_SUBFUND = make_domain_table('sub_fund', 'Sub Fund')
 
@@ -213,9 +237,73 @@ DOMAIN_REVENUE = make_domain_table(
         },
     ])
 
+DOMAIN_BUDGET_ITEM = make_domain_table(
+    'budget_item', 'Budget Items',
+    primary_key_type='string',
+    primary_key_override='item_code',
+    source_descriptive_col_override="description",
+    description_col_override="description")
+
+DOMAIN_ACTUALS_ITEM = make_domain_table(
+    'actuals_item', 'Actuals Items',
+    primary_key_type='string',
+    primary_key_override='item_code',
+    source_descriptive_col_override="description",
+    description_col_override="description",
+    additional_fields=[
+        {
+            'name': 'general_ledger_code_list',
+            'field_type': 'string',
+            'doc': ("Comma separted list of general ledger codes this item "
+                    "corresponds to. May be empty."),
+        },
+        {
+            'name': 'value_sources',
+            'field_type': 'string',
+            'doc': ("human-readable list of pages (eg 1,2,3 or 30-21) and "
+                    "page codes (eg SLTL) for where the value came from. "
+                    "May be empty"),
+        },
+        {
+            'name': 'value_uses',
+            'field_type': 'string',
+            'doc': ("human-readable list of pages (eg 1,2,3 or 30-21) and "
+                    "page codes (eg SLTL) for where the value came from. "
+                    "May be empty"),
+        },
+        {
+            'name': 'item_data_type',
+            'field_type': 'string',
+            'doc': ("Human readable type of the entered value (Eg Decimal, "
+                    "Decimal (percentage), D, Yes/No, etc)"),
+        },
+        {
+            'name': 'mode_of_input',
+            'field_type': 'string',
+            'doc': ("Human readable notes for how the data was collected (eg "
+                    "User Input, Stored, stored, Calculated and Stored, "
+                    "Calculated & Stored)"),
+        },
+        {
+            'name': 'retained',
+            'field_type': 'string',
+            'doc': ("Human readable notes about retention -- whatever that "
+                    "means (eg Y, Y (funds 7 & 8 only), "
+                    "Y    (Funds 7 and 8 only), etc)"),
+        },
+        {
+            'name': 'notes',
+            'field_type': 'string',
+            'doc': "Human readable notes about the field",
+        },
+    ])
+
+
 ALL_SCHEMAS = [
     DOMAIN_PROGRAM,
     DOMAIN_ACTIVITY,
+    DOMAIN_ACTUALS_ITEM,
+    DOMAIN_BUDGET_ITEM,
     DOMAIN_OBJECT,
     DOMAIN_NCES,
     DOMAIN_CCDDD,
