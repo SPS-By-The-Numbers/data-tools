@@ -1093,6 +1093,7 @@ class FinalTableGenerator(DbConnection):
         ))
 
     def _populate_general_fund_expenditures_calculated_columns(self, session):
+        logger.info("Populating general_fund_expenditures calculated columns")
         # Fill in c_pct_expenditure
         session.execute(text(
             f"""
@@ -1158,22 +1159,19 @@ class FinalTableGenerator(DbConnection):
             f"""
             UPDATE general_fund_expenditures as gfe
             SET
-              c_in_school_allocated_staff = (t.is_district_office
-                AND t.objet_code in (
+              c_in_school_allocated_staff = (is_district_office
+                AND object_code in (
                   2, -- Salaries - Certificated
                   3, -- Salaries - Classified
                   4  -- Employee Benefits and Payroll Taxes
                 )
-                AND t.activity_code in (
+                AND activity_code in (
                   27, -- Teaching
                   23, -- Principal's Office
                   24, -- Guidance and Counseling
                   84  -- Principal
                 )
               )
-            FROM general_fund_expenditures t
-            WHERE
-              gfe.general_fund_expenditure_id = t.general_fund_expenditure_id
             """
         ))
 
