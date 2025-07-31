@@ -10,10 +10,6 @@ logger = logging.getLogger(__name__)
 
 SALT = f"'{os.environ.get('S275_SALT', '')}'"
 
-def recno_partition_by(logical_keys):
-    return f"""ROW_NUMBER() OVER(partition by school_year, codist {logic_keys}
-               ORDER BY recno DESC) AS rn"""
-
 
 def _generate_report(session):
     logging.info("Populating report table")
@@ -67,14 +63,21 @@ def _generate_report(session):
 
 def _generate_employee(session):
     logging.info("Populating employee table")
+
+    # Create a temporary table mapping all (first_name, middle_name, last_name,
+    # cert) logical identifiers for an employee and mapping it to a single
+    # obfuscated_id.
+    #
+    # This table handles if one cert has multiple names.
     session.execute(text(
         """
         CREATE TEMPORARY TABLE t_employee_id (
-            obfuscated_id TEXT,
             cert TEXT,
             first_name TEXT,
             middle_name TEXT,
             last_name TEXT,
+            obfuscated_id TEXT,
+
             CONSTRAINT t_employee_id_lk
                 UNIQUE (cert, first_name, middle_name, last_name)
         )
@@ -110,13 +113,14 @@ def _generate_employee(session):
             FROM s275_final
         )
         """))
-    session.commit()
+
+    # Create the real s275_employee table.
     session.execute(text(
         """
         INSERT INTO s275_employee (
           obfuscated_id
         )
-        SELECT obfuscated_id
+        SELECT distinct obfuscated_id
             FROM t_employee_id
         """
     ))
@@ -125,23 +129,34 @@ def _generate_employee(session):
 def _generate_private_employee(session):
     logging.info("Populating private employee table")
     session.execute(text(
-        f"""
+        """
         WITH raw_private_employee_data AS (
             SELECT
-                employee_id, -- Foreign key.
+                e.employee_id, -- Foreign key.
+
                 CONCAT_WS(
                     ' ',
-                    NULLIF(first_name, ''),
-                    NULLIF(middle_name, ''),
-                    NULLIF(last_name, '')
-                ) AS full_name
+                    NULLIF(t.first_name, ''),
+                    NULLIF(t.middle_name, ''),
+                    NULLIF(t.last_name, '')
+                ) AS full_name,
 
-                sex,
-                is_hispanic,
-                race,
-                certificate_id,
-                ROW_NUMBER()
-            FROM s275_final
+                t.sex,
+                t.hispanic = 'Y' is_hispanic,
+                t.race,
+                t.cert certificate_id,
+                ROW_NUMBER() OVER(PARTITION BY e.employee_id
+                                  ORDER BY
+                                    t.school_year DESC,
+                                    t.codist DESC,
+                                    CAST(t.recno as int) DESC) AS rn
+            FROM s275_final t
+            LEFT JOIN t_employee_id tei ON(
+                t.cert = tei.cert AND
+                t.first_name = tei.first_name AND
+                t.middle_name = tei.middle_name AND
+                t.last_name = tei.last_name)
+            LEFT JOIN s275_employee e ON(tei.obfuscated_id = e.obfuscated_id)
         )
         INSERT INTO s275_private_employee (
             employee_id, -- Foreign key.
@@ -152,7 +167,14 @@ def _generate_private_employee(session):
             race,
             certificate_id
         )
-        SELECT * FROM raw_private_employee_data t where rn = 1
+        SELECT
+            t.employee_id,
+            t.full_name,
+            t.sex,
+            t.is_hispanic,
+            t.race,
+            t.certificate_id
+        FROM raw_private_employee_data t where rn = 1
         """))
 
 
