@@ -68,7 +68,7 @@ def cleaned_string(record, source):
     value = record.get(source, None)
     if value is None:
         return None
-    elif isinstance(cleaned_string, str):
+    elif isinstance(value, str):
         return value.strip()
     else:
         # Source data is already some other type. Just pass through.

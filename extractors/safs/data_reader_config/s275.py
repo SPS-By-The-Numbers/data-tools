@@ -60,7 +60,7 @@ def tablename_normalizer(tablename):
     m = re.match(r"(\d{4}-\d{4})s-?275(final|preliminary).*",
                  tablename.lower())
     logger.info(f"Reading S275 {m[2]} for {m[1]}")
-    return f"s275_{m[2]}"
+    return m[2]
 
 
 def get_reader_config(add_additional_fields, get_additional_values):

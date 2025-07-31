@@ -1,48 +1,7 @@
 import inflection
 
 from .. import avro_schema
-from .common import AUDIT_FIELDS
-
-
-def _make_school_year_district_fields(is_logical_key):
-    return [
-        {
-            "name": "school_year",
-            "source": "school_year_code",
-            "field_type": "string",
-            "is_logical_key": is_logical_key,
-            "doc": "school year for data",
-        },
-
-        {
-            "name": "school_starting_year",
-            "source": "school_year_code",
-            "field_type": "int",
-            "extractor": avro_schema.parse_first_schoolyear,
-            "doc": ("[convenience] The starting school year as an integer. "
-                    "Makes sorting and comparisons easier.")
-        },
-
-        {
-            "name": "ccddd",
-            "field_type": "int",
-            "is_logical_key": is_logical_key,
-            "doc": "OSPI county and district code",
-        },
-
-        {
-            "name": "county",
-            "field_type": "string",
-            "doc": "County Name",
-        },
-
-        {
-            "name": "district",
-            "field_type": "string",
-            "doc": "District Name",
-        },
-
-    ]
+from .common import AUDIT_FIELDS, SCHOOL_YEAR_DISTRICT_FIELDS
 
 
 def _make_revenues_schema(fund_name):
@@ -57,7 +16,7 @@ def _make_revenues_schema(fund_name):
                 "doc": ("primary key"),
             },
 
-            *_make_school_year_district_fields(is_logical_key=True),
+            *SCHOOL_YEAR_DISTRICT_FIELDS,
 
             {
                 "name": "data_type",
@@ -76,7 +35,6 @@ def _make_revenues_schema(fund_name):
 
             {
                 "name": "fund",
-                "extractor": None,
                 "field_type": "string",
                 "doc": ("Same for one fund. Kept for consistency if joining "
                         "data."),
@@ -166,7 +124,7 @@ GENERAL_FUND_EXPENDITURES = {
             "doc": ("primary key"),
         },
 
-        *_make_school_year_district_fields(is_logical_key=True),
+        *SCHOOL_YEAR_DISTRICT_FIELDS,
 
         {
             "name": "data_type",
@@ -177,7 +135,6 @@ GENERAL_FUND_EXPENDITURES = {
 
         {
             "name": "has_school",
-            "extractor": None,
             "field_type": "boolean",
             "doc": ("[convenience] If the row has school breakdowns. The same "
                     "as checking for school_code is NULL")
@@ -194,14 +151,12 @@ GENERAL_FUND_EXPENDITURES = {
 
         {
             "name": "school",
-            "extractor": None,
             "field_type": "string",
             "doc": "Name of school building",
         },
 
         {
             "name": "is_district_office",
-            "extractor": None,
             "field_type": "boolean",
             "doc": ("Convenience for tracking if the building is the district "
                     "office"),
@@ -256,14 +211,12 @@ GENERAL_FUND_EXPENDITURES = {
 
         {
             "name": "fund",
-            "extractor": None,
             "field_type": "string",
             "doc": "Same for one fund. Kept for consistency if joining data.",
         },
 
         {
             "name": "sub_fund_code",
-            "extractor": None,
             "field_type": "string",
             "is_logical_key": True,
             "doc": "State or local funds. Only in the f196 actuals data.",
@@ -271,7 +224,6 @@ GENERAL_FUND_EXPENDITURES = {
 
         {
             "name": "sub_fund",
-            "extractor": None,
             "field_type": "string",
             "doc": ("State or local funds. Only in the f196 actuals data "
                     "since 2019."),
@@ -286,7 +238,6 @@ GENERAL_FUND_EXPENDITURES = {
 
         {
             "name": "nces",
-            "extractor": None,
             "field_type": "string",
             "doc": "NCES expenditure name.",
         },
@@ -328,7 +279,6 @@ GENERAL_FUND_EXPENDITURES = {
         # Calculated data.
         {
             "name": "c_in_school_allocated_staff",
-            "extractor": None,
             "field_type": "boolean",
             "doc": ("Similar to c_is_district_office, but appiles some custom "
                     "filtering for activities/objects that seem to be "
@@ -375,7 +325,7 @@ BUDGET_ITEMS = {
             "doc": ("primary key"),
         },
 
-        *_make_school_year_district_fields(is_logical_key=True),
+        *SCHOOL_YEAR_DISTRICT_FIELDS,
 
         {
             "name": "fund_code",
@@ -386,7 +336,6 @@ BUDGET_ITEMS = {
 
         {
             "name": "fund",
-            "extractor": None,
             "field_type": "string",
             "doc": "Same for one fund. Kept for consistency if joining data.",
         },
@@ -424,7 +373,7 @@ ACTUALS_ITEMS = {
             "doc": ("primary key"),
         },
 
-        *_make_school_year_district_fields(is_logical_key=True),
+        *SCHOOL_YEAR_DISTRICT_FIELDS,
 
         {
             "name": "fund_code",
@@ -435,7 +384,6 @@ ACTUALS_ITEMS = {
 
         {
             "name": "fund",
-            "extractor": None,
             "field_type": "string",
             "doc": "Same for one fund. Kept for consistency if joining data.",
         },

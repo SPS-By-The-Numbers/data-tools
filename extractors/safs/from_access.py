@@ -207,7 +207,7 @@ def _get_additional_school_year(schema, tablename, all_tables, source):
             return {"_school_year": "2020-2021"}
 
         case '2022A' | '2022B':
-            # They typed the table name here.
+            # They typoed the table name here.
             return {"_school_year": "2021-2022"}
 
         case '2022-':
