@@ -439,6 +439,69 @@ PRIVATE_REPORT_EMPLOYEE_SCHEMA = {
     ] + UPSERT_AUDIT_FIELDS,
 }
 
+ASSIGNMENT_FTE_SCHEMA = {
+    "name": "s275_assignment_fte",
+    "doc": ("Fte related info for an assignment. This is very frequently "
+            "the same across many assignements and not frequently useful "
+            "separating it out allows for lower data sizes."),
+    "fields": [
+        {
+            "name": "assignment_fte_id",
+            "field_type": "auto_primary_key",
+            "doc": ("primary key")
+        },
+        {
+            "name": "fte_hours",
+            "source": "ftehrs",
+            "field_type": "decimal",
+            "is_logical_key": True,
+            "doc": ("(logical key) Usually same for all certificated "
+                    "employees in the district. Only for duties 110 to 640.")
+        },
+        {
+            "name": "fte_days",
+            "source": "ftedays",
+            "field_type": "decimal",
+            "is_logical_key": True,
+            "doc": ("(logical key) Usually same for all certificated "
+                    "employees in the district. Only for duties 110 to 640.")
+        },
+        {
+            "name": "certificated_fte",
+            "source": "certfte",
+            "field_type": "decimal",
+            "is_logical_key": True,
+            "doc": ("(logical key) Full-time equivalent (FTE) certificated "
+                    "employment is determined as defined in WAC 392-121-212.  "
+                    "Only for duties 110 to 640.")
+        },
+        {
+            "name": "classified_fte",
+            "source": "clasfte",
+            "field_type": "decimal",
+            "is_logical_key": True,
+            "doc": ("(logical key) Not in the S275 manual, but probably "
+                    "similar to certfte just suing clasbase instead")
+        },
+        {
+            "name": "is_classified",
+            "source": "clasflag",
+            "field_type": "boolean",
+            "is_logical_key": True,
+            "extractor": y_n_to_boolean,
+            "doc": ("(logical key) Is Classified")
+        },
+        {
+            "name": "is_certificated",
+            "source": "certflag",
+            "field_type": "boolean",
+            "is_logical_key": True,
+            "extractor": y_n_to_boolean,
+            "doc": ("(logical key) Is Certificated")
+        },
+    ]
+}
+
 ASSIGNMENT_SCHEMA = {
     "name": "s275_assignment",
     "doc": "Represents one assignment. Closest thing to a row in the s275",
@@ -573,71 +636,8 @@ ASSIGNMENT_SCHEMA = {
     ] + UPSERT_AUDIT_FIELDS,
 }
 
-ASSIGNMENT_FTE_SCHEMA = {
-    "name": "s275_assignment_fte",
-    "doc": ("Fte related info for an assignment. This is very frequently "
-            "the same across many assignements and not frequently useful "
-            "separating it out allows for lower data sizes."),
-    "fields": [
-        {
-            "name": "assignment_fte_id",
-            "field_type": "auto_primary_key",
-            "doc": ("primary key")
-        },
-        {
-            "name": "fte_hours",
-            "source": "ftehrs",
-            "field_type": "decimal",
-            "is_logical_key": True,
-            "doc": ("(logical key) Usually same for all certificated "
-                    "employees in the district. Only for duties 110 to 640.")
-        },
-        {
-            "name": "fte_days",
-            "source": "ftedays",
-            "field_type": "decimal",
-            "is_logical_key": True,
-            "doc": ("(logical key) Usually same for all certificated "
-                    "employees in the district. Only for duties 110 to 640.")
-        },
-        {
-            "name": "certificated_fte",
-            "source": "certfte",
-            "field_type": "decimal",
-            "is_logical_key": True,
-            "doc": ("(logical key) Full-time equivalent (FTE) certificated "
-                    "employment is determined as defined in WAC 392-121-212.  "
-                    "Only for duties 110 to 640.")
-        },
-        {
-            "name": "classified_fte",
-            "source": "clasfte",
-            "field_type": "decimal",
-            "is_logical_key": True,
-            "doc": ("(logical key) Not in the S275 manual, but probably "
-                    "similar to certfte just suing clasbase instead")
-        },
-        {
-            "name": "is_classified",
-            "source": "clasflag",
-            "field_type": "boolean",
-            "is_logical_key": True,
-            "extractor": y_n_to_boolean,
-            "doc": ("(logical key) Is Classified")
-        },
-        {
-            "name": "is_certificated",
-            "source": "certflag",
-            "field_type": "boolean",
-            "is_logical_key": True,
-            "extractor": y_n_to_boolean,
-            "doc": ("(logical key) Is Certificated")
-        },
-    ] + UPSERT_AUDIT_FIELDS,
-}
-
 PRIVATE_ASSIGNMENT_COMP_BASE_SCHEMA = {
-    "name": "s275_assignment_comp_base",
+    "name": "s275_private_assignment_comp_base",
     "doc": ("Represents compensation base numbers for an assignemnt. These "
             "are very frequently the same across assignments and are not "
             "super useful. Normalizing them lowers data size."),
@@ -661,7 +661,7 @@ PRIVATE_ASSIGNMENT_COMP_BASE_SCHEMA = {
             "is_logical_key": True,
             "doc": ("(logical key) Base Salary for classified compensation")
         },
-    ] + UPSERT_AUDIT_FIELDS,
+    ]
 }
 
 PRIVATE_ASSIGNMENT_SCHEMA = {
@@ -684,7 +684,7 @@ PRIVATE_ASSIGNMENT_SCHEMA = {
         {
             "name": "private_assignment_comp_base_id",
             "field_type": "int",
-            "foreign_key": ("s275_assignment_comp_base."
+            "foreign_key": ("s275_private_assignment_comp_base."
                             "private_assignment_comp_base_id"),
             "is_logical_key": True,
             "doc": ("(logical key) contract base compensation info")
@@ -768,7 +768,7 @@ PRIVATE_ASSIGNMENT_SCHEMA = {
                 "assignment_salary but this does not seem to quite match "
                 "the f196 values.  The current calculation is a best guess.")
         },
-    ] + UPSERT_AUDIT_FIELDS,
+    ]
 }
 
 
