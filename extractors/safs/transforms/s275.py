@@ -3,11 +3,11 @@ import os
 
 from sqlalchemy import text
 from .common import EXTRACT_STARTING_YEAR
+from . import s275_calculate_fields
 
 # Used in the SQL CREATE [x] TABLE for intermediate tables. Set to 'TEMPORARY'
 # so they are temporary tables.  Set to '' to persist them for debugging.
-#T_IS_TEMPORARY = 'TEMPORARY'
-T_IS_TEMPORARY = ''
+T_IS_TEMPORARY = 'TEMPORARY'
 
 
 logger = logging.getLogger(__name__)
@@ -641,4 +641,7 @@ def generate_s275(session):
 
     _generate_private_assignment_comp_base(session)
     _generate_private_assignment(session)
+    session.commit()
+
+    s275_calculate_fields.fill_fields(session)
     session.commit()
