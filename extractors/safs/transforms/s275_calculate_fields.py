@@ -191,4 +191,3 @@ def _fill_private_assignments_values(session):
 def fill_fields(session):
     _fill_employee_rollup_info(session)
     _fill_private_assignments_values(session)
-    session.commit()
