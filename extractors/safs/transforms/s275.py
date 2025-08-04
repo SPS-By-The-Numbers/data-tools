@@ -74,6 +74,18 @@ def _generate_employee(session):
     # obfuscated_id.
     #
     # This table handles if one cert has multiple names.
+    # The s275 does not have a real concept of an employee id so this attempts
+    # to infer it from the fields.
+    #
+    # First, if there is a teaching certificate, the certificate number is used
+    # as an employee identifier.
+    #
+    # If there is not one, then the FirstName, MiddleName, LastName are used.
+    #
+    # There will be collisions. Even for the same person two different
+    # reporting entities will often have mismatches in meta information such as
+    # the years of experience, highest degree, etc. There is not enough data to
+    # do better so this is so far a best guess.
     session.execute(text(
         f"""
         DROP TABLE IF EXISTS t_employee_id;

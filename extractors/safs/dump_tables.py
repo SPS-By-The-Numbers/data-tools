@@ -11,8 +11,9 @@ from sqlalchemy.orm import Session
 
 from extractors.common import common_logging_setup, get_args
 from extractors.safs.avro_schema import to_avro_value, to_avro_schema
-from .schemas import f19x, s275
+from .schemas import f19x, s275, domains
 from .db_connection import DbConnection, add_db_arguments
+
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +25,7 @@ class AvroDumper(DbConnection):
 
     def _to_avro_rows(self, session, schema):
         for row in (session.execute(text(f"select * from {schema['name']}"))
-                                    .yield_per(self._yield_per)):
+                    .yield_per(self._yield_per)):
             yield {f['name']: to_avro_value(f, getattr(row, f['name']))
                    for f in schema['fields']}
 
@@ -44,6 +45,9 @@ class AvroDumper(DbConnection):
 
             case 's275':
                 all_schemas = s275.ALL_SCHEMAS
+
+            case 'domains':
+                all_schemas = domains.ALL_SCHEMAS
 
             case _:
                 raise ValueError(dataset)
@@ -66,18 +70,18 @@ def main():
     parser = argparse.ArgumentParser(
         description='Dumps finalized tables out into avro')
     parser.add_argument('--outdir', required=True,
-                        help='directory for set finalized avro tables"')
+                        help='directory for set finalized avro tables')
     parser.add_argument('--yield-per', default=1000,
-                        help='How many rows to select before writing"')
+                        help='How many rows to select before writing')
     parser.add_argument('datasets', nargs="+",
-                        help='Datasets to dump. f19x of s275')
+                        choices=['f19x', 's275', 'domains'],
+                        help='Datasets to dump. f19x, s275, or domains')
     add_db_arguments(parser)
     common_logging_setup(parser)
 
     args = get_args(parser)
 
-    normalized_s275 = AvroDumper(args)
-    normalized_s275.write_all_datasets(args.outdir, args.datasets)
+    AvroDumper(args).write_all_datasets(args.outdir, args.datasets)
 
 
 if __name__ == '__main__':
