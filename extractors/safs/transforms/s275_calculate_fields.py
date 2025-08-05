@@ -15,7 +15,7 @@ def _fill_employee_rollup_info(session):
     logger.info("Starting Employee rollup update")
     employee_rollup_sql = """
         UPDATE
-            s275_employee e
+            employee e
         SET
             c_highest_degree = t.highest_degree,
             c_highest_degree_year = t.highest_degree_year,
@@ -42,8 +42,8 @@ def _fill_employee_rollup_info(session):
                     ORDER BY r.school_starting_year DESC,
                                 re.s275_recno DESC
                 ) as rn
-            FROM s275_report_employee re
-            LEFT JOIN s275_report r ON (re.report_id = r.report_id)
+            FROM report_employee re
+            LEFT JOIN report r ON (re.report_id = r.report_id)
         ) t
         WHERE e.employee_id = t.employee_id
         AND t.rn = 1
@@ -151,7 +151,7 @@ def _fill_private_assignments_values(session):
 
     update_private_assignment_sql = f"""
         UPDATE
-            s275_private_assignment pa
+            private_assignment pa
         SET
             c_pct_of_assignments = {pct_of_assignments},
 
@@ -174,16 +174,16 @@ def _fill_private_assignments_values(session):
                 {pct_of_assignments} * pre.benefits
         FROM (
             SELECT
-                pa.s275_report_employee_id,
+                pa.report_employee_id,
                 sum(pa.assignment_salary) all_assignment_salary
-            FROM s275_private_assignment pa
+            FROM private_assignment pa
             GROUP BY
-                pa.s275_report_employee_id
+                pa.report_employee_id
             ) t
-        LEFT JOIN s275_private_report_employee pre on (
-            pre.s275_report_employee_id = t.s275_report_employee_id)
+        LEFT JOIN private_report_employee pre on (
+            pre.report_employee_id = t.report_employee_id)
 
-        WHERE pa.s275_report_employee_id = t.s275_report_employee_id
+        WHERE pa.report_employee_id = t.report_employee_id
         """
     session.execute(text(update_private_assignment_sql))
 

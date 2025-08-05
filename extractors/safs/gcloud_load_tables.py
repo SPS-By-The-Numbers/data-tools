@@ -80,7 +80,6 @@ def load_dataset(outdir, dataset, upload_to_gcs, load_bq_from_gcs):
                 do_load_bq_from_gcs(bigquery_client,
                                     dataset, entry.name.removesuffix('.avro'),
                                     blob_uri)
-        break
 
 
 def main():

@@ -20,7 +20,7 @@ def _generate_report(session):
     logging.info("Populating report table")
     session.execute(text(
         f"""
-        INSERT INTO s275_report (
+        INSERT INTO report (
           report_type,
 
           school_year,
@@ -130,10 +130,10 @@ def _generate_employee(session):
         )
         """))
 
-    # Create the real s275_employee table.
+    # Create the real employee table.
     session.execute(text(
         """
-        INSERT INTO s275_employee (
+        INSERT INTO employee (
           obfuscated_id
         )
         SELECT distinct obfuscated_id
@@ -172,9 +172,9 @@ def _generate_private_employee(session):
                 t.first_name = tei.first_name AND
                 t.middle_name = tei.middle_name AND
                 t.last_name = tei.last_name)
-            LEFT JOIN s275_employee e ON(tei.obfuscated_id = e.obfuscated_id)
+            LEFT JOIN employee e ON(tei.obfuscated_id = e.obfuscated_id)
         )
-        INSERT INTO s275_private_employee (
+        INSERT INTO private_employee (
             employee_id, -- Foreign key.
 
             full_name,
@@ -224,7 +224,7 @@ def _generate_report_employee(session):
                 ROW_NUMBER() OVER(PARTITION BY e.employee_id, r.report_id
                                   ORDER BY CAST(t.recno as int) DESC) AS rn
             FROM s275_final t
-            LEFT JOIN s275_report r ON(
+            LEFT JOIN report r ON(
                 r.report_type = 'final' AND
                 t.codist = r.ccddd AND
                 t.school_year = r.school_year
@@ -234,7 +234,7 @@ def _generate_report_employee(session):
                 t.first_name = tei.first_name AND
                 t.middle_name = tei.middle_name AND
                 t.last_name = tei.last_name)
-            LEFT JOIN s275_employee e ON(e.obfuscated_id = tei.obfuscated_id)
+            LEFT JOIN employee e ON(e.obfuscated_id = tei.obfuscated_id)
         )
         INSERT INTO t_report_employee_canonical (
             report_id,
@@ -274,7 +274,7 @@ def _generate_report_employee(session):
             LEFT JOIN s275_final t ON(
                 rec.canoncial_s275_final_id = t.s275_final_id)
         )
-        INSERT INTO s275_report_employee (
+        INSERT INTO report_employee (
             report_id, -- Foreign key.
             employee_id, -- Foreign key.
 
@@ -318,8 +318,8 @@ def _generate_private_report_employee(session):
             LEFT JOIN s275_final t ON(
                 rec.canoncial_s275_final_id = t.s275_final_id)
         )
-        INSERT INTO s275_private_report_employee (
-            s275_report_employee_id, -- Foreign key.
+        INSERT INTO private_report_employee (
+            report_employee_id, -- Foreign key.
 
             total_final_salary,
             insurance,
@@ -328,14 +328,14 @@ def _generate_private_report_employee(session):
             s275_recno
         )
         SELECT
-            re.s275_report_employee_id,
+            re.report_employee_id,
             t.total_final_salary,
             t.insurance,
             t.benefits,
             t.other_salary,
             t.s275_recno
         FROM raw_private_report_employee_data t
-        JOIN s275_report_employee re ON (t.report_id = re.report_id AND
+        JOIN report_employee re ON (t.report_id = re.report_id AND
                                          t.employee_id = re.employee_id)
         """))
 
@@ -344,7 +344,7 @@ def _generate_assignment_fte(session):
     logging.info("Populating assignment_fte table")
     session.execute(text(
         """
-        INSERT INTO s275_assignment_fte (
+        INSERT INTO assignment_fte (
             fte_hours,
             fte_days,
             certificated_fte,
@@ -370,7 +370,7 @@ def _generate_temp_canonical_assignment_table(session):
         DROP TABLE IF EXISTS t_assignment_canonical;
         CREATE {T_IS_TEMPORARY} TABLE t_assignment_canonical (
             -- Logical key
-            s275_report_employee_id INT NOT NULL,
+            report_employee_id INT NOT NULL,
             assignment_fte_id INT NOT NULL,
 
             school_code INT NOT NULL,
@@ -396,7 +396,7 @@ def _generate_temp_canonical_assignment_table(session):
             employee_id INT NOT NULL,
 
             CONSTRAINT t_assignment_canonical_lk
-                UNIQUE (s275_report_employee_id,
+                UNIQUE (report_employee_id,
                         assignment_fte_id,
                         school_code,
                         program_code,
@@ -415,7 +415,7 @@ def _generate_temp_canonical_assignment_table(session):
         """
         WITH raw_assignment_row AS (
             SELECT
-                re.s275_report_employee_id,
+                re.report_employee_id,
                 af.assignment_fte_id,
 
                 t.bldgn school_code,
@@ -438,7 +438,7 @@ def _generate_temp_canonical_assignment_table(session):
                 -- Pick the last record.
                 ROW_NUMBER() OVER(
                     PARTITION BY
-                        re.s275_report_employee_id,
+                        re.report_employee_id,
                         af.assignment_fte_id,
 
                         t.bldgn,
@@ -454,7 +454,7 @@ def _generate_temp_canonical_assignment_table(session):
 
                     ORDER BY CAST(t.recno as int) DESC) AS rn
             FROM s275_final t
-            LEFT JOIN s275_report r ON(
+            LEFT JOIN report r ON(
                 r.report_type = 'final' AND
                 t.codist = r.ccddd AND
                 t.school_year = r.school_year
@@ -464,11 +464,11 @@ def _generate_temp_canonical_assignment_table(session):
                 t.first_name = tei.first_name AND
                 t.middle_name = tei.middle_name AND
                 t.last_name = tei.last_name)
-            LEFT JOIN s275_employee e ON(e.obfuscated_id = tei.obfuscated_id)
-            LEFT JOIN s275_report_employee re ON(
+            LEFT JOIN employee e ON(e.obfuscated_id = tei.obfuscated_id)
+            LEFT JOIN report_employee re ON(
                 e.employee_id = re.employee_id AND
                 r.report_id = re.report_id)
-            LEFT JOIN s275_assignment_fte af ON(
+            LEFT JOIN assignment_fte af ON(
                 t.ftehrs = af.fte_hours AND
                 t.ftedays = af.fte_days AND
                 t.certfte = af.certificated_fte AND
@@ -477,7 +477,7 @@ def _generate_temp_canonical_assignment_table(session):
                 (t.certflag = 'Y') = af.is_certificated)
         )
         INSERT INTO t_assignment_canonical (
-            s275_report_employee_id,
+            report_employee_id,
             assignment_fte_id,
 
             school_code,
@@ -499,7 +499,7 @@ def _generate_temp_canonical_assignment_table(session):
             s275_recno
         )
         SELECT
-            s275_report_employee_id,
+            report_employee_id,
             assignment_fte_id,
 
             school_code,
@@ -528,8 +528,8 @@ def _generate_assignment(session):
     logging.info("Populating assignment table")
     session.execute(text(
         """
-        INSERT INTO s275_assignment (
-            s275_report_employee_id,
+        INSERT INTO assignment (
+            report_employee_id,
             assignment_fte_id,
 
             school_code,
@@ -548,7 +548,7 @@ def _generate_assignment(session):
             s275_recno
         )
         SELECT
-            s275_report_employee_id,
+            report_employee_id,
             assignment_fte_id,
 
             school_code,
@@ -573,7 +573,7 @@ def _generate_private_assignment_comp_base(session):
     logging.info("Populating assignment comp base table")
     session.execute(text(
         """
-        INSERT INTO s275_private_assignment_comp_base (
+        INSERT INTO private_assignment_comp_base (
             certificated_base,
             classified_base
         )
@@ -589,30 +589,30 @@ def _generate_private_assignment(session):
     logging.info("Populating private assignment table")
     session.execute(text(
         """
-        INSERT INTO s275_private_assignment (
+        INSERT INTO private_assignment (
             assignment_id,
             private_assignment_comp_base_id,
 
             assignment_salary,
 
-            s275_report_employee_id
+            report_employee_id
         )
         SELECT
            a.assignment_id,
            pacb.private_assignment_comp_base_id,
            t.asssal,
-           a.s275_report_employee_id
+           a.report_employee_id
 
         FROM s275_final t
         JOIN t_assignment_canonical c ON (
                 t.s275_final_id = c.canoncial_s275_final_id
            )
-        JOIN s275_private_assignment_comp_base pacb ON (
+        JOIN private_assignment_comp_base pacb ON (
             t.certbase = pacb.certificated_base AND
             t.clasbase = pacb.classified_base
         )
-        JOIN s275_assignment a ON (
-           a.s275_report_employee_id = c.s275_report_employee_id AND
+        JOIN assignment a ON (
+           a.report_employee_id = c.report_employee_id AND
            a.assignment_fte_id = c.assignment_fte_id AND
 
            a.school_code = c.school_code AND

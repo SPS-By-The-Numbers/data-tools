@@ -590,40 +590,12 @@ def _populate_domain_duty_root(session):
                      },
                      unique_columns=['duty_root']
                      ))
-    session.execute(
-        _make_upsert(source_table='f196_duty_root',
-                     target_table='d_duty_root',
-                     column_map={
-                         'duty_root': 'duty_root',
-                         'duty_name': 'duty_name',
-                         'duty_category': 'duty_name_category',
-                         'duty_name_description': 'duty_name_description',
-                         'school_year': 'school_year',
-                         '_source': '_source',
-                         '_source_table': '_source_table',
-                     },
-                     unique_columns=['duty_root']
-                     ))
 
 
 def _populate_domain_duty_suffix(session):
     logger.info("Populating d_duty_suffix")
     session.execute(
         _make_upsert(source_table='spsbtn_duty_suffix',
-                     target_table='d_duty_suffix',
-                     column_map={
-                         'duty_suffix': 'duty_suffix',
-                         'contract_type': 'duty_contract_type',
-                         'contract_type_description':
-                             'duty_contract_description',
-                         'school_year': 'school_year',
-                         '_source': '_source',
-                         '_source_table': '_source_table',
-                     },
-                     unique_columns=['duty_suffix']
-                     ))
-    session.execute(
-        _make_upsert(source_table='f196_duty_suffix',
                      target_table='d_duty_suffix',
                      column_map={
                          'duty_suffix': 'duty_suffix',
