@@ -37,7 +37,8 @@ def get_blob_uri(dataset, filepath):
 
 def do_load_bq_from_gcs(bigquery_client, dataset, tablename, gcs_uri):
     job_config = bigquery.LoadJobConfig(
-        source_format=bigquery.SourceFormat.AVRO)
+        source_format=bigquery.SourceFormat.AVRO,
+        write_disposition="WRITE_TRUNCATE")
 
     table_id = f"sps-btn-data.{bq_dataset_name(dataset)}.{tablename}"
     logging.info(f"Loading {table_id} from {gcs_uri}")

@@ -59,12 +59,6 @@ REPORT_SCHEMA = {
             "doc": ("ceri timestamp in S275. With crasdate seems to "
                     "creation or update timestamp?")
         },
-        {
-            "name": "school_starting_year",
-            "field_type": "int",
-            "doc": ("[convenience] The starting school year as an integer. "
-                    "Makes sorting and comparisons easier.")
-        },
 
         *AUDIT_FIELDS
     ]
@@ -110,12 +104,6 @@ EMPLOYEE_SCHEMA = {
             "field_type": "string",
             "doc": ("Inferred most recent value year the highest degree is "
                     "received")
-        },
-        {
-            "name": "c_experience_years",
-            "field_type": "decimal",
-            "doc": ("Inferred most recent value of number of years of "
-                    "experience")
         },
         {
             "name": "c_nbpts_certificate_expiration",
@@ -247,35 +235,32 @@ REPORT_EMPLOYEE_SCHEMA = {
             "name": "hire_state",
             "field_type": "string",
             "doc": (
-                "Continuing = An individual who was reported by the district"
-                " in the previous year, unless Individual the person is a "
-                "certificated employee with less than 0.5 certificated "
-                "years of experience as of August 31. In that case report "
-                "such a person as a beginning individual.\n\n"
+                "Continuing = reported by the district in the prior "
+                "year. If the person is a certificated employee with less "
+                "than 0.5 certificated years of experience as of 8/31, "
+                "report instead as Beginning\n\n"
 
-                "Beginning = An individual with a certificated assignment "
-                "who is reported with less than 0.5 certificated years of "
-                "experience.\n\n"
+                "Beginning = reported with a certificated assignment with "
+                "less than 0.5 certificated years of experience.\n\n"
 
-                "Returning = An individual with a certificated assignment "
-                "who was not reported in a Individual certificated capacity "
-                "anywhere during the previous school year and has at least "
-                "0.5 certificated years of experience as of August 31. "
-                "Report in this category an individual returning from "
-                "leave\n\n"
+                "Returning = reported with a certificated assignment "
+                "who was not reported in a certificated capacity during the "
+                "prior school year & has at least 0.5 certificated "
+                "years of experience as of 8/31. Individuals returning "
+                "from leave are here\n\n"
 
-                "Transfering = An individual with a certificated assignment "
-                "who was employed in a to District certificated capacity in "
-                "another Washington district (in a public or a private "
-                "school), another state, or foreign country during the "
-                "previous school year and has at least 0.5 certificated "
-                "years of experience as of August 31 and was not reported "
+                "Transfering = reported with a certificated assignment "
+                "employed in a certificated capacity in "
+                "another Washington district (public or a private), "
+                "another state, or foreign country during the "
+                "prior school year & has at least 0.5 certificated "
+                "years of experience as of 8/31 & was not reported "
                 "by the current school year’s employing district last "
                 "year.\n\n"
 
-                "New = An employee with only classified assignments that "
-                "was not reported by the reporting district for the "
-                "previous school year.")
+                "New = employee with only classified assignments & "
+                "not reported by the reporting district for the "
+                "prior school year.")
         },
     ] + UPSERT_AUDIT_FIELDS,
 }
