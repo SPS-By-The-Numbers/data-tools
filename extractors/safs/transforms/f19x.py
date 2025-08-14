@@ -77,7 +77,7 @@ def _populate_revenue_table(session, data_type, fund_name):
     extra_columns = ""
     extra_values = ""
 
-    if data_type == 'Actuals':
+    if data_type == 'actuals':
         source_table_prefix = "f196"
         extra_columns = f"""
             accounting_item_id,
@@ -813,7 +813,7 @@ def _populate_general_fund_expenditures_from_budget(session):
             _source_table
         )
         SELECT
-            'Budget',
+            'budget',
             FALSE,
 
             1,
@@ -887,7 +887,7 @@ def _populate_general_fund_expenditures_from_actuals(session):
             _source_table
         )
         SELECT
-            'Actuals',
+            'actuals',
             FALSE,
 
             1,
@@ -968,7 +968,7 @@ def _populate_general_fund_expenditures_from_child_actuals(session):
             _source_table
         )
         SELECT
-            'Actuals',
+            'actuals',
             TRUE,
 
             1,
@@ -1099,23 +1099,23 @@ def _populate_general_fund_expenditures_calculated_columns(session):
 
 
 def _populate_general_fund_revenues(session):
-    _populate_revenue_table(session, "Budget", "general_fund")
-    _populate_revenue_table(session, "Actuals", "general_fund")
+    _populate_revenue_table(session, "budget", "general_fund")
+    _populate_revenue_table(session, "actuals", "general_fund")
 
 
 def _populate_debt_service_revenues(session):
-    _populate_revenue_table(session, "Budget", "debt_service")
-    _populate_revenue_table(session, "Actuals", "debt_service")
+    _populate_revenue_table(session, "budget", "debt_service")
+    _populate_revenue_table(session, "actuals", "debt_service")
 
 
 def _populate_capital_projects_revenues(session):
-    _populate_revenue_table(session, "Budget", "capital_project")
-    _populate_revenue_table(session, "Actuals", "capital_project")
+    _populate_revenue_table(session, "budget", "capital_project")
+    _populate_revenue_table(session, "actuals", "capital_project")
 
 
 def _populate_trans_vehicle_revenues(session):
-    _populate_revenue_table(session, "Budget", "trans_vehicle")
-    _populate_revenue_table(session, "Actuals", "trans_vehicle")
+    _populate_revenue_table(session, "budget", "trans_vehicle")
+    _populate_revenue_table(session, "actuals", "trans_vehicle")
 
 
 def _populate_budget_items(session):
