@@ -30,8 +30,6 @@ class DataLoader(DbConnection):
     def __init__(self, args, **kwargs):
         super().__init__(args, **kwargs)
         self._orm_classes = {}
-        self.write_avro = args.write_avro
-        self.write_db = args.write_db
         self.db_drop_first = args.db_drop_first
         self.outprefix = args.outprefix
         self.outdir = args.outdir
@@ -96,30 +94,16 @@ class DataLoader(DbConnection):
     def process_file(self, filename):
         reader = self._make_reader(filename)
 
-        if self.write_db:
-            for normalized_table, source_table in reader.tables.items():
-                schema, record_generator = reader.to_records(normalized_table)
-                raw_table_name = schema['name']
+        for normalized_table, source_table in reader.tables.items():
+            schema, record_generator = reader.to_records(normalized_table)
+            raw_table_name = schema['name']
 
-                is_new_table = raw_table_name not in self._has_loaded
-                drop_first = self.db_drop_first and is_new_table
+            is_new_table = raw_table_name not in self._has_loaded
+            drop_first = self.db_drop_first and is_new_table
 
-                self.load_values(schema, record_generator, drop_first,
-                                 is_new_table)
-                self._has_loaded.add(raw_table_name)
-
-        if self.write_avro:
-            if self.outprefix == '[default]':
-                # TODO: This needs to get the school year from the data.
-                outprefix = f"{self.datatype}-"
-            else:
-                outprefix = self.outprefix
-
-            outdir = Path(self.outdir)
-            outdir.mkdir(exist_ok=True)
-            for normalized_table, source_table in reader.tables.items():
-                logger.info(f"{normalized_table} <= {source_table}")
-                reader.export_avro(outdir, outprefix, normalized_table)
+            self.load_values(schema, record_generator, drop_first,
+                             is_new_table)
+            self._has_loaded.add(raw_table_name)
 
         for normalized_table, source_table in reader.tables.items():
             print('output: ', normalized_table, source_table)
@@ -250,9 +234,6 @@ def _parse_args():
 
 def main():
     args = _parse_args()
-
-    if args.write_avro and not args.outdir:
-        raise ValueError("outdir is empty")
 
     loader = DataLoader(args)
     for filename in args.infiles:
