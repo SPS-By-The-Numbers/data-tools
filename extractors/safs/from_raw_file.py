@@ -106,7 +106,10 @@ class DataLoader(DbConnection):
             self._has_loaded.add(raw_table_name)
 
         for normalized_table, source_table in reader.tables.items():
-            print('output: ', normalized_table, source_table)
+            print(f'output: "{normalized_table} <- "{source_table}"')
+
+        for skipped_table in reader.skipped_tables:
+            print(f'skipped: "{skipped_table}"')
 
     def _make_reader(self, filename):
         def get_additional_values(schema, tablename, all_tables):
@@ -133,11 +136,19 @@ class DataLoader(DbConnection):
                     raw_reader,
                     f195.get_reader_config(add_additional_fields,
                                            get_additional_values))
+
+            case "enrollment":
+                return DataReader(
+                    raw_reader,
+                    f195.get_reader_config(add_additional_fields,
+                                           get_additional_values))
+
             case "f196" | "f196-codes":
                 return DataReader(
                     raw_reader,
                     f196.get_reader_config(add_additional_fields,
                                            get_additional_values))
+
             case "s275":
                 return DataReader(
                     raw_reader,

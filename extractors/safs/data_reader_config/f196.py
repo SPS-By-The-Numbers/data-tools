@@ -128,20 +128,20 @@ def tablename_normalizer(source_tablename):  # noqa: C901
         return "program"
     elif 'CCDDD' in source_tablename:
         return "ccddd"
-    elif ('REVENUE' in source_tablename or
-          'Revenues' in source_tablename):
+    elif ('TL-REVENUE' == source_tablename or
+          'Revenues' == source_tablename):
         return "revenue"
-    elif 'ESDs' in source_tablename:
+    elif 'ESDs' == source_tablename:
         return 'esd'
-    elif 'Districts' in source_tablename:
+    elif 'Districts' == source_tablename:
         return 'district'
-    elif 'Schools' in source_tablename:
+    elif 'Schools' == source_tablename:
         return 'school'
-    elif 'NCES' in source_tablename:
+    elif 'NCES' == source_tablename:
         return 'nces'
-    elif 'Funds' in source_tablename:
+    elif 'Funds' == source_tablename:
         return 'fund'
-    elif 'Sub Fund' in source_tablename:
+    elif 'Sub Fund' == source_tablename:
         return 'sub_fund'
     elif ('CapitalProjectRevenues' in source_tablename or
           'CapitalRevenues' in source_tablename or
@@ -170,6 +170,7 @@ def tablename_normalizer(source_tablename):  # noqa: C901
         return "item_numbers"
     elif ('AllRevFund' in source_tablename or
           'Enrollment' in source_tablename or
+          'Changes' in source_tablename or
           'Edits' in source_tablename):
         return None
     else:

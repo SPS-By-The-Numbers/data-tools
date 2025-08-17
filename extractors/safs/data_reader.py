@@ -19,6 +19,7 @@ def _strip_str_only(val):
         return val.strip()
     return val
 
+
 def _parse_structured_csv_filename(filename):
     """Parses 2021-2022-f196-table_name.csv to (2021-2022, f196, table_name)"""
     m = re.match(r"^(\d{4}-\d{4})-([^-]*)-(.*).csv$", filename)
@@ -179,9 +180,20 @@ class DataReader:
     @functools.cached_property
     def tables(self):
         """Returns a dict mapping normalized table name to table in mdb"""
-        raw_entries = [(self.config.tablename_normalizer(t), t)
-                       for t in self._reader.read_raw_tables()]
-        return {k: v for k, v in raw_entries if k is not None}
+        return {k: v for k, v in self._normlized_and_skipped_tables
+                if k is not None}
+
+    @functools.cached_property
+    def skipped_tables(self):
+        """Returns a dict mapping normalized table name to table in mdb"""
+        return [v for k, v in self._normlized_and_skipped_tables
+                if k is None]
+
+    @functools.cached_property
+    def _normlized_and_skipped_tables(self):
+        """Returns a dict mapping normalized table name to table in mdb"""
+        return [(self.config.tablename_normalizer(t), t)
+                for t in self._reader.read_raw_tables()]
 
     def to_records(self, tablename):
         source_table = self.tables[tablename]
