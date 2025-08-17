@@ -106,10 +106,10 @@ class DataLoader(DbConnection):
             self._has_loaded.add(raw_table_name)
 
         for normalized_table, source_table in reader.tables.items():
-            print(f'output: "{normalized_table} <- "{source_table}"')
+            logger.info(f'output: "{normalized_table} <- "{source_table}"')
 
         for skipped_table in reader.skipped_tables:
-            print(f'skipped: "{skipped_table}"')
+            logger.info(f'skipped: "{skipped_table}"')
 
     def _make_reader(self, filename):
         def get_additional_values(schema, tablename, all_tables):
