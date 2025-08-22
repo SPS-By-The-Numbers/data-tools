@@ -146,6 +146,7 @@ def _populate_revenue_table(session, data_type, fund_name):
         LEFT JOIN d_revenue r ON (t.revenue_code = r.revenue_code)
         LEFT JOIN d_program p ON (r.program_code = p.program_code)
         WHERE amount != 0
+        AND t.revenue_code % 1000 != 0  -- ignore roll-ups for funding source.
         """
     ))
 
@@ -1018,7 +1019,7 @@ def _populate_general_fund_expenditures_calculated_columns(session):
     logger.info("Populating general_fund_expenditures calculated columns")
     # Fill in c_pct_expenditure
     session.execute(text(
-        f"""
+        """
         UPDATE general_fund_expenditures as gfe
         SET
             c_pct_expenditure = CASE
@@ -1033,8 +1034,6 @@ def _populate_general_fund_expenditures_calculated_columns(session):
                 school_year,
                 sum(amount) as total
             FROM general_fund_expenditures
-            WHERE
-                school_code = {get_null_sentinel('int')}
             GROUP BY
                 data_type,
                 ccddd,
