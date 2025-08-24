@@ -2,7 +2,7 @@ import logging
 import os
 
 from sqlalchemy import text
-from .common import EXTRACT_STARTING_YEAR
+from .common import EXTRACT_CLASS_OF
 from . import s275_calculate_fields
 
 # Used in the SQL CREATE [x] TABLE for intermediate tables. Set to 'TEMPORARY'
@@ -24,7 +24,7 @@ def _generate_report(session):
           report_type,
 
           school_year,
-          school_starting_year,
+          class_of,
 
           ccddd,
 
@@ -43,7 +43,7 @@ def _generate_report(session):
           'final',
 
           school_year,
-          {EXTRACT_STARTING_YEAR},
+          {EXTRACT_CLASS_OF},
 
           codist,
 

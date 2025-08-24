@@ -3,6 +3,7 @@
 import inflection
 import dateutil
 import logging
+import math
 
 from decimal import getcontext, Decimal
 from datetime import datetime
@@ -137,6 +138,13 @@ def coded_int_or_null(record, source):
             raise ValueError(f"{v} too high to encode")
         value = (value << 7) | (v & 0x7F)
     return -value
+
+
+def to_decimal_from_floatstr_or_null(record, source):
+    value = record[source]
+    if value is None or math.isnan(value):
+        return None
+    return Decimal(str(value))
 
 
 def to_decimal_or_null(record, source):

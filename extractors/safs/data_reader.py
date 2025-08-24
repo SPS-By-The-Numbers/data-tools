@@ -51,7 +51,7 @@ class XlsxRawReader:
         This assumes the first row is a header and is just a convenience for
         many formats. Disable if it doesn't help
         """
-        self._drop_empty_columns = True
+        self._drop_empty_columns = False
 
     def read_raw_tables(self):
         return {v: v for v in pd.ExcelFile(self._filepath).sheet_names}

@@ -14,7 +14,8 @@ from sqlalchemy.orm import Session
 from extractors.common import common_logging_setup, get_args
 from extractors.safs.data_reader import (DataReader, CsvRawReader,
                                          MdbRawReader, XlsxRawReader)
-from extractors.safs.data_reader_config import (f195, f196, s275, spsbtn)
+from extractors.safs.data_reader_config import (enrollment, f195, f196, s275,
+                                                spsbtn)
 
 from .db_connection import DbConnection, add_db_arguments
 from .orm import make_table
@@ -137,15 +138,16 @@ class DataLoader(DbConnection):
                     f195.get_reader_config(add_additional_fields,
                                            get_additional_values))
 
-            case "enrollment":
+            case ("enrollment" |
+                  "historical-enrollment-summary"):
                 if isinstance(raw_reader, XlsxRawReader):
                     # This is a hack since the enrollment format doesn't match
                     # the f19x ones. But it's not worth generalizing.
                     raw_reader.disable_drop_empty_columns()
                 return DataReader(
                     raw_reader,
-                    f195.get_reader_config(add_additional_fields,
-                                           get_additional_values))
+                    enrollment.get_reader_config(add_additional_fields,
+                                                 get_additional_values))
 
             case "f196" | "f196-codes":
                 return DataReader(

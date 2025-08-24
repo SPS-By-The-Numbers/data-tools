@@ -20,10 +20,10 @@ SCHOOL_YEAR_DISTRICT_FIELDS = [
     },
 
     {
-        "name": "school_starting_year",
+        "name": "class_of",
         "field_type": "int",
-        "doc": ("[convenience] The starting school year as an integer. "
-                "Makes sorting and comparisons easier.")
+        "doc": ("[convenience] The ending school year as an integer. "
+                "Makes sorting and comparisons easier. Also shorter")
     },
 
     {

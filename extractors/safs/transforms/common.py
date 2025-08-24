@@ -1,3 +1,3 @@
-EXTRACT_STARTING_YEAR = """
-CAST(SPLIT_PART(t.school_year, '-', 1) AS INTEGER) AS school_starting_year
+EXTRACT_CLASS_OF = """
+CAST(SPLIT_PART(t.school_year, '-', 2) AS INTEGER) AS class_of
 """

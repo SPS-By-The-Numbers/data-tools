@@ -3,7 +3,7 @@ import logging
 from sqlalchemy import text
 from ..avro_schema import get_null_sentinel
 
-from .common import EXTRACT_STARTING_YEAR
+from .common import EXTRACT_CLASS_OF
 
 logger = logging.getLogger(__name__)
 
@@ -113,7 +113,7 @@ def _populate_revenue_table(session, data_type, fund_name):
             {extra_columns}
 
             school_year,
-            school_starting_year,
+            class_of,
             _source,
             _source_table
         )
@@ -138,7 +138,7 @@ def _populate_revenue_table(session, data_type, fund_name):
             {extra_values}
 
             t.school_year,
-            {EXTRACT_STARTING_YEAR},
+            {EXTRACT_CLASS_OF},
             t._source,
             t._source_table
         FROM {source_table_prefix}_{fund_name}_revenues t
@@ -809,7 +809,7 @@ def _populate_general_fund_expenditures_from_budget(session):
             object,
             amount,
             school_year,
-            school_starting_year,
+            class_of,
             _source,
             _source_table
         )
@@ -836,7 +836,7 @@ def _populate_general_fund_expenditures_from_budget(session):
             t.amount,
             t.school_year,
             CAST(SPLIT_PART(t.school_year, '-', 1) AS INTEGER)
-                AS school_starting_year,
+                AS class_of,
             t._source,
             t._source_table
         FROM f195_general_fund_expenditures t
@@ -883,7 +883,7 @@ def _populate_general_fund_expenditures_from_actuals(session):
             object,
             amount,
             school_year,
-            school_starting_year,
+            class_of,
             _source,
             _source_table
         )
@@ -913,7 +913,7 @@ def _populate_general_fund_expenditures_from_actuals(session):
             t.amount,
             t.school_year,
             CAST(SPLIT_PART(t.school_year, '-', 1) AS INTEGER)
-                AS school_starting_year,
+                AS class_of,
             t._source,
             t._source_table
         FROM f196_general_fund_expenditures t
@@ -964,7 +964,7 @@ def _populate_general_fund_expenditures_from_child_actuals(session):
             nces,
             amount,
             school_year,
-            school_starting_year,
+            class_of,
             _source,
             _source_table
         )
@@ -997,7 +997,7 @@ def _populate_general_fund_expenditures_from_child_actuals(session):
             t.amount,
             t.school_year,
             CAST(SPLIT_PART(t.school_year, '-', 1) AS INTEGER)
-                AS school_starting_year,
+                AS class_of,
             t._source,
             t._source_table
         FROM f196_child_general_fund_expenditures t
@@ -1123,7 +1123,7 @@ def _populate_budget_items(session):
         f"""
         INSERT INTO budget_items (
             school_year,
-            school_starting_year,
+            class_of,
 
             ccddd,
             county,
@@ -1142,7 +1142,7 @@ def _populate_budget_items(session):
         )
         SELECT
             t.school_year,
-            {EXTRACT_STARTING_YEAR},
+            {EXTRACT_CLASS_OF},
 
             t.ccddd,
             co.county,
@@ -1174,7 +1174,7 @@ def _populate_actuals_items(session):
         f"""
         INSERT INTO actuals_items (
             school_year,
-            school_starting_year,
+            class_of,
 
             ccddd,
             county,
@@ -1198,7 +1198,7 @@ def _populate_actuals_items(session):
         )
         SELECT
             t.school_year,
-            {EXTRACT_STARTING_YEAR},
+            {EXTRACT_CLASS_OF},
 
             t.ccddd,
             co.county,
