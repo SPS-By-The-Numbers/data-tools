@@ -117,7 +117,13 @@ class DataLoader(DbConnection):
             source = Path(filename).name
             values = {}
 
-            if 'school_year' not in schema['fields']:
+            found_school_year = False
+            for f in schema['fields']:
+                if f['name'] == 'school_year':
+                    found_school_year = True
+                    break
+
+            if not found_school_year:
                 values.update(_get_additional_school_year(
                     schema, tablename, all_tables, source))
             return values
