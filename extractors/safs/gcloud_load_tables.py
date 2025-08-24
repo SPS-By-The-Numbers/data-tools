@@ -89,7 +89,7 @@ def main():
     parser.add_argument('--outdir', required=True,
                         help='directory for set finalized avro tables"')
     parser.add_argument('datasets', nargs="+",
-                        choices=['f19x', 's275', 'domains'],
+                        choices=['f19x', 's275', 'domains', 'enrollment'],
                         help='loads files from outdir into the ospi datasets')
     parser.add_argument('--upload-to-gcs', action='store_true',
                         help='Upload file to gcs')
