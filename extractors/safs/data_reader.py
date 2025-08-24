@@ -29,7 +29,7 @@ def _parse_structured_csv_filename(filename):
     return (m[1], m[2], m[3])
 
 
-class XslxRawReader:
+class XlsxRawReader:
     def __init__(self, filepath):
         self._filepath = filepath
 
@@ -39,10 +39,19 @@ class XslxRawReader:
         self._school_year = m[1]
         self._datatype = m[2]
         self._filepath = filepath
+        self._drop_empty_columns = True
 
     @property
     def filename(self):
         return Path(self._filepath).name
+
+    def disable_drop_empty_columns(self):
+        """By default, reader drops columns with empty value in first row.
+
+        This assumes the first row is a header and is just a convenience for
+        many formats. Disable if it doesn't help
+        """
+        self._drop_empty_columns = True
 
     def read_raw_tables(self):
         return {v: v for v in pd.ExcelFile(self._filepath).sheet_names}
@@ -58,16 +67,17 @@ class XslxRawReader:
         # Remove all the random blank rows folks put in.
         df = df.dropna(how='all')
 
-        # Assume the first row is the header.
-        columns_to_drop = []
-        for index, header_value in df.iloc[0].items():
-            if not isinstance(header_value, str):
-                columns_to_drop.append(index)
+        if self._drop_empty_columns:
+            # Assume the first row is the header.
+            columns_to_drop = []
+            for index, header_value in df.iloc[0].items():
+                if not isinstance(header_value, str):
+                    columns_to_drop.append(index)
 
-        if len(columns_to_drop) > 0:
-            df = df.drop(columns=columns_to_drop)
-            logger.info(f"Dropping columns: {columns_to_drop}. Left over are "
-                        f"{df.columns}")
+            if len(columns_to_drop) > 0:
+                df = df.drop(columns=columns_to_drop)
+                logger.info(f"Dropping columns: {columns_to_drop}. Left over "
+                            "are {df.columns}")
 
         for row in df.values:
             yield [_strip_str_only(v) for v in row]

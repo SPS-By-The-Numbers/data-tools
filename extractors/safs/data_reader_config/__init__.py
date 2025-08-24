@@ -1,4 +1,4 @@
-class MdbReaderConfig:
+class DataReaderConfig:
     def __init__(self,
                  datatype,
                  tablename_normalizer,

@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 
 from extractors.common import common_logging_setup, get_args
 from extractors.safs.data_reader import (DataReader, CsvRawReader,
-                                         MdbRawReader, XslxRawReader)
+                                         MdbRawReader, XlsxRawReader)
 from extractors.safs.data_reader_config import (f195, f196, s275, spsbtn)
 
 from .db_connection import DbConnection, add_db_arguments
@@ -124,7 +124,7 @@ class DataLoader(DbConnection):
         if filename.endswith('csv'):
             raw_reader = CsvRawReader(filename)
         elif filename.endswith('xlsx'):
-            raw_reader = XslxRawReader(filename)
+            raw_reader = XlsxRawReader(filename)
         else:
             raw_reader = MdbRawReader(filename)
 
@@ -138,6 +138,10 @@ class DataLoader(DbConnection):
                                            get_additional_values))
 
             case "enrollment":
+                if isinstance(raw_reader, XlsxRawReader):
+                    # This is a hack since the enrollment format doesn't match
+                    # the f19x ones. But it's not worth generalizing.
+                    raw_reader.disable_drop_empty_columns()
                 return DataReader(
                     raw_reader,
                     f195.get_reader_config(add_additional_fields,

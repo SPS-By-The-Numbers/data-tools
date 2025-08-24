@@ -1,4 +1,4 @@
-from . import MdbReaderConfig
+from . import DataReaderConfig
 from extractors.safs import avro_schema
 
 
@@ -18,7 +18,7 @@ class InferredMdbReaderBuilder:
         self._re_boolean_column = re_boolean_column
         self._re_coded_int_column = re_coded_int_column
 
-        self._mdb_reader_config = MdbReaderConfig(
+        self._mdb_reader_config = DataReaderConfig(
             datatype,
             tablename_normalizer,
             self._fields_from_header,

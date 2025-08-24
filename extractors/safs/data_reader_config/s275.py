@@ -1,7 +1,7 @@
 import re
 import logging
 
-from . import MdbReaderConfig
+from . import DataReaderConfig
 from extractors.safs import avro_schema
 
 logger = logging.getLogger(__name__)
@@ -64,7 +64,7 @@ def tablename_normalizer(tablename):
 
 
 def get_reader_config(add_additional_fields, get_additional_values):
-    return MdbReaderConfig(
+    return DataReaderConfig(
         datatype="s275",
         tablename_normalizer=tablename_normalizer,
         fields_from_header=_fields_from_header,
