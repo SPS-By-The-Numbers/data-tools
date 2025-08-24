@@ -39,8 +39,8 @@ def _fill_employee_rollup_info(session):
                 re.s275_recno,
                 ROW_NUMBER() OVER (
                     PARTITION BY re.employee_id
-                    ORDER BY r.school_starting_year DESC,
-                                re.s275_recno DESC
+                    ORDER BY r.class_of DESC,
+                             re.s275_recno DESC
                 ) as rn
             FROM report_employee re
             LEFT JOIN report r ON (re.report_id = r.report_id)
