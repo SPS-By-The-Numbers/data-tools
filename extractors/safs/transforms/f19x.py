@@ -834,9 +834,10 @@ def _populate_general_fund_expenditures_from_budget(session):
             t.object_code,
             o.object,
             t.amount,
+
             t.school_year,
-            CAST(SPLIT_PART(t.school_year, '-', 1) AS INTEGER)
-                AS class_of,
+            {EXTRACT_CLASS_OF},
+
             t._source,
             t._source_table
         FROM f195_general_fund_expenditures t
@@ -911,9 +912,10 @@ def _populate_general_fund_expenditures_from_actuals(session):
             t.object_code,
             o.object,
             t.amount,
+
             t.school_year,
-            CAST(SPLIT_PART(t.school_year, '-', 1) AS INTEGER)
-                AS class_of,
+            {EXTRACT_CLASS_OF},
+
             t._source,
             t._source_table
         FROM f196_general_fund_expenditures t
@@ -935,7 +937,7 @@ def _populate_general_fund_expenditures_from_actuals(session):
 def _populate_general_fund_expenditures_from_child_actuals(session):
     logger.info("Populating general_fund_expenditures with child actuals")
     session.execute(text(
-        """
+        f"""
         INSERT INTO general_fund_expenditures (
             data_type,
             has_school,
@@ -995,9 +997,10 @@ def _populate_general_fund_expenditures_from_child_actuals(session):
             t.nces_code,
             n.nces,
             t.amount,
+
             t.school_year,
-            CAST(SPLIT_PART(t.school_year, '-', 1) AS INTEGER)
-                AS class_of,
+            {EXTRACT_CLASS_OF},
+
             t._source,
             t._source_table
         FROM f196_child_general_fund_expenditures t
