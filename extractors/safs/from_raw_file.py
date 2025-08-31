@@ -32,8 +32,6 @@ class DataLoader(DbConnection):
         super().__init__(args, **kwargs)
         self._orm_classes = {}
         self.db_drop_first = args.db_drop_first
-        self.outprefix = args.outprefix
-        self.outdir = args.outdir
         self._has_loaded = set()
 
     def add_orm_table(self, schema):
@@ -119,7 +117,8 @@ class DataLoader(DbConnection):
 
             found_school_year = False
             for f in schema['fields']:
-                if f['name'] == 'school_year':
+                if (f['name'] == 'school_year' and
+                        f['source'] != '_school_year'):
                     found_school_year = True
                     break
 
@@ -238,13 +237,6 @@ def _parse_args():
         prog='from_access',
         description='Converts and access database to avro format')
 
-    parser.add_argument('--outdir', help='output directory for AVRO')
-    parser.add_argument('--outprefix', default="[default]",
-                        help='Prefix for avro files')
-    parser.add_argument('--write-avro', action="store_true",
-                        help='Should write avro files')
-    parser.add_argument('--write-db', action="store_true",
-                        help='Should write to a database')
     parser.add_argument('--db-drop-first', action="store_true",
                         help='Should drop the table before loading')
     parser.add_argument('infiles', nargs="+", help='raw f195 files to combine')

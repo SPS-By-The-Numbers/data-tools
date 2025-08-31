@@ -27,19 +27,20 @@ class Base(DeclarativeBase):
 
 
 class FinalTableGenerator(DbConnection):
-    def generate_final_tables(self, drop_first, do_s275, do_f19x,
-                              do_enrollment):
+    def generate_final_tables(self, drop_first, datasets):
         orm_classes = {}
-        if do_s275:
-            orm_classes.update(self._create_orm_classes(s275.ALL_SCHEMAS))
+        for d in datasets:
+            if d == 's275':
+                orm_classes.update(self._create_orm_classes(s275.ALL_SCHEMAS))
 
-        if do_f19x:
-            orm_classes.update(self._create_orm_classes(domains.ALL_SCHEMAS))
-            orm_classes.update(self._create_orm_classes(f19x.ALL_SCHEMAS))
+            if d == 'domains' or d == 'f19x':
+                orm_classes.update(
+                    self._create_orm_classes(domains.ALL_SCHEMAS))
+                orm_classes.update(self._create_orm_classes(f19x.ALL_SCHEMAS))
 
-        if do_enrollment:
-            orm_classes.update(
-                self._create_orm_classes(enrollment.ALL_SCHEMAS))
+            if d == 'enrollment':
+                orm_classes.update(
+                    self._create_orm_classes(enrollment.ALL_SCHEMAS))
 
         if drop_first:
             logger.info("Dropping all tables")
@@ -49,12 +50,15 @@ class FinalTableGenerator(DbConnection):
         Base.metadata.create_all(self.engine)
 
         with Session(self.engine) as session:
-            if do_s275:
-                generate_s275(session)
-            if do_f19x:
-                generate_f19x(session)
-            if do_enrollment:
-                generate_enrollment(session)
+            for d in datasets:
+                if d == 's275':
+                    generate_s275(session)
+
+                if d == 'f19x':
+                    generate_f19x(session)
+
+                if d == 'enrollment':
+                    generate_enrollment(session)
             session.commit()
 
     def _create_orm_classes(self, schemas):
@@ -78,12 +82,10 @@ def _parse_args():
 
     parser.add_argument('--db-drop-first', action="store_true",
                         help='Should drop the table before loading')
-    parser.add_argument('--s275', action="store_true",
-                        help='Calculate s275 tables')
-    parser.add_argument('--f19x', action="store_true",
-                        help='Calculate f195 and f196 tables')
-    parser.add_argument('--enrollment', action="store_true",
-                        help='Calculates enrollment table')
+    parser.add_argument('datasets', nargs="+",
+                        choices=['f19x', 's275', 'domains', 'enrollment'],
+                        help=('Datasets to dump. f19x, s275, enrollment '
+                              'or domains'))
 
     common_logging_setup(parser)
     add_db_arguments(parser)
@@ -95,10 +97,7 @@ def main():
     args = _parse_args()
 
     generator = FinalTableGenerator(args)
-    generator.generate_final_tables(args.db_drop_first,
-                                    do_f19x=args.f19x,
-                                    do_s275=args.s275,
-                                    do_enrollment=args.enrollment)
+    generator.generate_final_tables(args.db_drop_first, args.datasets)
 
 
 if __name__ == '__main__':

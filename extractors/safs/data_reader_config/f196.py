@@ -101,6 +101,9 @@ def normalize_column_name(table_name, col_name):
         case 'school_id':
             return 'school_code'
 
+        case 'school_year_code':
+            return 'school_year'
+
         case str(bq_col_name) if bq_col_name.startswith('field'):
             return None
 
@@ -145,6 +148,7 @@ def tablename_normalizer(source_tablename):  # noqa: C901
         return 'sub_fund'
     elif ('CapitalProjectRevenues' in source_tablename or
           'CapitalRevenues' in source_tablename or
+          'captal_project_revenues' in source_tablename or
           'capital_project_revenues' in source_tablename):
         return "capital_project_revenues"
     elif ('DebtServiceRevenues' in source_tablename or
