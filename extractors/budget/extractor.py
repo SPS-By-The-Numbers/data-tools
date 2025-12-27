@@ -68,7 +68,7 @@ def parse_school_funded_staff(rows, school_info, staffing_config):
     staffing = school_info['staffing'] = {}
     for fields in all_fields:
         staff_type, staffing_info = parse_school_funded_staff_fields(
-            headers, fields)
+            headers, fields, staffing_config)
         if staff_type is not None:
             staffing[staff_type] = staffing_info
 
@@ -176,7 +176,7 @@ def parse_page(page, page_config, funding_config, enrollment_config,
                     # Collate all the staff type rows. Note that the
                     # Terminal line of 'Total School Funded Staff' is
                     # caught by the if tatement.
-                    for staff_type in staffing_config["rows"]:
+                    for staff_type in staffing_config["all_types"]:
                         if line.startswith(staff_type):
                             row_cache.append(raw_line)
 

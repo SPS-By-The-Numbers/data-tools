@@ -31,6 +31,11 @@ def _field_from_column_name(_, column_name):
                 field_type="decimal",
                 extractor=avro_schema.to_decimal_or_null)
 
+        # TODO: Support these fields. They are schema drift over time so they
+        # don't get auto-created due to creation order. Argh.
+        case "Nbcertexpdate" | "adrsconf" | "ACPexpdate":
+            return None
+
         case "SchoolYear":
             return avro_schema.make_field(
                 name="school_year",
@@ -53,7 +58,8 @@ def _field_from_column_name(_, column_name):
 
 
 def _fields_from_header(tablename, row):
-    return [_field_from_column_name(tablename, col_name) for col_name in row]
+    fields = [_field_from_column_name(tablename, col_name) for col_name in row]
+    return [f for f in fields if f is not None]
 
 
 def tablename_normalizer(tablename):

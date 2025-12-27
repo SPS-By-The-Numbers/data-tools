@@ -155,6 +155,37 @@ class MdbRawReader:
             yield row
 
 
+class AvroRawReader:
+    def __init__(self, filepath):
+        self._filepath = filepath
+        m = re.match(r"^(\d{4}-\d{4})-(.*).avro$", self.filename)
+        if m is None:
+            raise ValueError(f"Invalid {filepath}")
+        self._datatype = m[2]
+
+    @property
+    def filename(self):
+        return Path(self._filepath).name
+
+    def read_raw_tables(self):
+        return ['odata']
+
+    def datatype(self):
+        return self._datatype
+
+    def read_raw_rows(self, raw_tablename):
+        if raw_tablename != 'odata':
+            raise ValueError(raw_tablename)
+
+        with open(self._filepath, 'rb') as f:
+            avro_reader = fastavro.reader(f)
+            # Make this look like a csv.
+            header = [f["name"] for f in avro_reader.writer_schema["fields"]]
+            yield header
+            for record in avro_reader:
+                yield [record[column] for column in header]
+
+
 class DataReader:
     """Reads tables from accdb and mdb files and outputs an AVRO.
 

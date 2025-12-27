@@ -77,9 +77,15 @@ def cleaned_string(record, source):
 
 
 def string_with_null(record, source):
-    value = record[source].strip()
-    if not value or value == "NULL":
+    value = record[source]
+
+    if value is None:
         return None
+
+    value = value.strip()
+    if value == "NULL":
+        return None
+
     return value
 
 
@@ -141,10 +147,13 @@ def coded_int_or_null(record, source):
 
 
 def to_decimal_from_floatstr_or_null(record, source):
-    value = record[source]
-    if value is None or math.isnan(value):
+    raw_value = record[source]
+    if raw_value is None or str(raw_value) == 'NULL':
         return None
-    return Decimal(str(value))
+    value = Decimal(str(raw_value))
+    if math.isnan(value):
+        return None
+    return value
 
 
 def to_decimal_or_null(record, source):
@@ -170,6 +179,26 @@ def parse_datetime(record, source):
 def parse_first_schoolyear(record, source):
     """Reads the value as an int"""
     return int(record[source].split('-')[0])
+
+
+def expand_school_year(record, source):
+    """Ensures school year if XXXX-YYYY format"""
+    parts = record[source].split('-')
+    if len(parts) != 2:
+        raise RuntimeError(f"Unable to parse {record[source]}")
+
+    first = parts[0]
+    second = parts[1]
+
+    if len(first) != 4:
+        raise RuntimeError(f"Expected 4-digit year {first}")
+
+    if len(second) == 2:
+        second = f"{first[0:2]}{second}"
+    elif len(second) != 4:
+        raise RuntimeError(f"Expected 2 or 4-digit year {second}")
+
+    return f"{first}-{second}"
 
 
 def one_to_boolean(record, source):

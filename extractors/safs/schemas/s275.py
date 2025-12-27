@@ -106,6 +106,12 @@ EMPLOYEE_SCHEMA = {
                     "received")
         },
         {
+            "name": "c_experience_years",
+            "field_type": "decimal",
+            "doc": ("Inferred most recent value for number of years of "
+                    "experience")
+        },
+        {
             "name": "c_nbpts_certificate_expiration",
             "field_type": "timestamp",
             "doc": ("Inferred most recent value of For teachers and other "
@@ -324,8 +330,8 @@ PRIVATE_REPORT_EMPLOYEE_SCHEMA = {
 ASSIGNMENT_FTE_SCHEMA = {
     "name": "assignment_fte",
     "doc": ("Fte related info for an assignment. This is very frequently "
-            "the same across many assignements and not frequently useful "
-            "separating it out allows for lower data sizes."),
+            "the same across many assignements and not frequently useful. "
+            "Separating it out allows for lower data sizes."),
     "fields": [
         {
             "name": "assignment_fte_id",
@@ -473,7 +479,7 @@ ASSIGNMENT_SCHEMA = {
             "doc": ("Percentage of the employees total FTE are in this "
                     "assignment. Note that agrees with fte_in_assignment, but "
                     "not total_final_salary or assignment_salary. DO NOT USE "
-                    "TO PRORATE THE SALARY AMOUNTS. It is very possible to "
+                    "TO NAIVELY PRORATE THE SALARY AMOUNTS. It is possible to "
                     "have positive total_final_salary and/or "
                     "assignment_salary with 0 FTE assigned, possibly(?) as a "
                     "result of some roll-over bookkeeping.  Note also that "

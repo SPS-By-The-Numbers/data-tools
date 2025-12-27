@@ -14,9 +14,11 @@ from .schemas import f19x
 from .schemas import domains
 from .schemas import s275
 from .schemas import enrollment
-from .transforms.f19x import generate_f19x
+from .schemas import assessment
+from .transforms.f19x import generate_f19x, generate_domains
 from .transforms.s275 import generate_s275
 from .transforms.enrollment import generate_enrollment
+from .transforms.assessment import generate_assessment
 
 
 logger = logging.getLogger(__name__)
@@ -42,6 +44,10 @@ class FinalTableGenerator(DbConnection):
                 orm_classes.update(
                     self._create_orm_classes(enrollment.ALL_SCHEMAS))
 
+            if d == 'assessment':
+                orm_classes.update(
+                    self._create_orm_classes(assessment.ALL_SCHEMAS))
+
         if drop_first:
             logger.info("Dropping all tables")
             Base.metadata.drop_all(self.engine)
@@ -59,6 +65,13 @@ class FinalTableGenerator(DbConnection):
 
                 if d == 'enrollment':
                     generate_enrollment(session)
+
+                if d == 'domains':
+                    generate_domains(session)
+
+                if d == 'assessment':
+                    generate_assessment(session)
+
             session.commit()
 
     def _create_orm_classes(self, schemas):
@@ -83,9 +96,10 @@ def _parse_args():
     parser.add_argument('--db-drop-first', action="store_true",
                         help='Should drop the table before loading')
     parser.add_argument('datasets', nargs="+",
-                        choices=['f19x', 's275', 'domains', 'enrollment'],
-                        help=('Datasets to dump. f19x, s275, enrollment '
-                              'or domains'))
+                        choices=['f19x', 's275', 'domains', 'enrollment',
+                                 'assessment'],
+                        help=('Datasets to dump. f19x, s275, enrollment, '
+                              'assessment, or domains'))
 
     common_logging_setup(parser)
     add_db_arguments(parser)

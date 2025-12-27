@@ -13,9 +13,10 @@ from sqlalchemy.orm import Session
 
 from extractors.common import common_logging_setup, get_args
 from extractors.safs.data_reader import (DataReader, CsvRawReader,
-                                         MdbRawReader, XlsxRawReader)
+                                         MdbRawReader, XlsxRawReader,
+                                         AvroRawReader)
 from extractors.safs.data_reader_config import (enrollment, f195, f196, s275,
-                                                spsbtn)
+                                                spsbtn, assessment)
 
 from .db_connection import DbConnection, add_db_arguments
 from .orm import make_table
@@ -131,12 +132,20 @@ class DataLoader(DbConnection):
             raw_reader = CsvRawReader(filename)
         elif filename.endswith('xlsx'):
             raw_reader = XlsxRawReader(filename)
+        elif filename.endswith('avro'):
+            raw_reader = AvroRawReader(filename)
         else:
             raw_reader = MdbRawReader(filename)
 
         datatype = raw_reader.datatype()
 
         match datatype:
+            case "assessment":
+                return DataReader(
+                    raw_reader,
+                    assessment.get_reader_config(add_additional_fields,
+                                                 get_additional_values))
+
             case "f195":
                 return DataReader(
                     raw_reader,
@@ -224,6 +233,9 @@ def _get_additional_school_year(schema, tablename, all_tables, source):
 
         case '2024-':
             return {"_school_year": "2024-2025"}
+
+        case '2025-':
+            return {"_school_year": "2025-2026"}
 
     source_year_guess = re.match(r'\d\d\d\d-\d\d\d\d', source)
     if source_year_guess is not None:

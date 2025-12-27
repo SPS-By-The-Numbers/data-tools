@@ -226,7 +226,7 @@ def main():
                         type=argparse.FileType('r', encoding='UTF-8'),
                         required=True,
                         help='csv with school_code, normalized name, match"')
-    args = get_args()
+    args = get_args(parser)
 
     raw_parsed_schools = parse_file_into_schools(args.infile,
                                                  PAGE_CONFIG, FUNDING_CONFIG,
@@ -234,8 +234,11 @@ def main():
                                                  STAFFING_CONFIG)
     school_map = {row[2]: {"school_code": row[0], "name": row[1]} for row in
                   csv.reader(args.schoolmap) if row[2]}
+    print(school_map)
 
-    parsed_schools = [normalize_school(raw_info, school_map)
+    parsed_schools = [normalize_school(raw_info, school_map,
+                                       FUNDING_CONFIG,
+                                       ENROLLMENT_CONFIG)
                       for raw_info in raw_parsed_schools]
 
     write_denormalized_csv(args.outfile, parsed_schools)

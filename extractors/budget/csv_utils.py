@@ -39,6 +39,7 @@ def calculate_staffing_errors(parsed_schools):
 
 def write_school_csv(writer, school):
     name = school['metadata']['name']
+    print(school['metadata'])
     school_code = school['metadata']['school_code']
 
     # Output all the year data.

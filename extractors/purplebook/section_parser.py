@@ -653,7 +653,9 @@ class WssAndSpecEdParser(BaseParser):
         # to a different parsing mode.
         #
         # Use the raw_line to check for the start of these Total fields.
-        if self._total_mode == TotalMode.GetAafte:
+        if fields[0] == 'Revised FRL count':
+            self._total_mode = TotalMode.NotYet
+        elif self._total_mode == TotalMode.GetAafte:
             if self._wss_totals is None:
                 self._wss_totals = {}
             if fields[0].startswith('for Contact Time'):

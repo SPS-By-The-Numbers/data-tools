@@ -274,7 +274,7 @@ def main():
     common_pdftext_setup(parser)
     common_logging_setup(parser)
 
-    args = get_args()
+    args = get_args(parser)
 
     lines_by_schools = _break_lines_by_school(args.infile)
 

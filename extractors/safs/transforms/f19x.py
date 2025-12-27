@@ -1233,9 +1233,15 @@ def _populate_actuals_items(session):
     ))
 
 
+def generate_domains(session):
+    logger.info("Processing f19x domain")
+    _populate_domain_tables(session)
+    session.commit()
+
+
 def generate_f19x(session):
     logger.info("Processing f19x tables")
-    _populate_domain_tables(session)
+    generate_domains(session)
 
     _populate_budget_items(session)
     _populate_actuals_items(session)
