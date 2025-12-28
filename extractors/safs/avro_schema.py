@@ -77,13 +77,10 @@ def cleaned_string(record, source):
 
 
 def string_with_null(record, source):
-    value = record[source]
-
+    value = cleaned_string(record, source)
     if value is None:
         return None
-
-    value = value.strip()
-    if value == "NULL":
+    elif isinstance(value, str) and value == "NULL":
         return None
 
     return value

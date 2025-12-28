@@ -1,11 +1,11 @@
 from .common import AUDIT_FIELDS, SCHOOL_YEAR_DISTRICT_FIELDS
 
 ASSESSMENT_RC_SCHEMA = {
-    "name": "assessment_rc",
+    "name": "rc_assessment",
     "doc": "State assementment data behind the WA Report Card reports",
     "fields": [
         {
-            "name": "assessment_rc_id",
+            "name": "rc_assessment_id",
             "field_type": "auto_primary_key",
             "doc": ("primary key"),
         },
@@ -130,15 +130,15 @@ ASSESSMENT_RC_SCHEMA = {
         },
 
         {
-            "name": "num_has_foundational",
+            "name": "num_met_foundational",
             "field_type": "int",
             "doc": ('# students at level 2, 3, and 4 profficiency. Includes '
                     'the count of students who passed in a previous test '
                     'administration. Is NULL with DAT')
         },
         {
-            "name": "pct_has_foundational",
-            "field_type": "decimal",
+            "name": "pct_met_foundational",
+            "field_type": "string",
             "doc": ('%% students at level 2, 3, and 4 profficiency. Includes '
                     'the count of students who passed in a previous test '
                     'administration. Denominator is num_expected_incl_prior.'

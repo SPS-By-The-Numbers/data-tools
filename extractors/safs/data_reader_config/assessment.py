@@ -177,11 +177,7 @@ def _field_from_column_name(_, column_name):
         case ('percent_met_tested_only' |
               'percentmettestedonly'
               ):
-            return avro_schema.make_field(
-                name='percent_met_tested_only',
-                source=column_name,
-                field_type="decimal",
-                extractor=avro_schema.to_decimal_from_floatstr_or_null)
+            return None
 
         case ('percent_taking_alternative' |
               'percent_taking_alternative_assessment'

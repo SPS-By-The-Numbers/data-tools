@@ -11,7 +11,7 @@ def generate_assessment(session):
     logger.info("Processing assessment table")
     session.execute(text(
         f"""
-        INSERT INTO assessment_rc (
+        INSERT INTO rc_assessment (
             school_year,
             class_of,
 
@@ -39,8 +39,8 @@ def generate_assessment(session):
             num_met_standard,
             pct_met_standard,
 
-            num_has_foundational,
-            pct_has_foundational,
+            num_met_foundational,
+            pct_met_foundational,
 
             pct_level_1,
             pct_level_2,
@@ -95,5 +95,56 @@ def generate_assessment(session):
         LEFT JOIN d_county co ON (c.county_code = co.county_code)
         WHERE
             organization_level = 'School'
+        """
+    ))
+
+    # Fix up some data labeling inconsistency
+    session.execute(text(
+        """
+        UPDATE rc_assessment
+        SET student_group = "Two Or More Races"
+        WHERE student_group = "TwoorMoreRaces"
+        """
+    ))
+    session.execute(text(
+        """
+        UPDATE rc_assessment
+        SET student_group = "Native Hawaiian/ Other Pacific Islander"
+        WHERE student_group = "Native Hawaiian/Pacific Islander"
+        """
+    ))
+    session.execute(text(
+        """
+        UPDATE rc_assessment
+        SET student_group = "Non-Migrant"
+        WHERE student_group = "Non Migrant"
+        """
+    ))
+    session.execute(text(
+        """
+        UPDATE rc_assessment
+        SET student_group = "Non-Military Parent"
+        WHERE student_group = "Non Military Parent"
+        """
+    ))
+    session.execute(text(
+        """
+        UPDATE rc_assessment
+        SET student_group = "Non-Section 504"
+        WHERE student_group = "Non Section 504"
+        """
+    ))
+    session.execute(text(
+        """
+        UPDATE rc_assessment
+        SET student_group = "Non-Low-Income"
+        WHERE student_group = "Non-Low Income"
+        """
+    ))
+    session.execute(text(
+        """
+        UPDATE rc_assessment
+        SET student_group = "Non-Students with Disabilities"
+        WHERE student_group = "Students without Disabilities"
         """
     ))

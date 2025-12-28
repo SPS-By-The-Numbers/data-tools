@@ -20,7 +20,10 @@ PROJECT_NAME = 'sps-btn-data'
 
 
 def bq_dataset_name(dataset):
-    return f"safs_{dataset}"
+    if dataset == 'assessment':
+        return 'ospi'
+    else:
+        return f"safs_{dataset}"
 
 
 def get_bucket_uri(filepath):
@@ -89,7 +92,8 @@ def main():
     parser.add_argument('--outdir', required=True,
                         help='directory for set finalized avro tables"')
     parser.add_argument('datasets', nargs="+",
-                        choices=['f19x', 's275', 'domains', 'enrollment'],
+                        choices=['f19x', 's275', 'domains', 'enrollment',
+                                 'assessment'],
                         help='loads files from outdir into the ospi datasets')
     parser.add_argument('--upload-to-gcs', action='store_true',
                         help='Upload file to gcs')

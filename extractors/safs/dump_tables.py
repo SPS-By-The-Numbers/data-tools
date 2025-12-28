@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 
 from extractors.common import common_logging_setup, get_args
 from extractors.safs.avro_schema import to_avro_value, to_avro_schema
-from .schemas import f19x, s275, domains, enrollment
+from .schemas import f19x, s275, domains, enrollment, assessment
 from .db_connection import DbConnection, add_db_arguments
 
 
@@ -52,6 +52,9 @@ class AvroDumper(DbConnection):
             case 'enrollment':
                 all_schemas = enrollment.ALL_SCHEMAS
 
+            case 'assessment':
+                all_schemas = assessment.ALL_SCHEMAS
+
             case _:
                 raise ValueError(dataset)
 
@@ -77,9 +80,10 @@ def main():
     parser.add_argument('--yield-per', default=1000,
                         help='How many rows to select before writing')
     parser.add_argument('datasets', nargs="+",
-                        choices=['f19x', 's275', 'domains', 'enrollment'],
-                        help=('Datasets to dump. f19x, s275, enrollment '
-                              'or domains'))
+                        choices=['f19x', 's275', 'domains', 'enrollment',
+                                 'assessment'],
+                        help=('Datasets to dump. f19x, s275, enrollment, '
+                              'assessment, or domains'))
     add_db_arguments(parser)
     common_logging_setup(parser)
 
