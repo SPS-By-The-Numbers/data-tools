@@ -144,13 +144,28 @@ def _field_from_column_name(_, column_name):
                 field_type="int",
                 extractor=avro_schema.to_int_or_null)
 
-        # Pass-thru Decimals.
+        # Skipping
+        # TODO: Fix this. It'sin later scheumas 2022-2023
         case ('percent_consistent_tested' |
-              'percent_no_score' |
-              'percent_participation'
+              'percent_consistent_tested_only'
+              ):
+            return None
+
+        case ('percent_participation' |
+              'percentparticipation'
               ):
             return avro_schema.make_field(
-                name=column_name,
+                name='percent_participation',
+                source=column_name,
+                field_type="decimal",
+                extractor=avro_schema.to_decimal_from_floatstr_or_null)
+
+        case ('percent_no_score' |
+              'percentnoscore'
+              ):
+            return avro_schema.make_field(
+                name='percent_no_score',
+                source=column_name,
                 field_type="decimal",
                 extractor=avro_schema.to_decimal_from_floatstr_or_null)
 

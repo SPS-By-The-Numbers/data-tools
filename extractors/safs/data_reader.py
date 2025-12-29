@@ -77,7 +77,7 @@ class XlsxRawReader:
             if len(columns_to_drop) > 0:
                 df = df.drop(columns=columns_to_drop)
                 logger.info(f"Dropping columns: {columns_to_drop}. Left over "
-                            "are {df.columns}")
+                            f"are {df.columns}")
 
         for row in df.values:
             yield [_strip_str_only(v) for v in row]

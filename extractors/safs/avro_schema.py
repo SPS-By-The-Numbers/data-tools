@@ -100,7 +100,7 @@ def to_int(record, source):
 def to_int_or_null(record, source):
     """Reads the value as an int"""
     value = string_with_null(record, source)
-    if value is None:
+    if value is None or not value:
         return None
     return int(value)
 
@@ -155,7 +155,7 @@ def to_decimal_from_floatstr_or_null(record, source):
 
 def to_decimal_or_null(record, source):
     value = string_with_null(record, source)
-    if value is None:
+    if value is None or not value:
         return None
     return Decimal(value).quantize(DECIMAL_QUANT_AMOUNT)
 

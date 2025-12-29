@@ -36,7 +36,6 @@ def make_domain_table(domain, descriptive_name,
     if primary_key_override is not None:
         primary_key = primary_key_override
 
-
     audit_fields = (AUDIT_FIELDS_SCHOOL_YEAR_PK
                     if is_school_year_lk else AUDIT_FIELDS)
 
@@ -67,17 +66,16 @@ DOMAIN_PROGRAM = make_domain_table(
     source_descriptive_col_override="title",
     additional_fields=[
         {
-            'name': 'sps_program_grouping',
+            'name': 'ospi_revenue_description_spsbtn',
             'field_type': 'string',
-            'doc': ("Grouping of programs used in SPS's budget book augmented"
-                    "with some more groupings for programs that aren't "
-                    "listed"),
+            'doc': ("Grouping of programs from the OSPI Accounting Manual "
+                    "plus inferred categories if programs aren't listed ")
         },
         {
-            'name': 'raw_sps_program_grouping',
+            'name': 'ospi_revenue_description',
             'field_type': 'string',
-            'doc': ("Grouping of programs used in SPS's budget book. Some "
-                    "programs are not listed and will not have a value")
+            'doc': ("Grouping of programs from the OSPI Accounting Manual. "
+                    "Programs not listed have a NULL.")
         },
         {
             'name': 'per_pupil_program',
@@ -153,6 +151,16 @@ DOMAIN_SCHOOL = make_domain_table(
             'name': 'school',
             'field_type': 'string',
             'doc': "Just the school name",
+        },
+        {
+            'name': 'type',
+            'field_type': 'string',
+            'doc': "Type of school. Most often 'regular'. NULL if not known",
+        },
+        {
+            'name': 'is_regular',
+            'field_type': 'int',
+            'doc': "1 if type is known to be regular. Convenience column",
         },
         {
             'name': 'is_district_office',

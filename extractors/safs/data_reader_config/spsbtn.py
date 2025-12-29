@@ -27,6 +27,7 @@ RE_CODED_INT_COLUMN = re.compile(
     r"revenue_code$|"
     r"duty_root$|"
     r"duty_suffix$|"
+    r"is_regular$|"
     r"ccddd$")
 
 # Use this to force a string. It's an override that's run before the other

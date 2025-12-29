@@ -177,9 +177,10 @@ def _populate_domain_program(session):
                      column_map={
                          'program_code': 'program_code',
                          'program_f196': 'program',
-                         'sps_program_grouping_augmented':
-                             'sps_program_grouping',
-                         'sps_program_grouping': 'raw_sps_program_grouping',
+                         'ospi_revenue_description':
+                         'ospi_revenue_description',
+                         'ospi_revenue_description_spsbtn':
+                         'ospi_revenue_description_spsbtn',
                          'program_per_pupil': 'per_pupil_program',
                          'school_year': 'school_year',
                          '_source': '_source',
@@ -218,7 +219,7 @@ def _populate_domain_program(session):
              UPDATE d_program
              SET
              program = '[special] Unrestricted',
-             sps_program_grouping = '[special] Unrestricted',
+             ospi_revenue_description_spsbtn = '[special] Unrestricted',
              school_year = '9998-9999',
              _source = 'generate_final_tables.py',
              _source_table = 'generate_final_tables.py'
@@ -226,13 +227,15 @@ def _populate_domain_program(session):
              """
              ))
 
-    # Ensure sps_program_grouping always has a value
+    # Ensure ospi_revenue_description_spsbtn always has a value
+    # TODO: This is wrong. use the number categories from the accounting
+    # manual.
     session.execute(
         text("""
              UPDATE d_program
              SET
-             sps_program_grouping = CONCAT('[infered] ', program)
-             WHERE sps_program_grouping IS NULL
+             ospi_revenue_description_spsbtn = CONCAT('[infered] ', program)
+             WHERE ospi_revenue_description_spsbtn IS NULL
              """
              ))
 
@@ -246,7 +249,6 @@ def _populate_domain_activity(session):
                          'activity_code': 'activity_code',
                          'activity': 'activity',
                          'sps_budget_category': 'sps_activity_category',
-                         'collapsed': 'simplfied_activity',
                          'school_year': 'school_year',
                          '_source': '_source',
                          '_source_table': '_source_table',
@@ -285,8 +287,7 @@ def _populate_domain_object(session):
                      target_table='d_object',
                      column_map={
                          'object_code': 'object_code',
-                         'object_description': 'object',
-                         'object_type': 'object_type',
+                         'object': 'object',
                          'school_year': 'school_year',
                          '_source': '_source',
                          '_source_table': '_source_table',
@@ -313,7 +314,7 @@ def _populate_domain_nces(session):
                      target_table='d_nces',
                      column_map={
                          'nces_code': 'nces_code',
-                         'nces_description': 'nces',
+                         'nces': 'nces',
                          'school_year': 'school_year',
                          '_source': '_source',
                          '_source_table': '_source_table',
@@ -474,6 +475,22 @@ def _populate_domain_school(session):
                      unique_columns=['school_code']
                      ))
 
+    session.execute(
+        _make_upsert(source_table='spsbtn_schools',
+                     target_table='d_school',
+                     column_map={
+                         'school_code': 'school_code',
+                         'school_and_district': 'school_and_district',
+                         'type': 'type',
+                         'is_regular': 'is_regular',
+                         'school_year': 'school_year',
+                         'ccddd': 'ccddd',
+                         '_source': '_source',
+                         '_source_table': '_source_table',
+                     },
+                     unique_columns=['school_code']
+                     ))
+
     # The domain table has school and district with a dash at the end.
     # Extract just the school name.
     session.execute(
@@ -512,7 +529,6 @@ def _populate_domain_fund(session):
                      column_map={
                          'fund_code': 'fund_code',
                          'fund': 'fund',
-                         'fund_des': 'fund_des',
                          'school_year': 'school_year',
                          '_source': '_source',
                          '_source_table': '_source_table',

@@ -178,6 +178,8 @@ def pivot_all_districts(orig_rows):
 
     The output structure should be.
     ['ccddd', 'fund', 'item', 'year', 'forecast', 'amount']
+    j
+    This is 2025-2026's  grr  "CCDDD,Fund,ItemCode,26-26,26-27,27-28,28-29"
     """
     header = [h.lower() for h in next(orig_rows)]
     ccddd_index = header.index('ccddd')

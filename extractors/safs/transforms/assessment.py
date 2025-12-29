@@ -102,49 +102,49 @@ def generate_assessment(session):
     session.execute(text(
         """
         UPDATE rc_assessment
-        SET student_group = "Two Or More Races"
-        WHERE student_group = "TwoorMoreRaces"
+        SET student_group = 'Two Or More Races'
+        WHERE student_group = 'TwoorMoreRaces'
         """
     ))
     session.execute(text(
         """
         UPDATE rc_assessment
-        SET student_group = "Native Hawaiian/ Other Pacific Islander"
-        WHERE student_group = "Native Hawaiian/Pacific Islander"
+        SET student_group = 'Native Hawaiian/ Other Pacific Islander'
+        WHERE student_group = 'Native Hawaiian/Pacific Islander'
         """
     ))
     session.execute(text(
         """
         UPDATE rc_assessment
-        SET student_group = "Non-Migrant"
-        WHERE student_group = "Non Migrant"
+        SET student_group = 'Non-Migrant'
+        WHERE student_group = 'Non Migrant'
         """
     ))
     session.execute(text(
         """
         UPDATE rc_assessment
-        SET student_group = "Non-Military Parent"
-        WHERE student_group = "Non Military Parent"
+        SET student_group = 'Non-Military Parent'
+        WHERE student_group = 'Non Military Parent'
         """
     ))
     session.execute(text(
         """
         UPDATE rc_assessment
-        SET student_group = "Non-Section 504"
-        WHERE student_group = "Non Section 504"
+        SET student_group = 'Non-Section 504'
+        WHERE student_group = 'Non Section 504'
         """
     ))
     session.execute(text(
         """
         UPDATE rc_assessment
-        SET student_group = "Non-Low-Income"
-        WHERE student_group = "Non-Low Income"
+        SET student_group = 'Non-Low-Income'
+        WHERE student_group = 'Non-Low Income'
         """
     ))
     session.execute(text(
         """
         UPDATE rc_assessment
-        SET student_group = "Non-Students with Disabilities"
-        WHERE student_group = "Students without Disabilities"
+        SET student_group = 'Non-Students with Disabilities'
+        WHERE student_group = 'Students without Disabilities'
         """
     ))
