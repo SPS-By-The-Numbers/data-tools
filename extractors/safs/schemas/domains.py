@@ -163,6 +163,11 @@ DOMAIN_SCHOOL = make_domain_table(
             'doc': "1 if type is known to be regular. Convenience column",
         },
         {
+            'name': 'region',
+            'field_type': 'string',
+            'doc': "NW, NE, Central, SW, SE, Other, Invalid",
+        },
+        {
             'name': 'is_district_office',
             'field_type': 'boolean',
             'doc': ("For easy filtering of whether or not this is the "

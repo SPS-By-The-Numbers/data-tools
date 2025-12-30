@@ -483,6 +483,7 @@ def _populate_domain_school(session):
                          'school_and_district': 'school_and_district',
                          'type': 'type',
                          'is_regular': 'is_regular',
+                         'region': 'region',
                          'school_year': 'school_year',
                          'ccddd': 'ccddd',
                          '_source': '_source',
