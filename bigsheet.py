@@ -125,6 +125,7 @@ def olsRegression(df, var):
     # Only Elementary
     # df = df[(df['Elementary'] == 1) | (df['K-8'] == 1)]
 
+    df = df[inputs + output].dropna()
     y = df[output]
     X = df[inputs]
 
@@ -132,7 +133,68 @@ def olsRegression(df, var):
     model = sm.OLS(y, X).fit()
     print(model.summary())
 
-# long hsould look like
+
+def join_map(df):
+    hc_df = pd.read_csv('data/sps/map/map-score-2017-2024-average-hc.csv')
+    hc_df = hc_df.pivot(
+        index=[
+            'school_code',
+        ],
+        columns=[
+            'AcademicSubject',
+            'grade',
+            'season',
+        ],
+        values=[
+            'Average of RITScore',
+            'StdDev of RITScore',
+        ]
+    ).reset_index()
+    hc_df.columns = [
+        'hc_' + '_'.join([str(c) for c in orderColumnName(col) if c]).strip()
+        for col in hc_df.columns.values]
+    hc_df.rename(columns={'hc_school_code': 'school_code'}, inplace=True)
+
+    nonhc_df = pd.read_csv(
+        'data/sps/map/map-score-2017-2024-average-nonhc.csv')
+    nonhc_df = nonhc_df.pivot(
+        index=[
+            'school_code',
+        ],
+        columns=[
+            'MAP Academic Subject',
+            'Grade',
+            'Season',
+        ],
+        values=[
+            'Average RIT Score',
+            'Std Deviation',
+            'Number of Students',
+        ]
+    ).reset_index()
+    nonhc_df.columns = [
+        'nonhc_' + '_'.join(
+            [str(c) for c in orderColumnName(col) if c]).strip()
+        for col in nonhc_df.columns.values]
+    nonhc_df.rename(columns={'nonhc_school_code': 'school_code'}, inplace=True)
+
+    df = pd.merge(df, hc_df, on='school_code', how="left")
+    df = pd.merge(df, nonhc_df, on='school_code', how='left')
+
+    return df
+
+
+def join_bex(df):
+    building_df = pd.read_csv(
+        'data/sps/building/bex-vi-historic-building-scores.csv')
+    utilize_df = pd.read_csv(
+        'data/sps/building/utilization_condition.csv')
+    df = pd.merge(df, building_df, on='school_code', how='left')
+    df = pd.merge(df, utilize_df, on='school_code', how='left')
+    return df
+
+
+# long should look like
 # class_of, school_code, test_administration, test_subject, student_type,
 # student_group, variable, value
 #
@@ -141,14 +203,12 @@ def olsRegression(df, var):
 #  2023, 5458, SBAC, Math, Race, All, Pct, 1.0
 #  2023, 5458, SBAC, Math, Race, All, pct_met_foundational_numeric, 0.8
 #
-
 def select_assessments(df):
     logical_key = [
         'class_of',
         'school_code',
         'test_administration',
         'test_subject',
-        'student_type'
         'student_group'
     ]
     values = [
@@ -253,9 +313,6 @@ def main():
 
     # School type indicator vars.
     vitals_df = pd.read_csv(args.vitals)
-    vitals_long_df = vitals_to_long(vitals_df)
-    showDfInfo(vitals_long_df)
-    return
 
     vitals_df['OtherSchool'] = np.where(vitals_df['type'] == 'Other', 1, 0)
     vitals_df['K-8'] = np.where(vitals_df['type'] == 'K-8', 1, 0)
@@ -297,9 +354,12 @@ def main():
     vitals_df['m_Madison'] = np.where(
         vitals_df['ms_assignment_code'] == 2435, 1, 0)
 
+    vitals_df = join_map(vitals_df)
+    vitals_df = join_bex(vitals_df)
+
     assessment_df = pd.read_csv(args.assessment)
     long_df = select_assessments(assessment_df)
-    showDfInfo(long_df)
+    # showDfInfo(long_df)
 
     wide_df = assessments_to_wide(long_df)
     wide_df = pd.merge(vitals_df, wide_df,
@@ -312,6 +372,9 @@ def main():
     moveToFront(wide_df, 'type')
     moveToFront(wide_df, 'school_name')
     moveToFront(wide_df, 'class_of')
+
+    if args.write:
+        wide_df.to_csv('wide.csv')
 
     # Do stats
     olsRegression(
@@ -331,9 +394,6 @@ def main():
     #     'SBAC_ELA_Black/ African American_pct_met_standard_numeric'
     # )
     # 'WCAS_Science_All Students_pct_met_standard_numeric'
-
-    if args.write:
-        wide_df.to_csv('wide.csv')
 
 
 if __name__ == '__main__':
