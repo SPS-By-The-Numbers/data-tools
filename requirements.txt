@@ -7,4 +7,5 @@ pandas
 pytest
 pytest-mock
 python-poppler
+researchpy
 zstandard

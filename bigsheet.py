@@ -4,6 +4,8 @@ import argparse
 import pandas as pd
 import numpy as np
 import statsmodels.api as sm
+import researchpy as rp
+# import scipy.stats as stats
 
 
 def orderColumnName(raw_f):
@@ -18,12 +20,23 @@ def moveToFront(df, col_name):
     df.insert(0, col_name, col)
 
 
-def doStats(df, var):
+def showDfInfo(df):
+    df.info()
+    rp.codebook(df)
+
+
+def olsRegression(df, var):
     output = [
         var
     ]
     inputs = [
         # "fte_per_pupil",
+        "num_students_normalized",
+        "class_teacher_exp_50pctile_normalized",
+        "pct_class_teacher_over_bachelors",
+        "class_teacher_fte_per_pupil",
+        "class_teacher_likely_early_term_fte",
+        # "other_teacher_fte_per_pupil",
         # "spend_per_pupil",
         # "pct_military_parent",
         # "pct_migrant",
@@ -46,14 +59,30 @@ def doStats(df, var):
         "pct_two_or_more_races",
 
         # Year of graduation
-        "class_of_normalized",
+        # "class_of_normalized",
+        "2021_or_later",
 
         # Regions
-        "r_NW",
-        "r_NE",
-        "r_SE",
-        "r_SW",
+        # 'ms_assignment_code_normalized',
+        # "r_NW",
+        # "r_NE",
+        # "r_SE",
+        # "r_SW",
         # "r_Central",
+
+        # Middle schools
+        'm_Meany',
+        'm_Eckstein',
+        'm_JaneAddams',
+        'm_Hamilton',
+        'm_McClure',
+        'm_RESMS',
+        'm_Whitman',
+        'm_AkiKurose',
+        'm_Mercer',
+        'm_Washington',
+        'm_Denny',
+        # 'm_Madison',
 
         # School type
         "is_regular",
@@ -63,21 +92,38 @@ def doStats(df, var):
         # "Elementary",
     ]
 
+    df['num_students_normalized'] = (
+        df['all_students'] / df['all_students'].max())
     df['class_of_normalized'] = df['class_of'] / df['class_of'].max()
     df['school_code_normalized'] = df['school_code'] / df['school_code'].max()
+    df['ms_assignment_code_normalized'] = (
+        df['ms_assignment_code'] / df['ms_assignment_code'].max()
+    )
+
+    df['class_teacher_exp_50pctile_normalized'] = (
+        df['class_teacher_exp_50pctile']
+        / df['class_teacher_exp_50pctile'].max())
+    df['pct_class_teacher_over_bachelors'] = (
+        (df['num_class_teachers_masters'] +
+         df['num_class_teachers_doctors']) / df['num_class_teachers'])
+    df['class_teacher_fte_per_pupil'] = (
+        df['class_teacher_fte'] / df['all_students'])
+    df['asst_principal_fte_per_pupil'] = (
+        df['asst_principal_fte'] / df['all_students'])
+    df['other_teacher_fte_per_pupil'] = (
+        df['other_teacher_fte'] / df['all_students'])
 
     # filter data
     # df = df[(df['class_of'] > 2021) & (df['type'] != 'Other')]
-    df = df[(df['type'] != 'Other')]
+    df['2021_or_later'] = np.where(df['class_of'] >= 2021, 1, 0)
+    # df = df[(df['type'] != 'Other')]
 
     # Drop HCC Schools.
     # df = df[(df['school_code'] != 5292) & (df['school_code'] != 5488) &
     #        (df['school_code'] != 2141)]
 
     # Only Elementary
-    df = df[(df['Elementary'] == 1)]
-
-    df = df[output + inputs].dropna()
+    # df = df[(df['Elementary'] == 1) | (df['K-8'] == 1)]
 
     y = df[output]
     X = df[inputs]
@@ -86,6 +132,15 @@ def doStats(df, var):
     model = sm.OLS(y, X).fit()
     print(model.summary())
 
+# long hsould look like
+# class_of, school_code, test_administration, test_subject, student_type,
+# student_group, variable, value
+#
+# Example
+#  2023, 5458, SBAC, Math, Race, All, Count, 100
+#  2023, 5458, SBAC, Math, Race, All, Pct, 1.0
+#  2023, 5458, SBAC, Math, Race, All, pct_met_foundational_numeric, 0.8
+#
 
 def select_assessments(df):
     logical_key = [
@@ -93,6 +148,7 @@ def select_assessments(df):
         'school_code',
         'test_administration',
         'test_subject',
+        'student_type'
         'student_group'
     ]
     values = [
@@ -108,6 +164,10 @@ def select_assessments(df):
           .dropna(subset=logical_key)
           .dropna(subset=values, how="all"))
 
+    return df
+
+
+def assessments_to_wide(df):
     df = df.pivot(
         index=[
             'class_of',
@@ -132,6 +192,53 @@ def select_assessments(df):
     return df
 
 
+def melt_school_info_category(accumulate, df, student_group_type, value_name,
+                              value_vars):
+    df = df.melt(
+        id_vars=['class_of', 'school_code'],
+        value_vars=value_vars,
+        var_name='student_group',
+        value_name=value_name
+    )
+    df['student_group_type'] = student_group_type
+    return pd.concat([accumulate, df], ignore_index=True)
+
+
+def vitals_to_long(df):
+    result = pd.DataFrame()
+    result = melt_school_info_category(result, df, 'All', 'count', [
+        'all_students'])
+    result = melt_school_info_category(result, df, 'homeless', 'count', [
+        'homeless'])
+    result = melt_school_info_category(result, df, 'Migrant', 'count', [
+        'migrant'])
+    result = melt_school_info_category(result, df, 'Military', 'count', [
+        'military_parent'])
+    result = melt_school_info_category(result, df, 'FRL', 'count', [
+        'low_income'])
+    result = melt_school_info_category(result, df, 'Foster', 'count', [
+        'foster_care'])
+    result = melt_school_info_category(result, df, 'Mobile', 'count', [
+        'mobile'])
+    result = melt_school_info_category(result, df, 's504', 'count', [
+        'section_504'])
+    result = melt_school_info_category(result, df, 'ELL', 'count', [
+        'english_language_learners'])
+    result = melt_school_info_category(result, df, 'HCC', 'count', [
+        'highly_capable'])
+    result = melt_school_info_category(result, df, 'SWD', 'count', [
+        'students_with_disabilities'])
+    result = melt_school_info_category(result, df, 'Gender', 'count', [
+        'female', 'gender_x', 'male'])
+
+    result = melt_school_info_category(result, df, 'Race', 'count', [
+        'white', 'black_african_american', 'native_hawaiian_other_pacific',
+        'hispanic_latino_of_any_race', 'american_indian_alaskan_native',
+        'asian', 'two_or_more_races'])
+
+    return result
+
+
 def main():
     parser = argparse.ArgumentParser(
         prog='bigsheet',
@@ -140,10 +247,16 @@ def main():
                         help='csv with vitals by school')
     parser.add_argument('--assessment', required=True,
                         help='csv with assessment data')
+    parser.add_argument('-w', '--write', action='store_true',
+                        help='csv with assessment data')
     args = parser.parse_args()
 
     # School type indicator vars.
     vitals_df = pd.read_csv(args.vitals)
+    vitals_long_df = vitals_to_long(vitals_df)
+    showDfInfo(vitals_long_df)
+    return
+
     vitals_df['OtherSchool'] = np.where(vitals_df['type'] == 'Other', 1, 0)
     vitals_df['K-8'] = np.where(vitals_df['type'] == 'K-8', 1, 0)
     vitals_df['Highschool'] = np.where(vitals_df['type'] == 'Highschool', 1, 0)
@@ -159,28 +272,68 @@ def main():
     vitals_df['r_SE'] = np.where(vitals_df['region'] == 'SE', 1, 0)
     vitals_df['r_Other'] = np.where(vitals_df['region'] == 'Other', 1, 0)
 
+    vitals_df['m_Meany'] = np.where(
+        vitals_df['ms_assignment_code'] == 5485, 1, 0)
+    vitals_df['m_Eckstein'] = np.where(
+        vitals_df['ms_assignment_code'] == 2729, 1, 0)
+    vitals_df['m_JaneAddams'] = np.where(
+        vitals_df['ms_assignment_code'] == 5351, 1, 0)
+    vitals_df['m_Hamilton'] = np.where(
+        vitals_df['ms_assignment_code'] == 2371, 1, 0)
+    vitals_df['m_McClure'] = np.where(
+        vitals_df['ms_assignment_code'] == 3517, 1, 0)
+    vitals_df['m_RESMS'] = np.where(
+        vitals_df['ms_assignment_code'] == 5486, 1, 0)
+    vitals_df['m_Whitman'] = np.where(
+        vitals_df['ms_assignment_code'] == 3277, 1, 0)
+    vitals_df['m_AkiKurose'] = np.where(
+        vitals_df['ms_assignment_code'] == 3774, 1, 0)
+    vitals_df['m_Mercer'] = np.where(
+        vitals_df['ms_assignment_code'] == 3095, 1, 0)
+    vitals_df['m_Washington'] = np.where(
+        vitals_df['ms_assignment_code'] == 4064, 1, 0)
+    vitals_df['m_Denny'] = np.where(
+        vitals_df['ms_assignment_code'] == 2839, 1, 0)
+    vitals_df['m_Madison'] = np.where(
+        vitals_df['ms_assignment_code'] == 2435, 1, 0)
+
     assessment_df = pd.read_csv(args.assessment)
-    joined_df = select_assessments(assessment_df)
-    joined_df = pd.merge(vitals_df, joined_df,
-                         how="outer",
-                         on=['class_of', 'school_code'])
+    long_df = select_assessments(assessment_df)
+    showDfInfo(long_df)
+
+    wide_df = assessments_to_wide(long_df)
+    wide_df = pd.merge(vitals_df, wide_df,
+                       how="outer",
+                       on=['class_of', 'school_code'])
 
     # Reorder the columns.
-    moveToFront(joined_df, 'school_code')
-    moveToFront(joined_df, 'is_regular')
-    moveToFront(joined_df, 'type')
-    moveToFront(joined_df, 'school_name')
-    moveToFront(joined_df, 'class_of')
+    moveToFront(wide_df, 'school_code')
+    moveToFront(wide_df, 'is_regular')
+    moveToFront(wide_df, 'type')
+    moveToFront(wide_df, 'school_name')
+    moveToFront(wide_df, 'class_of')
 
     # Do stats
-    doStats(
-        joined_df,
-        # 'WCAS_Science_All Students_pct_met_standard_numeric'
-        # 'SBAC_Math_All Students_pct_met_standard_numeric'
-        'SBAC_Math_Black/ African American_pct_met_standard_numeric'
+    olsRegression(
+        wide_df,
+        'SBAC_Math_All Students_pct_met_standard_numeric'
     )
+    # olsRegression(
+    #     wide_df,
+    #     'SBAC_Math_Black/ African American_pct_met_standard_numeric'
+    # )
+    # olsRegression(
+    #     wide_df,
+    #     'SBAC_ELA_All Students_pct_met_standard_numeric'
+    # )
+    # olsRegression(
+    #     wide_df,
+    #     'SBAC_ELA_Black/ African American_pct_met_standard_numeric'
+    # )
+    # 'WCAS_Science_All Students_pct_met_standard_numeric'
 
-    joined_df.to_csv('output.csv')
+    if args.write:
+        wide_df.to_csv('wide.csv')
 
 
 if __name__ == '__main__':

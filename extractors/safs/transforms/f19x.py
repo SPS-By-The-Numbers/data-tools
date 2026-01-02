@@ -484,6 +484,7 @@ def _populate_domain_school(session):
                          'type': 'type',
                          'is_regular': 'is_regular',
                          'region': 'region',
+                         'ms_assignment_code': 'ms_assignment_code',
                          'school_year': 'school_year',
                          'ccddd': 'ccddd',
                          '_source': '_source',
@@ -507,6 +508,21 @@ def _populate_domain_school(session):
                 END
             ))
             WHERE school_and_district IS NOT NULL;
+            """
+        )
+    )
+
+    # Self-join the ms_assignment field.
+    session.execute(
+        text(
+            """
+            UPDATE d_school AS t1
+            SET ms_assignment = t2.school
+            FROM d_school AS t2
+            WHERE
+              t1.ccddd = t2.ccddd
+            AND
+              t1.ms_assignment_code = t2.school_code
             """
         )
     )

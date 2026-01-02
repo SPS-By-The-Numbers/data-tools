@@ -168,6 +168,18 @@ DOMAIN_SCHOOL = make_domain_table(
             'doc': "NW, NE, Central, SW, SE, Other, Invalid",
         },
         {
+            'name': 'ms_assignment_code',
+            'field_type': 'int',
+            'doc': ("school_code for middle school assignment region that "
+                    "this school is in."),
+        },
+        {
+            'name': 'ms_assignment',
+            'field_type': 'string',
+            'doc': ("Name of middle school assignment. Convience field for "
+                    "ms_assignment_code to avoid an extra join."),
+        },
+        {
             'name': 'is_district_office',
             'field_type': 'boolean',
             'doc': ("For easy filtering of whether or not this is the "
