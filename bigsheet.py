@@ -8,13 +8,15 @@ import researchpy as rp
 import statsmodels.formula.api as smf
 
 
-STANDARD_INPUTS = [
+CONT_INPUTS = [
     # "fte_per_pupil",
-    "num_students_normalized",
-    "class_teacher_exp_50pctile_normalized",
-    "pct_class_teacher_over_bachelors",
+    # "num_students_normalized",
+    "all_students",
+    # "class_teacher_exp_50pctile_normalized",
+    "class_teacher_exp_avg",
+    # "pct_class_teacher_over_bachelors",
     "class_teacher_fte_per_pupil",
-    "class_teacher_likely_early_term_fte",
+    # "class_teacher_likely_early_term_fte",
     # "other_teacher_fte_per_pupil",
     # "spend_per_pupil",
     # "pct_military_parent",
@@ -32,17 +34,20 @@ STANDARD_INPUTS = [
     # "pct_gender_x",
     # "pct_white",
     "pct_black_african_american",
-    "pct_native_hawaiian_other_pacific",
-    "pct_hispanic_latino_of_any_race",
-    "pct_asian",
-    "pct_two_or_more_races",
+    # "pct_native_hawaiian_other_pacific",
+    # "pct_hispanic_latino_of_any_race",
+    # "pct_asian",
+    # "pct_two_or_more_races",
+]
 
+CATEGORICAL_INPUTS = [
     # Year of graduation
-    "class_of_normalized",
-    # "2021_or_later",
+    # "class_of",
+    "at_or_after_2021",
 
     # Regions
-    # 'ms_assignment_code_normalized',
+    # 'ms_assignment',
+    # 'region',
     # "r_NW",
     # "r_NE",
     # "r_SE",
@@ -50,25 +55,26 @@ STANDARD_INPUTS = [
     # "r_Central",
 
     # Middle schools
-    'm_Meany',
-    'm_Eckstein',
-    'm_JaneAddams',
-    'm_Hamilton',
-    'm_McClure',
-    'm_RESMS',
-    'm_Whitman',
-    'm_AkiKurose',
-    'm_Mercer',
-    'm_Washington',
-    'm_Denny',
+    # 'm_Meany',
+    # 'm_Eckstein',
+    # 'm_JaneAddams',
+    # 'm_Hamilton',
+    # 'm_McClure',
+    # 'm_RESMS',
+    # 'm_Whitman',
+    # 'm_AkiKurose',
+    # 'm_Mercer',
+    # 'm_Washington',
+    # 'm_Denny',
     # 'm_Madison',
 
     # School type
     "is_regular",
+    # 'type',
+    # "Elementary",
     "K-8",
     "Highschool",
     "Middle",
-    # "Elementary",
 ]
 
 
@@ -90,17 +96,36 @@ def showDfInfo(df):
 
 
 def mixedEffectRegression(df, var):
+    df['at_or_after_2021'] = np.where(df['class_of'] >= 2021, 1, 0)
+    # df = df[(df['school_code'] != 5292) & (df['school_code'] != 5488) &
+    #         (df['school_code'] != 2141)]
+    # df = df[# (df['Elementary'] == 1) |
+    #         (df['K-8'] == 1) |
+    #         (df['Middle'] == 1) |
+    #         (df['Highschool'] == 1)
+    #         ]
     output = [var]
     groups = 'school_code'
-    df = df[STANDARD_INPUTS + output + [groups]].dropna()
-    inputString = ' + '.join([f"Q('{input}')" for input in STANDARD_INPUTS])
-    print(inputString)
+    df = df[CONT_INPUTS + CATEGORICAL_INPUTS + output + [groups]].dropna()
+    escaped_cont = [f"Q('{input}')" for input in CONT_INPUTS]
+    escaped_cat = [f"C(Q('{input}'))" for input in CATEGORICAL_INPUTS]
+    inputString = ' + '.join(escaped_cat + escaped_cont)
+
+    # Mixed effects.
     model = smf.mixedlm(
-        # f"Q('{var}') ~ {' + '.join(STANDARD_INPUTS)}",
         f"Q('{var}') ~ {inputString}",
         df,
-        groups=groups).fit()
+        groups=df[groups]).fit()
     print(model.summary())
+
+    # Random slopes.
+    model2 = smf.mixedlm(
+        f"Q('{var}') ~ {inputString}",
+        df,
+        groups=groups,
+        re_formula="Q('at_or_after_2021')"
+    ).fit()
+    print(model2.summary())
 
 
 def olsRegression(df, var):
@@ -108,7 +133,7 @@ def olsRegression(df, var):
 
     # filter data
     # df = df[(df['class_of'] > 2021) & (df['type'] != 'Other')]
-    df['2021_or_later'] = np.where(df['class_of'] >= 2021, 1, 0)
+    df['at_or_after_2021'] = np.where(df['class_of'] >= 2021, 1, 0)
 
     # Drop HCC Schools.
     # df = df[(df['school_code'] != 5292) & (df['school_code'] != 5488) &
@@ -117,9 +142,9 @@ def olsRegression(df, var):
     # Only Elementary
     # df = df[(df['Elementary'] == 1) | (df['K-8'] == 1)]
 
-    df = df[STANDARD_INPUTS + output].dropna()
+    df = df[CONT_INPUTS + CATEGORICAL_INPUTS + output].dropna()
     y = df[output]
-    X = df[STANDARD_INPUTS]
+    X = df[CONT_INPUTS + CATEGORICAL_INPUTS]
 
     X = sm.add_constant(X)
     model = sm.OLS(y, X).fit()
@@ -181,8 +206,11 @@ def join_bex(df):
         'data/sps/building/bex-vi-historic-building-scores.csv')
     utilize_df = pd.read_csv(
         'data/sps/building/utilization_condition.csv')
+    income_df = pd.read_csv(
+        'data/sps/building/income_by_school.csv')
     df = pd.merge(df, building_df, on='school_code', how='left')
     df = pd.merge(df, utilize_df, on='school_code', how='left')
+    df = pd.merge(df, income_df, on='school_code', how='left')
     return df
 
 
@@ -278,7 +306,7 @@ def addNormalizedFields(df):
     df['other_teacher_fte_per_pupil'] = (
         df['other_teacher_fte'] / df['all_students'])
 
-    df['2021_or_later'] = np.where(df['class_of'] >= 2021, 1, 0)
+    df['at_or_after_2021'] = np.where(df['class_of'] >= 2021, 1, 0)
 
 
 def vitals_to_long(df):
@@ -400,11 +428,18 @@ def main():
     #     joined_df,
     #     'SBAC_Math_All Students_pct_met_standard_numeric'
     # )
+
     mixedEffectRegression(
         joined_df,
-    #     'SBAC_Math_All Students_pct_met_standard_numeric'
-        'SBAC_Math_Black/ African American_pct_met_standard_numeric'
+        # 'SBAC_Math_All Students_pct_met_standard_numeric'
+        'SBAC_ELA_Black/ African American_pct_met_standard_numeric'
     )
+
+    # mixedEffectRegression(
+    #     joined_df,
+    #     'class_teacher_exp_50pctile'
+    # )
+
     # olsRegression(
     #     joined_df,
     #     'SBAC_Math_Black/ African American_pct_met_standard_numeric'
