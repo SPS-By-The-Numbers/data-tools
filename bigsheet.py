@@ -3,82 +3,10 @@
 import argparse
 import pandas as pd
 import numpy as np
-import statsmodels.api as sm
-import researchpy as rp
-import statsmodels.formula.api as smf
 
 
-CONT_INPUTS = [
-    # "fte_per_pupil",
-    # "num_students_normalized",
-    "all_students",
-    # "class_teacher_exp_50pctile_normalized",
-    "class_teacher_exp_avg",
-    # "pct_class_teacher_over_bachelors",
-    "class_teacher_fte_per_pupil",
-    # "class_teacher_likely_early_term_fte",
-    # "other_teacher_fte_per_pupil",
-    # "spend_per_pupil",
-    # "pct_military_parent",
-    # "pct_migrant",
-    "pct_low_income",
-    # "pct_homeless",
-    # "pct_foster_care",
-    # "pct_mobile",
-    # "pct_section_504",
-    "pct_highly_capable",
-    "pct_english_language_learners",
-    "pct_students_with_disabilities",
-    # "pct_female",
-    # "pct_male",
-    # "pct_gender_x",
-    # "pct_white",
-    "pct_black_african_american",
-    # "pct_native_hawaiian_other_pacific",
-    # "pct_hispanic_latino_of_any_race",
-    # "pct_asian",
-    # "pct_two_or_more_races",
-]
-
-CATEGORICAL_INPUTS = [
-    # Year of graduation
-    # "class_of",
-    "at_or_after_2021",
-
-    # Regions
-    # 'ms_assignment',
-    # 'region',
-    # "r_NW",
-    # "r_NE",
-    # "r_SE",
-    # "r_SW",
-    # "r_Central",
-
-    # Middle schools
-    # 'm_Meany',
-    # 'm_Eckstein',
-    # 'm_JaneAddams',
-    # 'm_Hamilton',
-    # 'm_McClure',
-    # 'm_RESMS',
-    # 'm_Whitman',
-    # 'm_AkiKurose',
-    # 'm_Mercer',
-    # 'm_Washington',
-    # 'm_Denny',
-    # 'm_Madison',
-
-    # School type
-    "is_regular",
-    # 'type',
-    # "Elementary",
-    "K-8",
-    "Highschool",
-    "Middle",
-]
-
-
-def orderColumnName(raw_f):
+def rotateLeftColumnName(raw_f):
+    """Given a set of fields post pivot, moves the first to the back"""
     fields = list(raw_f)
     f = fields.pop(0)
     fields.append(f)
@@ -88,67 +16,6 @@ def orderColumnName(raw_f):
 def moveToFront(df, col_name):
     col = df.pop(col_name)
     df.insert(0, col_name, col)
-
-
-def showDfInfo(df):
-    df.info()
-    rp.codebook(df)
-
-
-def mixedEffectRegression(df, var):
-    df['at_or_after_2021'] = np.where(df['class_of'] >= 2021, 1, 0)
-    # df = df[(df['school_code'] != 5292) & (df['school_code'] != 5488) &
-    #         (df['school_code'] != 2141)]
-    # df = df[# (df['Elementary'] == 1) |
-    #         (df['K-8'] == 1) |
-    #         (df['Middle'] == 1) |
-    #         (df['Highschool'] == 1)
-    #         ]
-    output = [var]
-    groups = 'school_code'
-    df = df[CONT_INPUTS + CATEGORICAL_INPUTS + output + [groups]].dropna()
-    escaped_cont = [f"Q('{input}')" for input in CONT_INPUTS]
-    escaped_cat = [f"C(Q('{input}'))" for input in CATEGORICAL_INPUTS]
-    inputString = ' + '.join(escaped_cat + escaped_cont)
-
-    # Mixed effects.
-    model = smf.mixedlm(
-        f"Q('{var}') ~ {inputString}",
-        df,
-        groups=df[groups]).fit()
-    print(model.summary())
-
-    # Random slopes.
-    model2 = smf.mixedlm(
-        f"Q('{var}') ~ {inputString}",
-        df,
-        groups=groups,
-        re_formula="Q('at_or_after_2021')"
-    ).fit()
-    print(model2.summary())
-
-
-def olsRegression(df, var):
-    output = [var]
-
-    # filter data
-    # df = df[(df['class_of'] > 2021) & (df['type'] != 'Other')]
-    df['at_or_after_2021'] = np.where(df['class_of'] >= 2021, 1, 0)
-
-    # Drop HCC Schools.
-    # df = df[(df['school_code'] != 5292) & (df['school_code'] != 5488) &
-    #        (df['school_code'] != 2141)]
-
-    # Only Elementary
-    # df = df[(df['Elementary'] == 1) | (df['K-8'] == 1)]
-
-    df = df[CONT_INPUTS + CATEGORICAL_INPUTS + output].dropna()
-    y = df[output]
-    X = df[CONT_INPUTS + CATEGORICAL_INPUTS]
-
-    X = sm.add_constant(X)
-    model = sm.OLS(y, X).fit()
-    print(model.summary())
 
 
 def join_map(df):
@@ -168,7 +35,8 @@ def join_map(df):
         ]
     ).reset_index()
     hc_df.columns = [
-        'hc_' + '_'.join([str(c) for c in orderColumnName(col) if c]).strip()
+        'hc_' + '_'.join(
+            [str(c) for c in rotateLeftColumnName(col) if c]).strip()
         for col in hc_df.columns.values]
     hc_df.rename(columns={'hc_school_code': 'school_code'}, inplace=True)
 
@@ -191,7 +59,7 @@ def join_map(df):
     ).reset_index()
     nonhc_df.columns = [
         'nonhc_' + '_'.join(
-            [str(c) for c in orderColumnName(col) if c]).strip()
+            [str(c) for c in rotateLeftColumnName(col) if c]).strip()
         for col in nonhc_df.columns.values]
     nonhc_df.rename(columns={'nonhc_school_code': 'school_code'}, inplace=True)
 
@@ -214,15 +82,6 @@ def join_bex(df):
     return df
 
 
-# long should look like
-# class_of, school_code, test_administration, test_subject, student_type,
-# student_group, variable, value
-#
-# Example
-#  2023, 5458, SBAC, Math, Race, All, Count, 100
-#  2023, 5458, SBAC, Math, Race, All, Pct, 1.0
-#  2023, 5458, SBAC, Math, Race, All, pct_met_foundational_numeric, 0.8
-#
 def select_assessments(df):
     logical_key = [
         'class_of',
@@ -267,21 +126,9 @@ def assessments_to_wide(df):
     ).reset_index()
 
     df.columns = [
-        '_'.join([c for c in orderColumnName(col) if c]).strip()
+        '_'.join([c for c in rotateLeftColumnName(col) if c]).strip()
         for col in df.columns.values]
     return df
-
-
-def melt_school_info_category(accumulate, df, student_group_type, value_name,
-                              value_vars):
-    df = df.melt(
-        id_vars=['class_of', 'school_code'],
-        value_vars=value_vars,
-        var_name='student_group',
-        value_name=value_name
-    )
-    df['student_group_type'] = student_group_type
-    return pd.concat([accumulate, df], ignore_index=True)
 
 
 def addNormalizedFields(df):
@@ -309,45 +156,10 @@ def addNormalizedFields(df):
     df['at_or_after_2021'] = np.where(df['class_of'] >= 2021, 1, 0)
 
 
-def vitals_to_long(df):
-    result = pd.DataFrame()
-    result = melt_school_info_category(result, df, 'All', 'count', [
-        'all_students'])
-    result = melt_school_info_category(result, df, 'homeless', 'count', [
-        'homeless'])
-    result = melt_school_info_category(result, df, 'Migrant', 'count', [
-        'migrant'])
-    result = melt_school_info_category(result, df, 'Military', 'count', [
-        'military_parent'])
-    result = melt_school_info_category(result, df, 'FRL', 'count', [
-        'low_income'])
-    result = melt_school_info_category(result, df, 'Foster', 'count', [
-        'foster_care'])
-    result = melt_school_info_category(result, df, 'Mobile', 'count', [
-        'mobile'])
-    result = melt_school_info_category(result, df, 's504', 'count', [
-        'section_504'])
-    result = melt_school_info_category(result, df, 'ELL', 'count', [
-        'english_language_learners'])
-    result = melt_school_info_category(result, df, 'HCC', 'count', [
-        'highly_capable'])
-    result = melt_school_info_category(result, df, 'SWD', 'count', [
-        'students_with_disabilities'])
-    result = melt_school_info_category(result, df, 'Gender', 'count', [
-        'female', 'gender_x', 'male'])
-
-    result = melt_school_info_category(result, df, 'Race', 'count', [
-        'white', 'black_african_american', 'native_hawaiian_other_pacific',
-        'hispanic_latino_of_any_race', 'american_indian_alaskan_native',
-        'asian', 'two_or_more_races'])
-
-    return result
-
-
 def main():
     parser = argparse.ArgumentParser(
         prog='bigsheet',
-        description='Converts and access database to avro format')
+        description='Combines multiple datafiles into one big merged dataset')
     parser.add_argument('--vitals', required=True,
                         help='csv with vitals by school')
     parser.add_argument('--assessment', required=True,
@@ -404,7 +216,6 @@ def main():
 
     assessment_df = pd.read_csv(args.assessment)
     selected_df = select_assessments(assessment_df)
-    # showDfInfo(long_df)
 
     joined_df = assessments_to_wide(selected_df)
     joined_df = pd.merge(vitals_df, joined_df,
@@ -420,39 +231,7 @@ def main():
     moveToFront(joined_df, 'school_name')
     moveToFront(joined_df, 'class_of')
 
-    if args.write:
-        joined_df.to_csv('wide.csv')
-
-    # Do stats
-    # olsRegression(
-    #     joined_df,
-    #     'SBAC_Math_All Students_pct_met_standard_numeric'
-    # )
-
-    mixedEffectRegression(
-        joined_df,
-        # 'SBAC_Math_All Students_pct_met_standard_numeric'
-        'SBAC_ELA_Black/ African American_pct_met_standard_numeric'
-    )
-
-    # mixedEffectRegression(
-    #     joined_df,
-    #     'class_teacher_exp_50pctile'
-    # )
-
-    # olsRegression(
-    #     joined_df,
-    #     'SBAC_Math_Black/ African American_pct_met_standard_numeric'
-    # )
-    # olsRegression(
-    #     joined_df,
-    #     'SBAC_ELA_All Students_pct_met_standard_numeric'
-    # )
-    # olsRegression(
-    #     joined_df,
-    #     'SBAC_ELA_Black/ African American_pct_met_standard_numeric'
-    # )
-    # 'WCAS_Science_All Students_pct_met_standard_numeric'
+    joined_df.to_csv('wide.csv')
 
 
 if __name__ == '__main__':
