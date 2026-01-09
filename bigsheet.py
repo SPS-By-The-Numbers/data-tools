@@ -72,6 +72,7 @@ def join_map(df):
 def join_bex(df):
     building_df = pd.read_csv(
         'data/sps/building/bex-vi-historic-building-scores.csv')
+    # building_df['major_update_raw'] = building_df['Last Major Update']
     utilize_df = pd.read_csv(
         'data/sps/building/utilization_condition.csv')
     income_df = pd.read_csv(
@@ -143,7 +144,11 @@ def addNormalizedFields(df):
     df['class_teacher_exp_50pctile_normalized'] = (
         df['class_teacher_exp_50pctile']
         / df['class_teacher_exp_50pctile'].max())
-    df['pct_class_teacher_over_bachelors'] = (
+    df['pct_class_teacher_ge_bachelors'] = (
+        ( df['num_class_teachers_bachelors'] +
+         df['num_class_teachers_masters'] +
+         df['num_class_teachers_doctors']) / df['num_class_teachers'])
+    df['pct_class_teacher_gt_bachelors'] = (
         (df['num_class_teachers_masters'] +
          df['num_class_teachers_doctors']) / df['num_class_teachers'])
     df['class_teacher_fte_per_pupil'] = (
@@ -170,6 +175,38 @@ def main():
 
     # School type indicator vars.
     vitals_df = pd.read_csv(args.vitals)
+
+    #
+    # spend_gen_ed_per_pupil
+    # spend_instr_other_per_pupil
+    # spend_district_support_per_pupil
+    # spend_other_per_pupil
+
+    # spend_spec_ed_per_pupil
+    # spend_compensatory_per_pupil
+
+    # spend_lap_per_pupil
+    # spend_title1_per_pupil
+    # spend_ble_per_pupil
+
+    # Group per-pupil-spend columns
+    vitals_df['spend_grp_ex_ell_speced_comp'] = (
+        vitals_df['spend_gen_ed_per_pupil'].fillna(0)
+        + vitals_df['spend_instr_other_per_pupil'].fillna(0)
+        + vitals_df['spend_district_support_per_pupil'].fillna(0)
+        + vitals_df['spend_other_per_pupil'].fillna(0)
+    )
+
+    vitals_df['spend_grp_spec_ed'] = (
+        vitals_df['spend_spec_ed_per_pupil'].fillna(0)
+        + vitals_df['spend_compensatory_per_pupil'].fillna(0)
+    )
+
+    vitals_df['spend_grp_title1_lap_ble'] = (
+        vitals_df['spend_title1_per_pupil'].fillna(0)
+        + vitals_df['spend_lap_per_pupil'].fillna(0)
+        + vitals_df['spend_ble_per_pupil'].fillna(0)
+    )
 
     vitals_df['OtherSchool'] = np.where(vitals_df['type'] == 'Other', 1, 0)
     vitals_df['K-8'] = np.where(vitals_df['type'] == 'K-8', 1, 0)
@@ -221,6 +258,11 @@ def main():
     joined_df = pd.merge(vitals_df, joined_df,
                          how="outer",
                          on=['class_of', 'school_code'])
+    joined_df['at_or_after_2021'] = np.where(
+        joined_df['class_of'] >= 2021, 1, 0)
+    joined_df['log_enrollment'] = np.log(
+        joined_df[joined_df['all_students'] > 0]['all_students']
+    )
 
     addNormalizedFields(joined_df)
 
