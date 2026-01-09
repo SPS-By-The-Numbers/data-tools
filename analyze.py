@@ -148,7 +148,7 @@ def mixedEffectRegression(df, var,
         null_model.cov_re.iloc[0, 0] /
         (null_model.cov_re.iloc[0, 0] + null_model.scale)
     )
-    print(f"Null Model ICC: {icc:0.4f}")
+    print(f"Null Model ICC: {icc_null:0.4f}")
 
     # ANova test
     ols_model = smf.ols(regression_expr, df).fit()
@@ -195,7 +195,7 @@ def rk_model(df, var):
             'pct_black_aa5',
             'pct_nhpi5',
             'pct_two_or_more_races5',
-            'principal_exp_avg',
+            'principal_exp_avg5',
             'pct_hispanic_latino_any_race5',
             'class_of_from_0',
             'pct_class_teacher_gt_bachelors5',
@@ -260,6 +260,8 @@ def main():
         df['pct_class_teacher_ge_bachelors'] * 20)
     df['pct_class_teacher_gt_bachelors5'] = (
         df['pct_class_teacher_gt_bachelors'] * 20)
+
+    df['principal_exp_avg5'] = df['principal_exp_avg'] / 5
 
     rk_model(df,
              'SBAC_ELA_Black/ African American_pct_met_standard_numeric')
