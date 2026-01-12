@@ -3,7 +3,7 @@
 # Order matters. Go backwards in time to be most resilient to schema changes.
 set -e
 
-DATASETS="domain enrollment f19x s275 assessment"
+DATASETS="domain enrollment sqss f19x s275 assessment"
 
 python3 -m extractors.safs.from_raw_file --db-drop-first --db-name=safs_prod \
   data/safs/spsbtn/9998-9999-spsbtn.xlsx \
@@ -12,6 +12,9 @@ python3 -m extractors.safs.from_raw_file --db-drop-first --db-name=safs_prod \
   data/assessment/2023-2024-assessment.avro \
   data/assessment/2022-2023-assessment.avro \
   data/assessment/2015-2022-assessment.avro \
+  data/sqss/2022-2023-assessment.avro \
+  data/sqss/2023-2024-assessment.avro \
+  data/sqss/2015-2022-assessment.avro \
   data/safs/s275/20*Final* \
   data/safs/f196/2024-2025-f196-*.csv \
   data/safs/f196/2023-2024-f196-*.csv \

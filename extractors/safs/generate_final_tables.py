@@ -15,10 +15,12 @@ from .schemas import domains
 from .schemas import s275
 from .schemas import enrollment
 from .schemas import assessment
+from .schemas import sqss
 from .transforms.f19x import generate_f19x, generate_domains
 from .transforms.s275 import generate_s275
-from .transforms.enrollment import generate_enrollment
 from .transforms.assessment import generate_assessment
+from .transforms.enrollment import generate_enrollment
+from .transforms.sqss import generate_sqss
 
 
 logger = logging.getLogger(__name__)
@@ -32,21 +34,7 @@ class FinalTableGenerator(DbConnection):
     def generate_final_tables(self, drop_first, datasets):
         orm_classes = {}
         for d in datasets:
-            if d == 's275':
-                orm_classes.update(self._create_orm_classes(s275.ALL_SCHEMAS))
-
-            if d == 'domains' or d == 'f19x':
-                orm_classes.update(
-                    self._create_orm_classes(domains.ALL_SCHEMAS))
-                orm_classes.update(self._create_orm_classes(f19x.ALL_SCHEMAS))
-
-            if d == 'enrollment':
-                orm_classes.update(
-                    self._create_orm_classes(enrollment.ALL_SCHEMAS))
-
-            if d == 'assessment':
-                orm_classes.update(
-                    self._create_orm_classes(assessment.ALL_SCHEMAS))
+            self._create_dataset_tables(d, orm_classes)
 
         if drop_first:
             logger.info("Dropping all tables")
@@ -57,21 +45,7 @@ class FinalTableGenerator(DbConnection):
 
         with Session(self.engine) as session:
             for d in datasets:
-                if d == 's275':
-                    generate_s275(session)
-
-                if d == 'f19x':
-                    generate_f19x(session)
-
-                if d == 'enrollment':
-                    generate_enrollment(session)
-
-                if d == 'domains':
-                    generate_domains(session)
-
-                if d == 'assessment':
-                    generate_assessment(session)
-
+                self._generate_dataset(d, session)
             session.commit()
 
     def _create_orm_classes(self, schemas):
@@ -86,6 +60,46 @@ class FinalTableGenerator(DbConnection):
 
         return orm_classes
 
+    def _create_dataset_tables(self, d, orm_classes):
+        if d == 's275':
+            orm_classes.update(self._create_orm_classes(s275.ALL_SCHEMAS))
+
+        if d == 'domains' or d == 'f19x':
+            orm_classes.update(
+                self._create_orm_classes(domains.ALL_SCHEMAS))
+            orm_classes.update(self._create_orm_classes(f19x.ALL_SCHEMAS))
+
+        if d == 'enrollment':
+            orm_classes.update(
+                self._create_orm_classes(enrollment.ALL_SCHEMAS))
+
+        if d == 'assessment':
+            orm_classes.update(
+                self._create_orm_classes(assessment.ALL_SCHEMAS))
+
+        if d == 'sqss':
+            orm_classes.update(
+                self._create_orm_classes(sqss.ALL_SCHEMAS))
+
+    def _generate_dataset(self, d, session):
+        if d == 's275':
+            generate_s275(session)
+
+        if d == 'f19x':
+            generate_f19x(session)
+
+        if d == 'assessment':
+            generate_assessment(session)
+
+        if d == 'domains':
+            generate_domains(session)
+
+        if d == 'enrollment':
+            generate_enrollment(session)
+
+        if d == 'sqss':
+            generate_sqss(session)
+
 
 def _parse_args():
     parser = argparse.ArgumentParser(
@@ -97,7 +111,7 @@ def _parse_args():
                         help='Should drop the table before loading')
     parser.add_argument('datasets', nargs="+",
                         choices=['f19x', 's275', 'domains', 'enrollment',
-                                 'assessment'],
+                                 'assessment', 'sqss'],
                         help=('Datasets to dump. f19x, s275, enrollment, '
                               'assessment, or domains'))
 

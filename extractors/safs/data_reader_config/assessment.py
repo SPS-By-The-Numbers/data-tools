@@ -2,85 +2,17 @@ import logging
 
 from extractors.safs import avro_schema
 
-from . import DataReaderConfig
+from . import ospi
 
 logger = logging.getLogger(__name__)
 
 
 def _field_from_column_name(_, column_name):
+    retval = ospi.field_from_common_column_name(column_name)
+    if retval is not None:
+        return retval
+
     match column_name:
-        case 'schoolorganizationid':
-            return avro_schema.make_field(source=column_name,
-                                          name="school_organization_id",
-                                          field_type="int",
-                                          extractor=avro_schema.to_int_or_null)
-
-        case 'districtorganizationid':
-            return avro_schema.make_field(source=column_name,
-                                          name="district_organization_id",
-                                          field_type="int",
-                                          extractor=avro_schema.to_int_or_null)
-
-        case 'esdorganizationid':
-            return avro_schema.make_field(source=column_name,
-                                          name="esd_organization_id",
-                                          field_type="int",
-                                          extractor=avro_schema.to_int_or_null)
-
-        case 'esdname':
-            return avro_schema.make_field(
-                name='esd',
-                source=column_name,
-                field_type="string",
-                extractor=avro_schema.cleaned_string)
-
-        case 'districtcode':
-            return avro_schema.make_field(source=column_name,
-                                          name="district_code",
-                                          field_type="int",
-                                          extractor=avro_schema.to_int_or_null)
-
-        case 'districtname':
-            return avro_schema.make_field(
-                name='district_name',
-                source=column_name,
-                field_type="string",
-                extractor=avro_schema.cleaned_string)
-
-        case 'organizationlevel':
-            return avro_schema.make_field(
-                name='organization_level',
-                source=column_name,
-                field_type="string",
-                extractor=avro_schema.cleaned_string)
-
-        case 'currentschooltype':
-            return avro_schema.make_field(
-                name='current_school_type',
-                source=column_name,
-                field_type="string",
-                extractor=avro_schema.cleaned_string)
-
-        case 'county':
-            return avro_schema.make_field(
-                name=column_name,
-                field_type="string",
-                extractor=avro_schema.cleaned_string)
-
-        case 'schoolname':
-            return avro_schema.make_field(
-                name='school_name',
-                source=column_name,
-                field_type="string",
-                extractor=avro_schema.cleaned_string)
-
-        case 'schoolcode':
-            return avro_schema.make_field(
-                name='school_code',
-                source=column_name,
-                field_type="int",
-                extractor=avro_schema.to_int_or_null)
-
         case 'testsubject':
             return avro_schema.make_field(
                 name='test_subject',
@@ -98,43 +30,6 @@ def _field_from_column_name(_, column_name):
         case 'test_administration_group':
             return avro_schema.make_field(
                 name=column_name,
-                field_type="string",
-                extractor=avro_schema.cleaned_string)
-
-        case 'gradelevel':
-            return avro_schema.make_field(
-                name='grade_level',
-                source=column_name,
-                field_type="string",
-                extractor=avro_schema.cleaned_string)
-
-        case 'studentgroup':
-            return avro_schema.make_field(
-                name='student_group',
-                source=column_name,
-                field_type="string",
-                extractor=avro_schema.cleaned_string)
-
-        case 'studentgrouptype':
-            return avro_schema.make_field(
-                name='student_group_type',
-                source=column_name,
-                field_type="string",
-                extractor=avro_schema.cleaned_string)
-
-        case 'schoolyear':
-            return avro_schema.make_field(
-                name='school_year',
-                source=column_name,
-                field_type="string",
-                extractor=avro_schema.expand_school_year)
-
-        case ('dat' |
-              'suppression'
-              ):
-            return avro_schema.make_field(
-                name='dat',
-                source=column_name,
                 field_type="string",
                 extractor=avro_schema.cleaned_string)
 
@@ -237,31 +132,12 @@ def _field_from_column_name(_, column_name):
                 field_type="decimal",
                 extractor=avro_schema.to_decimal_from_floatstr_or_null)
 
-        case '__id':
-            return avro_schema.make_field(
-                name=column_name,
-                field_type="string",
-                extractor=avro_schema.cleaned_string)
-
-        case 'dataasof':
-            return avro_schema.make_field(
-                name=column_name,
-                field_type="timestamp",
-                extractor=avro_schema.parse_datetime)
-
         case _:
             raise Exception("Unexpected field %s" % column_name)
 
 
-def _fields_from_header(tablename, row):
-    fields = [_field_from_column_name(tablename, col_name) for col_name in row]
-    return [f for f in fields if f is not None]
-
-
 def get_reader_config(add_additional_fields, get_additional_values):
-    return DataReaderConfig(
-        datatype="assessment",
-        tablename_normalizer=lambda x: x,
-        fields_from_header=_fields_from_header,
-        add_additional_fields=add_additional_fields,
-        get_additional_values=get_additional_values)
+    return ospi.common_reader_config("assessment",
+                                     _field_from_column_name,
+                                     add_additional_fields,
+                                     get_additional_values)

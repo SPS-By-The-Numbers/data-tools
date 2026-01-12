@@ -16,7 +16,7 @@ from extractors.safs.data_reader import (DataReader, CsvRawReader,
                                          MdbRawReader, XlsxRawReader,
                                          AvroRawReader)
 from extractors.safs.data_reader_config import (enrollment, f195, f196, s275,
-                                                spsbtn, assessment)
+                                                spsbtn, sqss, assessment)
 
 from .db_connection import DbConnection, add_db_arguments
 from .orm import make_table
@@ -145,6 +145,12 @@ class DataLoader(DbConnection):
                     raw_reader,
                     assessment.get_reader_config(add_additional_fields,
                                                  get_additional_values))
+
+            case "sqss":
+                return DataReader(
+                    raw_reader,
+                    sqss.get_reader_config(add_additional_fields,
+                                           get_additional_values))
 
             case "f195":
                 return DataReader(

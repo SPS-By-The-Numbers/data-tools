@@ -83,18 +83,35 @@ def join_bex(df):
     return df
 
 
+def join_s275(df):
+    transitions_df = pd.read_csv('data/sps/s275/building_transitions.csv')
+    result = transitions_df[['class_of', 'school_code',
+                             'transfer_in', 'transfer_out',
+                             'hire', 'depart']]
+    result = result.groupby(['class_of', 'school_code']).sum()
+    result['added'] = result['transfer_in'] + result['hire']
+    result['lost'] = result['transfer_out'] + result['depart']
+    result['net_churn'] = result['added'] - result['lost']
+
+    result.columns = [f"bldg_staff_{c}" for c in result.columns]
+    result.reset_index(inplace=True)
+
+    return pd.merge(df, result, on=['school_code', 'class_of'], how='left')
+
+
 def select_assessments(df):
     logical_key = [
         'class_of',
         'school_code',
+        'grade_level',
         'test_administration',
         'test_subject',
         'student_group'
     ]
     values = [
-        'pct_met_foundational_numeric',
+        'pct_noscore',
+        'pct_alternative',
         'pct_met_standard_numeric',
-        'pct_met_foundational_numeric_nodat',
         'pct_met_standard_numeric_nodat',
     ]
 
@@ -112,6 +129,7 @@ def assessments_to_wide(df):
         index=[
             'class_of',
             'school_code',
+            'grade_level',
         ],
         columns=[
             'test_administration',
@@ -119,10 +137,38 @@ def assessments_to_wide(df):
             'student_group',
         ],
         values=[
-            'pct_met_foundational_numeric',
+            'pct_noscore',
             'pct_met_standard_numeric',
-            'pct_met_foundational_numeric_nodat',
             'pct_met_standard_numeric_nodat',
+        ]
+    ).reset_index()
+
+    df.columns = [
+        '_'.join([c for c in rotateLeftColumnName(col) if c]).strip()
+        for col in df.columns.values]
+    return df
+
+
+def sqss_to_wide(df):
+    simple_names = {
+        'Dual Credit': 'dual_credit',
+        'Regular Attendance': 'attendance',
+        'Ninth Grade on Track': 'ninth_grade_on_track',
+    }
+    df['measure_clean'] = df['measure'].map(simple_names)
+    df = df.pivot(
+        index=[
+            'class_of',
+            'school_code',
+        ],
+        columns=[
+            'measure_clean',
+            'student_group',
+        ],
+        values=[
+            'percent',
+            'numerator',
+            'denominator',
         ]
     ).reset_index()
 
@@ -145,7 +191,7 @@ def addNormalizedFields(df):
         df['class_teacher_exp_50pctile']
         / df['class_teacher_exp_50pctile'].max())
     df['pct_class_teacher_ge_bachelors'] = (
-        ( df['num_class_teachers_bachelors'] +
+        (df['num_class_teachers_bachelors'] +
          df['num_class_teachers_masters'] +
          df['num_class_teachers_doctors']) / df['num_class_teachers'])
     df['pct_class_teacher_gt_bachelors'] = (
@@ -169,8 +215,8 @@ def main():
                         help='csv with vitals by school')
     parser.add_argument('--assessment', required=True,
                         help='csv with assessment data')
-    parser.add_argument('-w', '--write', action='store_true',
-                        help='csv with assessment data')
+    parser.add_argument('-o', '--output', required=True,
+                        help='output file')
     args = parser.parse_args()
 
     # School type indicator vars.
@@ -250,6 +296,7 @@ def main():
 
     vitals_df = join_map(vitals_df)
     vitals_df = join_bex(vitals_df)
+    vitals_df = join_s275(vitals_df)
 
     assessment_df = pd.read_csv(args.assessment)
     selected_df = select_assessments(assessment_df)
@@ -266,6 +313,11 @@ def main():
 
     addNormalizedFields(joined_df)
 
+    sqss_df = pd.read_csv('data/sps/sqss/sqss.csv')
+    joined_df = pd.merge(joined_df, sqss_to_wide(sqss_df),
+                         how="outer",
+                         on=['class_of', 'school_code'])
+
     # Reorder the columns.
     moveToFront(joined_df, 'school_code')
     moveToFront(joined_df, 'is_regular')
@@ -273,7 +325,7 @@ def main():
     moveToFront(joined_df, 'school_name')
     moveToFront(joined_df, 'class_of')
 
-    joined_df.to_csv('wide.csv')
+    joined_df.to_csv(args.output)
 
 
 if __name__ == '__main__':

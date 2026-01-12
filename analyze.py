@@ -2,84 +2,13 @@
 
 from scipy import stats
 import argparse
+import random
 import numpy as np
 import pandas as pd
 import researchpy as rp
 import statsmodels.formula.api as smf
 
-
-CONT_INPUTS = [
-    # "fte_per_pupil",
-    # "num_students_normalized",
-    # "all_students",
-    # "class_teacher_exp_50pctile_normalized",
-    # "class_teacher_exp_avg",
-    # "pct_class_teacher_over_bachelors",
-    # "class_teacher_fte_per_pupil",
-    # "class_teacher_likely_early_term_fte",
-    # "other_teacher_fte_per_pupil",
-    # "spend_per_pupil",
-    # "pct_military_parent",
-    # "pct_migrant",
-    # "pct_low_income",
-    # "pct_homeless",
-    # "pct_foster_care",
-    # "pct_mobile",
-    # "pct_section_504",
-    # "pct_highly_capable",
-    # "pct_english_language_learners",
-    # "pct_students_with_disabilities",
-    # "pct_female",
-    # "pct_male",
-    # "pct_gender_x",
-    # "pct_white",
-    # "pct_black_african_american",
-    # "pct_native_hawaiian_other_pacific",
-    # "pct_american_indian_alaskan_native",
-    # "pct_hispanic_latino_of_any_race",
-    # "pct_asian",
-    # "pct_two_or_more_races",
-
-    # "pct_class_teacher_over_bachelors",
-    # "class_teacher_exp_avg",
-    # "class_of",
-]
-
-CATEGORICAL_INPUTS = [
-    # Year of graduation
-    # "at_or_after_2021",
-
-    # Regions
-    # 'ms_assignment',
-    # 'region',
-    "r_NW",
-    "r_NE",
-    "r_SE",
-    "r_SW",
-    # "r_Central",
-
-    # Middle schools
-    # 'm_Meany',
-    # 'm_Eckstein',
-    # 'm_JaneAddams',
-    # 'm_Hamilton',
-    # 'm_McClure',
-    # 'm_RESMS',
-    # 'm_Whitman',
-    # 'm_AkiKurose',
-    # 'm_Mercer',
-    # 'm_Washington',
-    # 'm_Denny',
-    # 'm_Madison',
-
-    # School type
-    "is_regular",
-    # 'type',
-    # "Elementary",
-    # "K-8",
-    # "Highschool",
-    # "Middle",
-]
+GET_AIC = False
 
 
 def showDfInfo(df):
@@ -87,9 +16,7 @@ def showDfInfo(df):
     rp.codebook(df)
 
 
-def mixedEffectRegression(df, var,
-                          cont_inputs=CONT_INPUTS,
-                          cat_inputs=CATEGORICAL_INPUTS):
+def mixedEffectRegression(df, var, cont_inputs, cat_inputs):
     df[var] = df[var] * 100
     output = [var]
     groups = 'school_name'
@@ -105,7 +32,7 @@ def mixedEffectRegression(df, var,
     model = smf.mixedlm(regression_expr,
                         df,
                         groups=df[groups]
-                        ).fit()
+                        ).fit(reml=(not GET_AIC))
     print(model.summary())
 
     rand_effects = model.random_effects
@@ -134,6 +61,11 @@ def mixedEffectRegression(df, var,
     # Residual (within-school) variance
     variance_resid = model.scale
 
+    # AIC, BIC
+    if GET_AIC:
+        print(f"AIC: {model.aic:0.2f}")
+        print(f"BIC: {model.bic:0.2f}")
+
     # ICC
     icc = variance_school / (variance_school + variance_resid)
     print(f"ICC: {icc:0.4f}")
@@ -159,13 +91,13 @@ def mixedEffectRegression(df, var,
 
     print(f"ANOVA lr_stat {lr_stat} p-value: {p_value}")
 
-    rand_df.to_csv("outlier.csv")
+    filesafe_var = "".join(c for c in var
+                           if c.isalpha() or c.isdigit() or c == ' ').rstrip()
+    rand_df.to_csv(f"regress/{filesafe_var}_outlier.csv")
     return model
 
 
-def olsRegression(df, var,
-                  cont_inputs=CONT_INPUTS,
-                  cat_inputs=CATEGORICAL_INPUTS):
+def olsRegression(df, var, cont_inputs, cat_inputs):
     output = [var]
     escaped_cont = [f"Q('{input}')" for input in cont_inputs]
     escaped_cat = [f"C(Q('{input}'))" for input in cat_inputs]
@@ -178,9 +110,11 @@ def olsRegression(df, var,
     print(model.summary())
 
 
-def rk_model(df, var):
+def rk_model(df, var, drop_black):
+    print("*** *** RK Model next -- ---")
     df = df[(df['Elementary'] == 1) | (df['K-8'] == 1)]
-    df = df[df['black_african_american'] > 20]
+    if drop_black:
+        df = df[df['black_african_american'] >= 20]
     df['class_of_from_0'] = df['class_of'] - np.min(df['class_of'])
     mixedEffectRegression(
         df,
@@ -195,7 +129,6 @@ def rk_model(df, var):
             'pct_black_aa5',
             'pct_nhpi5',
             'pct_two_or_more_races5',
-            'principal_exp_avg5',
             'pct_hispanic_latino_any_race5',
             'class_of_from_0',
             'pct_class_teacher_gt_bachelors5',
@@ -208,28 +141,43 @@ def rk_model(df, var):
     )
 
 
-def rk_model_spend(df, var):
+def aw_model(df, var, drop_black, noscore_col):
+    print("*** *** AW Model next -- ---")
     df = df[(df['Elementary'] == 1) | (df['K-8'] == 1)]
+    if drop_black:
+        df = df[df['black_african_american'] > 20]
+    df['class_of_from_0'] = df['class_of'] - np.min(df['class_of'])
     mixedEffectRegression(
         df,
         var,
         cont_inputs=[
-            'spend_grp_spec_ed',
+            # 'spend_grp_ex_ell_speced_comp1k',
+            # 'spend_grp_spec_ed1k',
             'pct_low_income5',
             'pct_hc5',
+            'pct_sped5',
+            'pct_ell5',
             'pct_asian5',
             'pct_aian5',
             'pct_black_aa5',
             'pct_nhpi5',
             'pct_two_or_more_races5',
             'pct_hispanic_latino_any_race5',
-            'class_of',
+            'class_of_from_0',
+            # 'at_or_after_2021',
             'pct_class_teacher_gt_bachelors5',
             'class_teacher_exp_avg',
+            'principal_exp_avg5',
+            # 'attendance_all5',
+            # 'attendance_concern',
+            # 'black_aa_math_pct_noscore5',
+            noscore_col,
+            'bldg_staff_abschurn_0',
             'is_regular',
         ],
         cat_inputs=[
-            'region',
+            'ms_assignment',
+            # 'region',
         ]
     )
 
@@ -244,6 +192,10 @@ def main():
 
     df = pd.read_csv(args.input)
 
+    df['class_of_from_0'] = df['class_of'] - np.min(df['class_of'])
+    df['spend_grp_ex_ell_speced_comp1k'] = (
+        df['spend_grp_ex_ell_speced_comp'] / 1000)
+    df['spend_grp_spec_ed1k'] = df['spend_grp_spec_ed'] / 1000
     df['pct_low_income5'] = df['pct_low_income'] * 20
     df['pct_hc5'] = df['pct_highly_capable'] * 20
     df['pct_ell5'] = df['pct_english_language_learners'] * 20
@@ -260,28 +212,77 @@ def main():
         df['pct_class_teacher_ge_bachelors'] * 20)
     df['pct_class_teacher_gt_bachelors5'] = (
         df['pct_class_teacher_gt_bachelors'] * 20)
+    df['attendance_black_aa5'] = (
+        df['attendance_Black/ African American_percent'] * 20)
+    df['attendance_all5'] = (
+        df['attendance_All Students_percent'] * 20)
+    df['attendance_concern'] = np.where(
+        df['attendance_All Students_percent'].fillna(1) < .75, 1, 0)
+    df['black_aa_math_pct_noscore5'] = (
+        df['SBAC_ELA_Black/ African American_pct_noscore'] * 20)
+
+    df['black_aa_many_noscore'] = np.where(
+        df['SBAC_ELA_Black/ African American_pct_noscore'] > .1, 1, 0)
+
+    df['all_many_noscore'] = np.where(
+        df['SBAC_ELA_All Students_pct_noscore'] > .1, 1, 0)
+
+    df['bldg_staff_added_0'] = df['bldg_staff_added'].fillna(0)
+    df['bldg_staff_lost_0'] = df['bldg_staff_lost'].fillna(0)
+    df['bldg_staff_abschurn_0'] = (
+        df['bldg_staff_added_0'] + df['bldg_staff_lost_0'])
 
     df['principal_exp_avg5'] = df['principal_exp_avg'] / 5
 
-    rk_model(df,
-             'SBAC_ELA_Black/ African American_pct_met_standard_numeric')
-    # 'SBAC_ELA_All Students_pct_met_standard_numeric')
-    # rk_model_spend(df,
-    #
+    #          'pct_black_aa5',
+    #          'attendance_all5',
+    #          'black_aa_math_pct_noscore5',
+    #          ]].corr())
 
-    # filter data
-    # df = df[(df['class_of'] > 2021) & (df['type'] != 'Other')]
+    # rk_model(
+    #     df,
+    #     'SBAC_ELA_Black/ African American_pct_met_standard_numeric',
+    #     True)
+    # rk_model(
+    #     df,
+    #     'SBAC_Math_Black/ African American_pct_met_standard_numeric',
+    #     True)
 
-    # Drop HCC Schools.
-    # df = df[(df['school_code'] != 5292) & (df['school_code'] != 5488) &
-    #        (df['school_code'] != 2141)]
+    # rk_model(
+    #     df,
+    #     'SBAC_ELA_All Students_pct_met_standard_numeric',
+    #     False)
+    # rk_model(
+    #     df,
+    #     'SBAC_Math_All Students_pct_met_standard_numeric',
+    #     False)
 
-    # df = df[(df['region'] != 'Other')]
-    # df = df[(df['type'] == 'Elementary')]
+    # df = df[df['at_or_after_2021'] == 1]
+    aw_model(
+        df,
+        'SBAC_ELA_Black/ African American_pct_met_standard_numeric',
+        True,
+        'black_aa_many_noscore',
+    )
+    aw_model(
+        df,
+        'SBAC_Math_Black/ African American_pct_met_standard_numeric',
+        True,
+        'black_aa_many_noscore',
+    )
 
-    # Only Elementary
-    # df = df[(df['Elementary'] == 1) | (df['K-8'] == 1)]
-    # df = df[(df['class_of'] == 2025)]
+    aw_model(
+        df,
+        'SBAC_ELA_All Students_pct_met_standard_numeric',
+        False,
+        'all_many_noscore',
+    )
+    aw_model(
+        df,
+        'SBAC_Math_All Students_pct_met_standard_numeric',
+        False,
+        'all_many_noscore',
+    )
 
     # olsRegression(
     #    df,
