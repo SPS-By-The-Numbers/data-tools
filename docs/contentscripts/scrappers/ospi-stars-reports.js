@@ -27,8 +27,9 @@
   const AJAX_QUIET_MS = 600;         // require this much idle before considering AJAX done
   const AJAX_MAX_WAIT_MS = 60000;    // hard cap per wait
   const POST_TRIGGER_PAUSE_MS = 100; // let jQuery start the XHR before we sample inflight
-  const DOWNLOAD_GAP_MIN_MS = 250;   // jittered gap between downloads
+  const DOWNLOAD_GAP_MIN_MS = 250;   // jittered gap between download starts
   const DOWNLOAD_GAP_MAX_MS = 1500;
+  const MAX_CONCURRENT_DOWNLOADS = 4;
 
   const jitteredGap = () => DOWNLOAD_GAP_MIN_MS
     + Math.random() * (DOWNLOAD_GAP_MAX_MS - DOWNLOAD_GAP_MIN_MS);
@@ -86,44 +87,58 @@
     return true;
   }
 
+  // Pipelined download: jitter is paced from the START of each fetch, with
+  // a hard ceiling of MAX_CONCURRENT_DOWNLOADS in flight at once. So fetch
+  // times don't compound onto the throttle, but we still cap parallel load.
+  async function downloadOne(url, filename) {
+    try {
+      // credentials: 'omit' is required: hostedreports.ospi.k12.wa.us returns
+      // Access-Control-Allow-Origin: * which the browser refuses to honor for
+      // credentialed CORS requests. The endpoint is public, so no cookies needed.
+      const resp = await fetch(url, { credentials: 'omit' });
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      // Wrap in an octet-stream Blob so the browser saves instead of opening
+      // the PDF in its built-in viewer. The original Blob carries the
+      // application/pdf MIME, which Chrome's PDF handler can intercept even
+      // when the anchor has a download attribute.
+      const raw = await resp.arrayBuffer();
+      const blob = new Blob([raw], { type: 'application/octet-stream' });
+      const blobUrl = URL.createObjectURL(blob);
+      const trigger = document.createElement('a');
+      trigger.href = blobUrl;
+      trigger.download = filename;
+      document.body.appendChild(trigger);
+      trigger.click();
+      trigger.remove();
+      URL.revokeObjectURL(blobUrl);
+      console.log(`[ok] ${filename}`);
+    } catch (err) {
+      console.error(`[fail] ${url} (${filename})`, err);
+    }
+  }
+
   async function downloadDocuments(prefix) {
     const links = [...docsDiv.querySelectorAll('a[href]')];
     if (links.length === 0) {
       console.log(`[skip] ${prefix} - no documents`);
       return;
     }
+    let inflight = 0;
+    const pending = [];
     for (const a of links) {
       const url = a.href;
       const origName = (a.textContent.trim() || url.split('/').pop()) || 'document';
       const filename = sanitize(`${prefix} - ${origName}`);
-      try {
-        // credentials: 'omit' is required: hostedreports.ospi.k12.wa.us returns
-        // Access-Control-Allow-Origin: * which the browser refuses to honor for
-        // credentialed CORS requests. The endpoint is public, so no cookies needed.
-        const resp = await fetch(url, { credentials: 'omit' });
-        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-        // Wrap in an octet-stream Blob so the browser saves instead of opening
-        // the PDF in its built-in viewer. The original Blob carries the
-        // application/pdf MIME, which Chrome's PDF handler can intercept even
-        // when the anchor has a download attribute.
-        const raw = await resp.arrayBuffer();
-        const blob = new Blob([raw], { type: 'application/octet-stream' });
-        const blobUrl = URL.createObjectURL(blob);
-        const trigger = document.createElement('a');
-        trigger.href = blobUrl;
-        trigger.download = filename;
-        document.body.appendChild(trigger);
-        trigger.click();
-        trigger.remove();
-        URL.revokeObjectURL(blobUrl);
-        console.log(`[ok] ${filename}`);
-      } catch (err) {
-        console.error(`[fail] ${url} (${prefix})`, err);
+      while (inflight >= MAX_CONCURRENT_DOWNLOADS) {
+        await new Promise(r => setTimeout(r, 50));
       }
+      inflight++;
+      pending.push(downloadOne(url, filename).finally(() => { inflight--; }));
       const gap = jitteredGap();
-      console.log(`[wait] ${Math.round(gap)}ms`);
+      console.log(`[start] ${filename} (${inflight} inflight, next in ${Math.round(gap)}ms)`);
       await new Promise(r => setTimeout(r, gap));
     }
+    await Promise.allSettled(pending);
   }
 
   try {

@@ -34,6 +34,7 @@
   const POST_TRIGGER_PAUSE_MS = 100;
   const DOWNLOAD_GAP_MIN_MS = 250;
   const DOWNLOAD_GAP_MAX_MS = 1500;
+  const MAX_CONCURRENT_DOWNLOADS = 4;
 
   const LEVELS = ['years', 'report_types', 'org_types', 'orgs', 'districts'];
 
@@ -98,40 +99,54 @@
     return true;
   }
 
+  // Pipelined download: jitter is paced from the START of each fetch, with
+  // a hard ceiling of MAX_CONCURRENT_DOWNLOADS in flight at once. So fetch
+  // times don't compound onto the throttle, but we still cap parallel load.
+  async function downloadOne(url, filename) {
+    try {
+      // hostedreports.ospi.k12.wa.us returns Access-Control-Allow-Origin: *,
+      // which browsers reject for credentialed CORS. The endpoint is public.
+      const resp = await fetch(url, { credentials: 'omit' });
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      // Force octet-stream so Chrome saves rather than previews PDFs.
+      const raw = await resp.arrayBuffer();
+      const blob = new Blob([raw], { type: 'application/octet-stream' });
+      const blobUrl = URL.createObjectURL(blob);
+      const trigger = document.createElement('a');
+      trigger.href = blobUrl;
+      trigger.download = filename;
+      document.body.appendChild(trigger);
+      trigger.click();
+      trigger.remove();
+      URL.revokeObjectURL(blobUrl);
+      console.log(`[ok] ${filename}`);
+    } catch (err) {
+      console.error(`[fail] ${url} (${filename})`, err);
+    }
+  }
+
   async function downloadDocuments(prefix) {
     const links = [...docsDiv.querySelectorAll('a[href]')];
     if (links.length === 0) {
       console.log(`[skip] ${prefix} - no documents`);
       return;
     }
+    let inflight = 0;
+    const pending = [];
     for (const a of links) {
       const url = a.href;
       const origName = (a.textContent.trim() || url.split('/').pop()) || 'document';
       const filename = sanitize(`${prefix} - ${origName}`);
-      try {
-        // hostedreports.ospi.k12.wa.us returns Access-Control-Allow-Origin: *,
-        // which browsers reject for credentialed CORS. The endpoint is public.
-        const resp = await fetch(url, { credentials: 'omit' });
-        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-        // Force octet-stream so Chrome saves rather than previews PDFs.
-        const raw = await resp.arrayBuffer();
-        const blob = new Blob([raw], { type: 'application/octet-stream' });
-        const blobUrl = URL.createObjectURL(blob);
-        const trigger = document.createElement('a');
-        trigger.href = blobUrl;
-        trigger.download = filename;
-        document.body.appendChild(trigger);
-        trigger.click();
-        trigger.remove();
-        URL.revokeObjectURL(blobUrl);
-        console.log(`[ok] ${filename}`);
-      } catch (err) {
-        console.error(`[fail] ${url} (${prefix})`, err);
+      while (inflight >= MAX_CONCURRENT_DOWNLOADS) {
+        await new Promise(r => setTimeout(r, 50));
       }
+      inflight++;
+      pending.push(downloadOne(url, filename).finally(() => { inflight--; }));
       const gap = jitteredGap();
-      console.log(`[wait] ${Math.round(gap)}ms`);
+      console.log(`[start] ${filename} (${inflight} inflight, next in ${Math.round(gap)}ms)`);
       await new Promise(r => setTimeout(r, gap));
     }
+    await Promise.allSettled(pending);
   }
 
   // Recursive cascade. At each level, set the chosen value, wait for AJAX to
