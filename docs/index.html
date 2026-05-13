@@ -54,6 +54,26 @@
     <pre></pre>
   </div>
 
+  <div class="script" data-src="contentscripts/scrappers/ospi-funding-reports.js">
+    <h2>OSPI apportionment / SAFS reports</h2>
+    <p>Walks every (year x report type x optional org_type x optional org x optional district)
+       combination on the OSPI School Apportionment SAFS Report page. Auto-detects which levels
+       exist for each combination, then downloads every listed document with a label-prefixed
+       filename.</p>
+    <p class="target">Target page:
+      <a href="https://ospi.k12.wa.us/policy-funding/school-apportionment/safs-report"
+         target="_blank" rel="noopener">ospi.k12.wa.us/policy-funding/school-apportionment/safs-report</a></p>
+    <code class="loader"></code>
+    <div class="row">
+      <button class="copy-loader">Copy loader</button>
+      <button class="copy">Copy script</button>
+      <button class="view">View source</button>
+      <a class="raw" href="contentscripts/scrappers/ospi-funding-reports.js">Raw</a>
+      <span class="status"></span>
+    </div>
+    <pre></pre>
+  </div>
+
   <div class="script" data-src="contentscripts/scrappers/ospi-stars-diag.js">
     <h2>OSPI STARS diagnostic</h2>
     <p>Inspects the live STARS page DOM and reports what the year/report/org controls
