@@ -27,8 +27,8 @@
   const AJAX_QUIET_MS = 600;         // require this much idle before considering AJAX done
   const AJAX_MAX_WAIT_MS = 60000;    // hard cap per wait
   const POST_TRIGGER_PAUSE_MS = 100; // let jQuery start the XHR before we sample inflight
-  const DOWNLOAD_GAP_MIN_MS = 250;   // jittered gap between download starts
-  const DOWNLOAD_GAP_MAX_MS = 1500;
+  const DOWNLOAD_GAP_MIN_MS = 100;   // jittered gap between download starts
+  const DOWNLOAD_GAP_MAX_MS = 750;
   const MAX_CONCURRENT_DOWNLOADS = 4;
 
   const jitteredGap = () => DOWNLOAD_GAP_MIN_MS

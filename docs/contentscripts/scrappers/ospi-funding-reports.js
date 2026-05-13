@@ -32,8 +32,8 @@
   const AJAX_QUIET_MS = 600;
   const AJAX_MAX_WAIT_MS = 60000;
   const POST_TRIGGER_PAUSE_MS = 100;
-  const DOWNLOAD_GAP_MIN_MS = 250;
-  const DOWNLOAD_GAP_MAX_MS = 1500;
+  const DOWNLOAD_GAP_MIN_MS = 100;
+  const DOWNLOAD_GAP_MAX_MS = 750;
   const MAX_CONCURRENT_DOWNLOADS = 4;
 
   const LEVELS = ['years', 'report_types', 'org_types', 'orgs', 'districts'];
