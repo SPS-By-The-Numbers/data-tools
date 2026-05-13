@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>data-tools content scripts</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+           max-width: 820px; margin: 2rem auto; padding: 0 1rem; color: #222; line-height: 1.5; }
+    h1 { font-size: 1.4rem; }
+    .script { border: 1px solid #ddd; border-radius: 6px; padding: 1rem 1.25rem; margin: 1rem 0; }
+    .script h2 { font-size: 1.1rem; margin: 0 0 .25rem; }
+    .script p  { margin: .25rem 0 .75rem; color: #444; }
+    .row { display: flex; gap: .5rem; align-items: center; flex-wrap: wrap; }
+    button { font: inherit; padding: .4rem .9rem; border: 1px solid #888; border-radius: 4px;
+             background: #f6f6f6; cursor: pointer; }
+    button:hover { background: #eee; }
+    button:disabled { opacity: .6; cursor: progress; }
+    a.raw { font-size: .9rem; }
+    code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .85rem; }
+    pre { background: #f6f6f6; border-radius: 4px; padding: .75rem 1rem; max-height: 18rem;
+          overflow: auto; margin: .75rem 0 0; display: none; }
+    pre.open { display: block; }
+    .loader { display: block; background: #f6f6f6; border-radius: 4px; padding: .55rem .75rem;
+              margin: .5rem 0 .75rem; word-break: break-all; white-space: pre-wrap; }
+    .status { font-size: .85rem; color: #555; }
+    .target { font-size: .85rem; color: #555; }
+    .target a { word-break: break-all; }
+  </style>
+</head>
+<body>
+  <h1>data-tools content scripts</h1>
+  <p>Browser console scripts for scraping public data portals. Open the target page,
+     open DevTools (⌥⌘I), and either paste the full script (<strong>Copy script</strong>) or
+     paste the <strong>loader one-liner</strong>, which <code>fetch()</code>es and runs the
+     script without copying the whole body.</p>
+
+  <div class="script" data-src="contentscripts/scrappers/ospi-stars-reports.js">
+    <h2>OSPI STARS reports</h2>
+    <p>Walks every (year × report type × organization) combination on the OSPI Student
+       Transportation Allocation Reporting System page and downloads every listed document,
+       prefixing each filename with the three selection labels.</p>
+    <p class="target">Target page:
+      <a href="https://ospi.k12.wa.us/policy-funding/student-transportation/student-transportation-allocation-reporting-system-stars/student-transportation-allocation-stars-reports"
+         target="_blank" rel="noopener">ospi.k12.wa.us/…/student-transportation-allocation-stars-reports</a></p>
+    <code class="loader"></code>
+    <div class="row">
+      <button class="copy-loader">Copy loader</button>
+      <button class="copy">Copy script</button>
+      <button class="view">View source</button>
+      <a class="raw" href="contentscripts/scrappers/ospi-stars-reports.js">Raw</a>
+      <span class="status"></span>
+    </div>
+    <pre></pre>
+  </div>
+
+  <script>
+    document.querySelectorAll('.script').forEach((card) => {
+      const src = card.dataset.src;
+      const fullUrl = new URL(src, location.href).href;
+      const loader = `fetch(${JSON.stringify(fullUrl)}).then(r=>r.text()).then(eval)`;
+      card.querySelector('code.loader').textContent = loader;
+      const copyBtn = card.querySelector('button.copy');
+      const copyLoaderBtn = card.querySelector('button.copy-loader');
+      const viewBtn = card.querySelector('button.view');
+      const status = card.querySelector('.status');
+      const pre = card.querySelector('pre');
+      let cached = null;
+
+      const load = async () => {
+        if (cached !== null) return cached;
+        const resp = await fetch(src);
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        cached = await resp.text();
+        return cached;
+      };
+
+      const flash = (msg, ms = 1800) => {
+        status.textContent = msg;
+        setTimeout(() => { if (status.textContent === msg) status.textContent = ''; }, ms);
+      };
+
+      copyLoaderBtn.addEventListener('click', async () => {
+        try {
+          await navigator.clipboard.writeText(loader);
+          flash('Loader copied — paste into the console on the target page.');
+        } catch (err) {
+          flash(`Copy failed: ${err.message}. Select the snippet manually.`, 5000);
+        }
+      });
+
+      copyBtn.addEventListener('click', async () => {
+        copyBtn.disabled = true;
+        try {
+          const text = await load();
+          await navigator.clipboard.writeText(text);
+          flash('Copied to clipboard.');
+        } catch (err) {
+          flash(`Copy failed: ${err.message}. Use the Raw link instead.`, 5000);
+        } finally {
+          copyBtn.disabled = false;
+        }
+      });
+
+      viewBtn.addEventListener('click', async () => {
+        try {
+          pre.textContent = await load();
+          pre.classList.toggle('open');
+          viewBtn.textContent = pre.classList.contains('open') ? 'Hide source' : 'View source';
+        } catch (err) {
+          flash(`Load failed: ${err.message}`, 5000);
+        }
+      });
+    });
+  </script>
+</body>
+</html>
