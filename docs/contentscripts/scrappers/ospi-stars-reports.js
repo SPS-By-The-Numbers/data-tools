@@ -102,7 +102,12 @@
         // credentialed CORS requests. The endpoint is public, so no cookies needed.
         const resp = await fetch(url, { credentials: 'omit' });
         if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-        const blob = await resp.blob();
+        // Wrap in an octet-stream Blob so the browser saves instead of opening
+        // the PDF in its built-in viewer. The original Blob carries the
+        // application/pdf MIME, which Chrome's PDF handler can intercept even
+        // when the anchor has a download attribute.
+        const raw = await resp.arrayBuffer();
+        const blob = new Blob([raw], { type: 'application/octet-stream' });
         const blobUrl = URL.createObjectURL(blob);
         const trigger = document.createElement('a');
         trigger.href = blobUrl;
