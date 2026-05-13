@@ -3,35 +3,35 @@
 // Run from the browser JavaScript console on:
 //   https://ospi.k12.wa.us/policy-funding/student-transportation/student-transportation-allocation-reporting-system-stars/student-transportation-allocation-stars-reports
 //
-// Walks every (year, report_type, org) combination, waits for the #documents
-// list to stop mutating, then fetches each document and re-downloads it via a
-// Blob URL so the filename can be prefixed with the three selection labels.
+// Walks every (year, report_type, org) combination, waits for the page's
+// jQuery AJAX traffic to settle, then fetches each document in the #documents
+// div and re-downloads it via a Blob URL so the filename can be prefixed with
+// the three selection labels.
+//
+// Mechanics: the page's stars_report.js binds delegated jQuery change handlers:
+//   $(once('select', '#years'))       .on('change', 'select', () => { getReportTypes(); getOrgs(); });
+//   $(once('select', '#report_types')).on('change', 'select', () => { getOrgs(); });
+//   $(once('select', '#orgs'))        .on('change', 'select', () => { getDocuments(); });
+// We trigger change via jQuery (so delegated handlers fire) and wait on global
+// $(document).ajaxSend / ajaxComplete events to know when the cascading AJAX
+// is finished.
 //
 // Before running, in Chrome go to Settings > Downloads and either pick a target
-// directory or enable "Ask where to save" off, otherwise you'll get a prompt
-// per file. Also allow "multiple downloads" if the site prompts.
+// directory or disable "Ask where to save", otherwise you'll get a prompt per
+// file. Also allow "multiple downloads" if the site prompts.
 
 (async () => {
-  const SETTLE_MS = 3000;            // quiet period after last DOM mutation
-  const MAX_WAIT_MS = 60000;         // hard cap per combination
-  const POST_CHANGE_PAUSE_MS = 500;  // brief pause after dispatching change
-  const DOWNLOAD_GAP_MIN_MS = 500;   // min jittered gap between downloads
-  const DOWNLOAD_GAP_MAX_MS = 5000;  // max jittered gap between downloads
+  const $ = window.jQuery;
+  if (!$) throw new Error('jQuery not found on page; this scraper depends on it.');
+
+  const AJAX_QUIET_MS = 600;         // require this much idle before considering AJAX done
+  const AJAX_MAX_WAIT_MS = 60000;    // hard cap per wait
+  const POST_TRIGGER_PAUSE_MS = 100; // let jQuery start the XHR before we sample inflight
+  const DOWNLOAD_GAP_MIN_MS = 500;   // jittered gap between downloads
+  const DOWNLOAD_GAP_MAX_MS = 5000;
 
   const jitteredGap = () => DOWNLOAD_GAP_MIN_MS
     + Math.random() * (DOWNLOAD_GAP_MAX_MS - DOWNLOAD_GAP_MIN_MS);
-
-  const yearsBox = document.querySelector('#years select');
-  const reportsBox = document.querySelector('#report_types select');
-  const orgsBox = document.querySelector('#orgs select');
-  const docsDiv = document.querySelector('#documents');
-  if (!yearsBox || !reportsBox || !orgsBox || !docsDiv) {
-    throw new Error('Required form controls not found. Are you on the STARS page?');
-  }
-
-  const realOptions = (sel) => [...sel.options]
-    .filter(o => !o.disabled && o.value && o.value !== '0')
-    .map(o => ({ value: o.value, label: o.textContent.trim() }));
 
   const sanitize = (s) => s
     .replace(/[\\/:*?"<>|\x00-\x1f]+/g, '_')
@@ -39,59 +39,52 @@
     .trim()
     .slice(0, 200);
 
-  // The site is Drupal 10; change handlers are commonly attached via jQuery.
-  // Native dispatchEvent(new Event('change')) usually works on jQuery handlers
-  // because jQuery binds with addEventListener under the hood, but some legacy
-  // bindings (and Drupal AJAX wrappers) only see jQuery-triggered events.
-  // Prefer jQuery if present, then fall back to native.
-  const setSelect = (sel, value) => {
+  const docsDiv = document.getElementById('documents');
+  if (!docsDiv) throw new Error('#documents container not found.');
+
+  // The page fires $(document).ajaxSend / ajaxComplete around every XHR.
+  // Track inflight count and wait until it stays at 0 for AJAX_QUIET_MS.
+  let inflight = 0;
+  const onSend = () => { inflight++; };
+  const onComplete = () => { inflight--; };
+  $(document).on('ajaxSend.starsScraper', onSend);
+  $(document).on('ajaxComplete.starsScraper', onComplete);
+
+  async function waitForAjaxIdle() {
+    const start = Date.now();
+    let quietSince = inflight === 0 ? Date.now() : null;
+    while (Date.now() - start < AJAX_MAX_WAIT_MS) {
+      if (inflight === 0) {
+        if (quietSince === null) quietSince = Date.now();
+        if (Date.now() - quietSince >= AJAX_QUIET_MS) return;
+      } else {
+        quietSince = null;
+      }
+      await new Promise(r => setTimeout(r, 50));
+    }
+    console.warn(`[waitForAjaxIdle] timed out after ${AJAX_MAX_WAIT_MS}ms, inflight=${inflight}`);
+  }
+
+  function realOptions(boxId) {
+    const sel = document.querySelector(`#${boxId} select`);
+    if (!sel) return [];
+    return [...sel.options]
+      .filter(o => !o.disabled && o.value && o.value !== '0')
+      .map(o => ({ value: o.value, label: o.textContent.trim() }));
+  }
+
+  function setSelect(boxId, value) {
+    const sel = document.querySelector(`#${boxId} select`);
+    if (!sel) throw new Error(`#${boxId} select not found`);
     const before = sel.value;
-    sel.focus();
-    if (window.jQuery) {
-      const $sel = window.jQuery(sel);
-      $sel.val(value);
-      $sel.trigger('input');
-      $sel.trigger('change');
-    } else {
-      sel.value = value;
-      sel.dispatchEvent(new Event('input', { bubbles: true }));
-      sel.dispatchEvent(new Event('change', { bubbles: true }));
-    }
+    // Use jQuery val + trigger so the delegated change handlers fire.
+    $(sel).val(value).trigger('change');
     if (sel.value !== value) {
-      console.warn(`[setSelect] ${sel.getAttribute('aria-label')}: requested ${value}, got ${sel.value} (was ${before}). Option may not exist for this combination.`);
-    } else {
-      console.log(`[setSelect] ${sel.getAttribute('aria-label')} = ${value} (was ${before})`);
+      console.warn(`[setSelect] ${boxId}: requested ${value}, got ${sel.value} (was ${before}). Option missing for current combination.`);
+      return false;
     }
-  };
-
-  const docsSnapshot = () => docsDiv.innerHTML;
-
-  // Resolve once #documents has been quiet for SETTLE_MS, or MAX_WAIT_MS hits.
-  // The page often updates #documents 3+ times per change (spinner, partial,
-  // final), so debounce on every mutation and only resolve when the dust settles.
-  // Returns true if any mutation was observed at all, so callers can warn when
-  // a change event apparently produced no AJAX response.
-  const waitForSettle = () => new Promise((resolve) => {
-    let mutationCount = 0;
-    let quietTimer;
-    const armQuietTimer = () => {
-      clearTimeout(quietTimer);
-      quietTimer = setTimeout(finish, SETTLE_MS);
-    };
-    const observer = new MutationObserver((records) => {
-      mutationCount += records.length;
-      armQuietTimer();
-    });
-    const hardTimer = setTimeout(finish, MAX_WAIT_MS);
-    function finish() {
-      observer.disconnect();
-      clearTimeout(quietTimer);
-      clearTimeout(hardTimer);
-      resolve(mutationCount);
-    }
-    observer.observe(docsDiv, { childList: true, subtree: true, characterData: true });
-    armQuietTimer();
-  });
+    return true;
+  }
 
   async function downloadDocuments(prefix) {
     const links = [...docsDiv.querySelectorAll('a[href]')];
@@ -125,40 +118,52 @@
     }
   }
 
-  const years = realOptions(yearsBox);
-  const reportTypes = realOptions(reportsBox);
-  console.log(`Iterating ${years.length} year(s) x ${reportTypes.length} report type(s); orgs vary per combination.`);
+  try {
+    const years = realOptions('years');
+    console.log(`Found ${years.length} year(s). Report types and orgs vary per year.`);
 
-  let combosProcessed = 0;
-  for (const y of years) {
-    for (const r of reportTypes) {
-      console.group(`year=${y.label}  report=${r.label}`);
-      setSelect(yearsBox, y.value);
-      setSelect(reportsBox, r.value);
-      await new Promise(res => setTimeout(res, POST_CHANGE_PAUSE_MS));
-      await waitForSettle();
+    let combosProcessed = 0;
+    for (const y of years) {
+      console.group(`year=${y.label} (${y.value})`);
+      // Changing year refetches both report_types and orgs.
+      setSelect('years', y.value);
+      await new Promise(r => setTimeout(r, POST_TRIGGER_PAUSE_MS));
+      await waitForAjaxIdle();
 
-      const orgsContainer = document.querySelector('#orgs');
-      const orgsHidden = orgsContainer && orgsContainer.offsetParent === null;
-      const orgs = realOptions(orgsBox);
+      const reportTypes = realOptions('report_types');
+      console.log(`  ${reportTypes.length} report type(s) for this year`);
 
-      if (orgsHidden || orgs.length === 0) {
-        await downloadDocuments(`${y.label} - ${r.label}`);
-        combosProcessed++;
-      } else {
-        for (const o of orgs) {
-          setSelect(orgsBox, o.value);
-          await new Promise(res => setTimeout(res, POST_CHANGE_PAUSE_MS));
-          await waitForSettle();
-          await downloadDocuments(`${y.label} - ${r.label} - ${o.label}`);
+      for (const r of reportTypes) {
+        console.group(`report=${r.label} (${r.value})`);
+        // Changing report_type refetches orgs.
+        if (!setSelect('report_types', r.value)) { console.groupEnd(); continue; }
+        await new Promise(rr => setTimeout(rr, POST_TRIGGER_PAUSE_MS));
+        await waitForAjaxIdle();
+
+        const orgs = realOptions('orgs');
+        console.log(`    ${orgs.length} org(s) for this combination`);
+
+        if (orgs.length === 0) {
+          await downloadDocuments(`${y.label} - ${r.label}`);
           combosProcessed++;
-          if (combosProcessed % 25 === 0) {
-            console.log(`Progress: ${combosProcessed} combinations processed.`);
+        } else {
+          for (const o of orgs) {
+            if (!setSelect('orgs', o.value)) continue;
+            await new Promise(rr => setTimeout(rr, POST_TRIGGER_PAUSE_MS));
+            await waitForAjaxIdle();
+            await downloadDocuments(`${y.label} - ${r.label} - ${o.label}`);
+            combosProcessed++;
+            if (combosProcessed % 25 === 0) {
+              console.log(`Progress: ${combosProcessed} combinations processed.`);
+            }
           }
         }
+        console.groupEnd();
       }
       console.groupEnd();
     }
+    console.log(`Done. ${combosProcessed} combinations processed.`);
+  } finally {
+    $(document).off('ajaxSend.starsScraper ajaxComplete.starsScraper');
   }
-  console.log(`Done. ${combosProcessed} combinations processed.`);
 })();
