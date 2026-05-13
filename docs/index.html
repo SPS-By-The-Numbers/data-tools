@@ -54,6 +54,22 @@
     <pre></pre>
   </div>
 
+  <div class="script" data-src="contentscripts/scrappers/ospi-stars-diag.js">
+    <h2>OSPI STARS diagnostic</h2>
+    <p>Inspects the live STARS page DOM and reports what the year/report/org controls
+       actually look like (size, visibility, jQuery presence, signs of a custom select
+       widget). Run this if the scraper isn't triggering AJAX so we can see what to fix.</p>
+    <code class="loader"></code>
+    <div class="row">
+      <button class="copy-loader">Copy loader</button>
+      <button class="copy">Copy script</button>
+      <button class="view">View source</button>
+      <a class="raw" href="contentscripts/scrappers/ospi-stars-diag.js">Raw</a>
+      <span class="status"></span>
+    </div>
+    <pre></pre>
+  </div>
+
   <script>
     document.querySelectorAll('.script').forEach((card) => {
       const src = card.dataset.src;

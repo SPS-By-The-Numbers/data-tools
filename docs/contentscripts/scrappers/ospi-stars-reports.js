@@ -39,28 +39,55 @@
     .trim()
     .slice(0, 200);
 
+  // The site is Drupal 10; change handlers are commonly attached via jQuery.
+  // Native dispatchEvent(new Event('change')) usually works on jQuery handlers
+  // because jQuery binds with addEventListener under the hood, but some legacy
+  // bindings (and Drupal AJAX wrappers) only see jQuery-triggered events.
+  // Prefer jQuery if present, then fall back to native.
   const setSelect = (sel, value) => {
-    sel.value = value;
-    sel.dispatchEvent(new Event('change', { bubbles: true }));
-    sel.dispatchEvent(new Event('input', { bubbles: true }));
+    const before = sel.value;
+    sel.focus();
+    if (window.jQuery) {
+      const $sel = window.jQuery(sel);
+      $sel.val(value);
+      $sel.trigger('input');
+      $sel.trigger('change');
+    } else {
+      sel.value = value;
+      sel.dispatchEvent(new Event('input', { bubbles: true }));
+      sel.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+    if (sel.value !== value) {
+      console.warn(`[setSelect] ${sel.getAttribute('aria-label')}: requested ${value}, got ${sel.value} (was ${before}). Option may not exist for this combination.`);
+    } else {
+      console.log(`[setSelect] ${sel.getAttribute('aria-label')} = ${value} (was ${before})`);
+    }
   };
+
+  const docsSnapshot = () => docsDiv.innerHTML;
 
   // Resolve once #documents has been quiet for SETTLE_MS, or MAX_WAIT_MS hits.
   // The page often updates #documents 3+ times per change (spinner, partial,
   // final), so debounce on every mutation and only resolve when the dust settles.
+  // Returns true if any mutation was observed at all, so callers can warn when
+  // a change event apparently produced no AJAX response.
   const waitForSettle = () => new Promise((resolve) => {
+    let mutationCount = 0;
     let quietTimer;
     const armQuietTimer = () => {
       clearTimeout(quietTimer);
       quietTimer = setTimeout(finish, SETTLE_MS);
     };
-    const observer = new MutationObserver(armQuietTimer);
+    const observer = new MutationObserver((records) => {
+      mutationCount += records.length;
+      armQuietTimer();
+    });
     const hardTimer = setTimeout(finish, MAX_WAIT_MS);
     function finish() {
       observer.disconnect();
       clearTimeout(quietTimer);
       clearTimeout(hardTimer);
-      resolve();
+      resolve(mutationCount);
     }
     observer.observe(docsDiv, { childList: true, subtree: true, characterData: true });
     armQuietTimer();
