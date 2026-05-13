@@ -97,7 +97,10 @@
       const origName = (a.textContent.trim() || url.split('/').pop()) || 'document';
       const filename = sanitize(`${prefix} - ${origName}`);
       try {
-        const resp = await fetch(url, { credentials: 'include' });
+        // credentials: 'omit' is required: hostedreports.ospi.k12.wa.us returns
+        // Access-Control-Allow-Origin: * which the browser refuses to honor for
+        // credentialed CORS requests. The endpoint is public, so no cookies needed.
+        const resp = await fetch(url, { credentials: 'omit' });
         if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
         const blob = await resp.blob();
         const blobUrl = URL.createObjectURL(blob);
