@@ -146,21 +146,24 @@
     }
   }
 
-  // Optional resume point: set window.OSPI_SCRAPER_START before running the
-  // loader to start at a specific combination, e.g.
-  //   window.OSPI_SCRAPER_START = { years: '2023', report_types: '14', orgs: '3247' };
-  // Each key is a level's box id; each value can be the option's value (string)
-  // or its visible label. Lower-priority keys may be omitted -- e.g.
-  // { years: '2023' } resumes at year 2023 and iterates all report types/orgs
-  // from there. Once the cascade passes the start point at a given level, the
-  // filter is dropped for deeper levels, so later iterations are full.
+  // Optional range bounds: set window.OSPI_SCRAPER_START and/or
+  // window.OSPI_SCRAPER_END before running the loader to bracket the cascade.
+  // Both bounds are CLOSED (inclusive) in the page's option order, so a run
+  // with START={years:'2023', report_types:'14', orgs:'3247'} and END={years:
+  // '2024', report_types:'14'} processes everything from (2023, 14, 3247)
+  // through the last org under (2024, 14) inclusive. The filter at a given
+  // level is dropped for deeper levels once the cascade steps past that level's
+  // bound, so e.g. END at the report_types level doesn't constrain orgs unless
+  // we're also at that exact report_type.
   const START = (typeof window !== 'undefined' && window.OSPI_SCRAPER_START) || {};
+  const END   = (typeof window !== 'undefined' && window.OSPI_SCRAPER_END)   || {};
   const LEVELS = ['years', 'report_types', 'orgs'];
-  const matchesStart = (opt, target) => target === opt.value || target === opt.label;
+  const matchesTarget = (opt, target) =>
+    target !== undefined && (target === opt.value || target === opt.label);
 
   let combosProcessed = 0;
 
-  async function descend(levelIdx, prefixParts, startPath) {
+  async function descend(levelIdx, prefixParts, startPath, endPath) {
     if (levelIdx >= LEVELS.length) {
       await downloadDocuments(prefixParts.join(' - '));
       combosProcessed++;
@@ -178,25 +181,37 @@
     }
 
     const startTarget = startPath ? startPath[boxId] : undefined;
-    let foundStart = !startTarget;
-    let justMatched = false;
+    const endTarget = endPath ? endPath[boxId] : undefined;
+    let foundStart = startTarget === undefined;
     let skipped = 0;
     for (const o of opts) {
       if (!foundStart) {
-        if (!matchesStart(o, startTarget)) { skipped++; continue; }
+        if (!matchesTarget(o, startTarget)) { skipped++; continue; }
         foundStart = true;
-        justMatched = true;
         if (skipped) console.log(`[resume] ${boxId}: skipped ${skipped} option(s), starting at ${o.label} (${o.value})`);
       }
+      const matchedStart = matchesTarget(o, startTarget);
+      const matchedEnd = matchesTarget(o, endTarget);
       console.group(`${boxId}: ${o.label} (${o.value})`);
-      if (!setSelect(boxId, o.value)) { console.groupEnd(); justMatched = false; continue; }
-      await new Promise(r => setTimeout(r, POST_TRIGGER_PAUSE_MS));
-      await waitForAjaxIdle();
-      // startPath stays in effect only on the exact matched path. Once we
-      // step past the matched option at this level, deeper levels iterate fully.
-      await descend(levelIdx + 1, [...prefixParts, o.label], justMatched ? startPath : null);
-      justMatched = false;
+      const setOk = setSelect(boxId, o.value);
+      if (setOk) {
+        await new Promise(r => setTimeout(r, POST_TRIGGER_PAUSE_MS));
+        await waitForAjaxIdle();
+        // Bounds stay in effect only on the exact matched path at this level.
+        // Once we step past the matched option here, deeper levels iterate fully
+        // for that bound.
+        await descend(
+          levelIdx + 1,
+          [...prefixParts, o.label],
+          matchedStart ? startPath : null,
+          matchedEnd ? endPath : null,
+        );
+      }
       console.groupEnd();
+      if (matchedEnd) {
+        console.log(`[range] ${boxId}: reached end at ${o.label} (${o.value}); stopping further iteration at this level.`);
+        break;
+      }
     }
     if (!foundStart) {
       console.warn(`[resume] ${boxId}: start target ${JSON.stringify(startTarget)} not found among ${opts.length} option(s); skipping entire branch.`);
@@ -204,10 +219,13 @@
   }
 
   try {
-    if (Object.keys(START).length) {
-      console.log('Resume requested:', START);
-    }
-    await descend(0, [], Object.keys(START).length ? START : null);
+    if (Object.keys(START).length) console.log('Range start (inclusive):', START);
+    if (Object.keys(END).length)   console.log('Range end (inclusive):',   END);
+    await descend(
+      0, [],
+      Object.keys(START).length ? START : null,
+      Object.keys(END).length ? END : null,
+    );
     console.log(`Cascade complete after ${combosProcessed} combinations; waiting on ${pending.length} download(s) (${inflight} still inflight)...`);
     await Promise.allSettled(pending);
     console.log(`Done. ${combosProcessed} combinations processed, ${pending.length} downloads finished.`);

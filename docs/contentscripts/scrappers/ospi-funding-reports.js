@@ -161,19 +161,20 @@
   // options appeared, iterate it; otherwise the current path terminates with
   // a download of whatever is in #documents.
   //
-  // Optional resume point: set window.OSPI_SCRAPER_START before running the
-  // loader to start at a specific combination, e.g.
-  //   window.OSPI_SCRAPER_START = { years: '2023', report_types: '3', orgs: '...' };
-  // Each key is a level's box id; each value can be the option's value or
-  // visible label. Lower-priority keys may be omitted -- e.g. { years: '2023' }
-  // resumes at year 2023 and iterates everything from there. Once the cascade
-  // passes the start point at a given level, the filter is dropped for deeper
-  // levels, so subsequent iterations are full.
+  // Optional range bounds: set window.OSPI_SCRAPER_START and/or
+  // window.OSPI_SCRAPER_END before running the loader to bracket the cascade.
+  // Both bounds are CLOSED (inclusive) in the page's option order, so a run
+  // with START={years:'2023', report_types:'3'} and END={years:'2024'}
+  // processes everything from (2023, 3, ...) through the last document under
+  // 2024 inclusive. The filter at a given level is dropped for deeper levels
+  // once the cascade steps past that level's bound.
   const START = (typeof window !== 'undefined' && window.OSPI_SCRAPER_START) || {};
-  const matchesStart = (opt, target) => target === opt.value || target === opt.label;
+  const END   = (typeof window !== 'undefined' && window.OSPI_SCRAPER_END)   || {};
+  const matchesTarget = (opt, target) =>
+    target !== undefined && (target === opt.value || target === opt.label);
 
   let combosProcessed = 0;
-  async function descend(levelIdx, prefixParts, startPath) {
+  async function descend(levelIdx, prefixParts, startPath, endPath) {
     if (levelIdx >= LEVELS.length) {
       await downloadDocuments(prefixParts.join(' - '));
       combosProcessed++;
@@ -194,22 +195,33 @@
     }
 
     const startTarget = startPath ? startPath[boxId] : undefined;
-    let foundStart = !startTarget;
-    let justMatched = false;
+    const endTarget = endPath ? endPath[boxId] : undefined;
+    let foundStart = startTarget === undefined;
     let skipped = 0;
     console.group(`${boxId}: ${opts.length} option(s)`);
     for (const o of opts) {
       if (!foundStart) {
-        if (!matchesStart(o, startTarget)) { skipped++; continue; }
+        if (!matchesTarget(o, startTarget)) { skipped++; continue; }
         foundStart = true;
-        justMatched = true;
         if (skipped) console.log(`[resume] ${boxId}: skipped ${skipped} option(s), starting at ${o.label} (${o.value})`);
       }
-      if (!setSelect(boxId, o.value)) { justMatched = false; continue; }
-      await new Promise(r => setTimeout(r, POST_TRIGGER_PAUSE_MS));
-      await waitForAjaxIdle();
-      await descend(levelIdx + 1, [...prefixParts, o.label], justMatched ? startPath : null);
-      justMatched = false;
+      const matchedStart = matchesTarget(o, startTarget);
+      const matchedEnd = matchesTarget(o, endTarget);
+      const setOk = setSelect(boxId, o.value);
+      if (setOk) {
+        await new Promise(r => setTimeout(r, POST_TRIGGER_PAUSE_MS));
+        await waitForAjaxIdle();
+        await descend(
+          levelIdx + 1,
+          [...prefixParts, o.label],
+          matchedStart ? startPath : null,
+          matchedEnd ? endPath : null,
+        );
+      }
+      if (matchedEnd) {
+        console.log(`[range] ${boxId}: reached end at ${o.label} (${o.value}); stopping further iteration at this level.`);
+        break;
+      }
     }
     if (!foundStart) {
       console.warn(`[resume] ${boxId}: start target ${JSON.stringify(startTarget)} not found among ${opts.length} option(s); skipping entire branch.`);
@@ -218,10 +230,13 @@
   }
 
   try {
-    if (Object.keys(START).length) {
-      console.log('Resume requested:', START);
-    }
-    await descend(0, [], Object.keys(START).length ? START : null);
+    if (Object.keys(START).length) console.log('Range start (inclusive):', START);
+    if (Object.keys(END).length)   console.log('Range end (inclusive):',   END);
+    await descend(
+      0, [],
+      Object.keys(START).length ? START : null,
+      Object.keys(END).length ? END : null,
+    );
     console.log(`Cascade complete after ${combosProcessed} combinations; waiting on ${pending.length} download(s) (${inflight} still inflight)...`);
     await Promise.allSettled(pending);
     console.log(`Done. ${combosProcessed} combinations processed, ${pending.length} downloads finished.`);

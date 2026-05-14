@@ -48,30 +48,52 @@
   <details class="config">
     <summary>Configuration & tips</summary>
 
-    <h3>Resume from a specific combination</h3>
-    <p>Both OSPI scrapers walk a cascade of dropdowns. If a run is interrupted (closed tab,
-       crash, rate limit, etc.), you can resume mid-cascade by setting
-       <code class="inline">window.OSPI_SCRAPER_START</code> <em>before</em> pasting the loader.
-       Keys are the cascade level's box id; values can be either the option's
+    <h3>Bound the run with START / END</h3>
+    <p>Both OSPI scrapers walk a cascade of dropdowns. You can bracket the run
+       with <code class="inline">window.OSPI_SCRAPER_START</code> and
+       <code class="inline">window.OSPI_SCRAPER_END</code>, set <em>before</em> pasting the
+       loader. Keys are the cascade level's box id; values can be either the option's
        <code class="inline">value</code> (string) or its visible label.</p>
     <pre class="show">// STARS: resume at year 2023, report type 14, org Aberdeen
 window.OSPI_SCRAPER_START = { years: '2023', report_types: '14', orgs: '3247' };
-fetch("contentscripts/scrappers/ospi-stars-reports.js").then(r=>r.text()).then(eval);</pre>
+fetch("contentscripts/scrappers/ospi-stars-reports.js").then(r=>r.text()).then(eval);
+
+// Single year, single report type: just one combination's slice of orgs
+window.OSPI_SCRAPER_START = { years: '2023', report_types: '14' };
+window.OSPI_SCRAPER_END   = { years: '2023', report_types: '14' };
+fetch("contentscripts/scrappers/ospi-stars-reports.js").then(r=>r.text()).then(eval);
+
+// SAFS: every report type in 2024-2025, stop after Operations Allocation Detail
+window.OSPI_SCRAPER_START = { years: '2024' };
+window.OSPI_SCRAPER_END   = { years: '2024', report_types: 'Operations Allocation Detail' };
+fetch("contentscripts/scrappers/ospi-funding-reports.js").then(r=>r.text()).then(eval);</pre>
     <ul>
+      <li><strong>Both bounds are CLOSED intervals (inclusive on both ends).</strong>
+          A run with START=(2023,14,3247) and END=(2024,14,3247) processes 3247 under 2023+14,
+          everything in 2023+14 after 3247, all of 2023+other report types, all of 2024 up to
+          and including 3247 under 14, and stops.</li>
+      <li><strong>Iteration order is the page's own option order</strong> (not chronological
+          or alphabetical — whatever the dropdown lists). On the STARS page years are listed
+          newest first, so e.g. START=2023 means "skip 2025 and 2024, start at 2023".
+          When in doubt, look at the dropdown order in the page.</li>
       <li><strong>Lower-priority keys can be omitted.</strong>
-          <code class="inline">{ years: '2023' }</code> resumes at 2023 and iterates every
-          report type / org / etc. below it.</li>
+          <code class="inline">{ years: '2023' }</code> as START resumes at 2023 and iterates
+          every report type / org below it.
+          <code class="inline">{ years: '2023' }</code> as END means "stop after finishing
+          everything under 2023".</li>
       <li><strong>Labels work too.</strong>
           <code class="inline">{ years: '2023-2024' }</code> is equivalent to
           <code class="inline">{ years: '2023' }</code>.</li>
-      <li><strong>Once the cascade passes the start point at a given level, the filter is
-          dropped for deeper levels.</strong> So after the first matched org, every subsequent
-          org under the same (year, report_type) is processed in full.</li>
-      <li>If a start value isn't found in the current options, the scraper logs
+      <li><strong>Filters lift past the matched boundary.</strong>
+          Once the cascade steps past the START match at a given level, the START filter is
+          dropped for deeper levels. Same for END. So
+          <code class="inline">START={years:'2023',orgs:'3247'}</code> means "in 2023, skip
+          orgs before 3247; in 2024+ years, iterate all orgs from the top."</li>
+      <li>If a bound's value isn't found in the current options, the scraper logs
           <code class="inline">[resume] &hellip; not found</code> and skips that branch.
           Usually means a typo in the value.</li>
-      <li>Read the last good console log line to find the value/label pair you want to
-          resume at — log lines look like
+      <li>Read the last good console log line to find the value/label pair you want to bound
+          at — log lines look like
           <code class="inline">orgs: Aberdeen School District(14005) (3247)</code>.</li>
     </ul>
 
@@ -111,7 +133,9 @@ fetch("contentscripts/scrappers/ospi-stars-reports.js").then(r=>r.text()).then(e
       <li><code class="inline">[skip] &lt;prefix&gt; - no documents</code> — this combination
           had an empty <code class="inline">#documents</code> div after AJAX settled.</li>
       <li><code class="inline">[resume] &lt;boxId&gt;: skipped N option(s), starting at &hellip;</code>
-          — confirms the resume filter took effect.</li>
+          — confirms the START filter took effect.</li>
+      <li><code class="inline">[range] &lt;boxId&gt;: reached end at &hellip;</code>
+          — confirms the END filter took effect and iteration at that level stopped.</li>
     </ul>
 
     <h3>Troubleshooting</h3>
