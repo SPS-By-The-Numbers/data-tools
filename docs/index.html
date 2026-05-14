@@ -26,6 +26,16 @@
     .status { font-size: .85rem; color: #555; }
     .target { font-size: .85rem; color: #555; }
     .target a { word-break: break-all; }
+    details.config { border: 1px solid #ddd; border-radius: 6px; padding: .25rem 1rem;
+                     margin: 1rem 0; background: #fafafa; }
+    details.config[open] { padding-bottom: 1rem; }
+    details.config summary { font-weight: 600; cursor: pointer; padding: .65rem 0; }
+    details.config h3 { font-size: .95rem; margin: 1rem 0 .25rem; }
+    details.config code.inline { background: #eee; padding: 0 .25rem; border-radius: 3px; }
+    details.config pre.show { display: block; background: #f0f0f0; padding: .65rem 1rem;
+                              margin: .5rem 0; overflow-x: auto; }
+    .levels { font-size: .85rem; color: #555; margin: .25rem 0 0; }
+    .levels code { background: #eee; padding: 0 .25rem; border-radius: 3px; }
   </style>
 </head>
 <body>
@@ -35,6 +45,91 @@
      paste the <strong>loader one-liner</strong>, which <code>fetch()</code>es and runs the
      script without copying the whole body.</p>
 
+  <details class="config">
+    <summary>Configuration & tips</summary>
+
+    <h3>Resume from a specific combination</h3>
+    <p>Both OSPI scrapers walk a cascade of dropdowns. If a run is interrupted (closed tab,
+       crash, rate limit, etc.), you can resume mid-cascade by setting
+       <code class="inline">window.OSPI_SCRAPER_START</code> <em>before</em> pasting the loader.
+       Keys are the cascade level's box id; values can be either the option's
+       <code class="inline">value</code> (string) or its visible label.</p>
+    <pre class="show">// STARS: resume at year 2023, report type 14, org Aberdeen
+window.OSPI_SCRAPER_START = { years: '2023', report_types: '14', orgs: '3247' };
+fetch("contentscripts/scrappers/ospi-stars-reports.js").then(r=>r.text()).then(eval);</pre>
+    <ul>
+      <li><strong>Lower-priority keys can be omitted.</strong>
+          <code class="inline">{ years: '2023' }</code> resumes at 2023 and iterates every
+          report type / org / etc. below it.</li>
+      <li><strong>Labels work too.</strong>
+          <code class="inline">{ years: '2023-2024' }</code> is equivalent to
+          <code class="inline">{ years: '2023' }</code>.</li>
+      <li><strong>Once the cascade passes the start point at a given level, the filter is
+          dropped for deeper levels.</strong> So after the first matched org, every subsequent
+          org under the same (year, report_type) is processed in full.</li>
+      <li>If a start value isn't found in the current options, the scraper logs
+          <code class="inline">[resume] &hellip; not found</code> and skips that branch.
+          Usually means a typo in the value.</li>
+      <li>Read the last good console log line to find the value/label pair you want to
+          resume at — log lines look like
+          <code class="inline">orgs: Aberdeen School District(14005) (3247)</code>.</li>
+    </ul>
+
+    <h3>Pre-run setup (Chrome)</h3>
+    <ul>
+      <li><strong>Settings → Downloads → "Ask where to save each file":</strong> turn this off
+          and pick a target directory, or every PDF will show its own save-as dialog.</li>
+      <li><strong>"Allow multiple downloads":</strong> the first time the scraper kicks off
+          more than one file from the site, Chrome shows a prompt — click <em>Allow</em>.</li>
+      <li>Downloads are pulled via <code class="inline">fetch</code> + Blob, so files always
+          save (never open in the PDF viewer).</li>
+    </ul>
+
+    <h3>Pacing & concurrency</h3>
+    <p>Defaults baked into both scrapers:</p>
+    <ul>
+      <li>Jitter between download starts: uniform random in
+          <code class="inline">[DOWNLOAD_GAP_MIN_MS, DOWNLOAD_GAP_MAX_MS]</code>
+          (currently 100&nbsp;ms – 750&nbsp;ms).</li>
+      <li>Max concurrent downloads:
+          <code class="inline">MAX_CONCURRENT_DOWNLOADS = 4</code> across all combinations.</li>
+      <li>Per-combination AJAX waits use the page's own
+          <code class="inline">$(document).ajaxSend / ajaxComplete</code> hooks, with a
+          600&nbsp;ms idle threshold.</li>
+    </ul>
+    <p>To override, edit the constants near the top of each script before pasting
+       (use <em>Copy script</em>, edit in the console, then run).</p>
+
+    <h3>Logs to watch</h3>
+    <ul>
+      <li><code class="inline">[start] &lt;file&gt; (N inflight, next in Xms)</code> — fetch
+          dispatched, N currently in flight, next start scheduled in X&nbsp;ms.</li>
+      <li><code class="inline">[ok] &lt;file&gt;</code> — fetch completed and the browser
+          was prompted to save it.</li>
+      <li><code class="inline">[fail] &lt;url&gt; (&lt;file&gt;)</code> — fetch errored.
+          Hover/expand for the exception.</li>
+      <li><code class="inline">[skip] &lt;prefix&gt; - no documents</code> — this combination
+          had an empty <code class="inline">#documents</code> div after AJAX settled.</li>
+      <li><code class="inline">[resume] &lt;boxId&gt;: skipped N option(s), starting at &hellip;</code>
+          — confirms the resume filter took effect.</li>
+    </ul>
+
+    <h3>Troubleshooting</h3>
+    <ul>
+      <li><strong>Nothing happens / no network activity.</strong> Run the STARS diagnostic
+          (below) and paste its output. Most likely the dropdowns aren't where the scraper
+          expects them.</li>
+      <li><strong><code class="inline">[fail] &hellip; Failed to fetch</code> in bulk.</strong>
+          Usually a CORS or network issue. The scraper already sets
+          <code class="inline">credentials: 'omit'</code> for the document host; if you see
+          this on a different host, that host may have stricter CORS.</li>
+      <li><strong>Files open in Preview instead of saving.</strong> The scraper forces
+          <code class="inline">application/octet-stream</code> on download. If your OS is
+          still opening files after save, that's a per-OS "open with default app" setting,
+          not the scraper.</li>
+    </ul>
+  </details>
+
   <div class="script" data-src="contentscripts/scrappers/ospi-stars-reports.js">
     <h2>OSPI STARS reports</h2>
     <p>Walks every (year × report type × organization) combination on the OSPI Student
@@ -43,6 +138,7 @@
     <p class="target">Target page:
       <a href="https://ospi.k12.wa.us/policy-funding/student-transportation/student-transportation-allocation-reporting-system-stars/student-transportation-allocation-stars-reports"
          target="_blank" rel="noopener">ospi.k12.wa.us/…/student-transportation-allocation-stars-reports</a></p>
+    <p class="levels">Resume keys: <code>years</code> · <code>report_types</code> · <code>orgs</code></p>
     <code class="loader"></code>
     <div class="row">
       <button class="copy-loader">Copy loader</button>
@@ -56,13 +152,14 @@
 
   <div class="script" data-src="contentscripts/scrappers/ospi-funding-reports.js">
     <h2>OSPI apportionment / SAFS reports</h2>
-    <p>Walks every (year x report type x optional org_type x optional org x optional district)
+    <p>Walks every (year × report type × optional org_type × optional org × optional district)
        combination on the OSPI School Apportionment SAFS Report page. Auto-detects which levels
        exist for each combination, then downloads every listed document with a label-prefixed
        filename.</p>
     <p class="target">Target page:
       <a href="https://ospi.k12.wa.us/policy-funding/school-apportionment/safs-report"
          target="_blank" rel="noopener">ospi.k12.wa.us/policy-funding/school-apportionment/safs-report</a></p>
+    <p class="levels">Resume keys: <code>years</code> · <code>report_types</code> · <code>org_types</code> · <code>orgs</code> · <code>districts</code></p>
     <code class="loader"></code>
     <div class="row">
       <button class="copy-loader">Copy loader</button>
