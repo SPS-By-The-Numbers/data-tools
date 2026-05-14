@@ -44,18 +44,16 @@
   if (!docsDiv) throw new Error('#documents container not found.');
 
   // The page fires $(document).ajaxSend / ajaxComplete around every XHR.
-  // Track inflight count and wait until it stays at 0 for AJAX_QUIET_MS.
-  let inflight = 0;
-  const onSend = () => { inflight++; };
-  const onComplete = () => { inflight--; };
-  $(document).on('ajaxSend.starsScraper', onSend);
-  $(document).on('ajaxComplete.starsScraper', onComplete);
+  // Track page XHR inflight count and wait until it stays at 0 for AJAX_QUIET_MS.
+  let pageXhrInflight = 0;
+  $(document).on('ajaxSend.starsScraper', () => { pageXhrInflight++; });
+  $(document).on('ajaxComplete.starsScraper', () => { pageXhrInflight--; });
 
   async function waitForAjaxIdle() {
     const start = Date.now();
-    let quietSince = inflight === 0 ? Date.now() : null;
+    let quietSince = pageXhrInflight === 0 ? Date.now() : null;
     while (Date.now() - start < AJAX_MAX_WAIT_MS) {
-      if (inflight === 0) {
+      if (pageXhrInflight === 0) {
         if (quietSince === null) quietSince = Date.now();
         if (Date.now() - quietSince >= AJAX_QUIET_MS) return;
       } else {
@@ -63,7 +61,7 @@
       }
       await new Promise(r => setTimeout(r, 50));
     }
-    console.warn(`[waitForAjaxIdle] timed out after ${AJAX_MAX_WAIT_MS}ms, inflight=${inflight}`);
+    console.warn(`[waitForAjaxIdle] timed out after ${AJAX_MAX_WAIT_MS}ms, inflight=${pageXhrInflight}`);
   }
 
   function realOptions(boxId) {
@@ -117,28 +115,35 @@
     }
   }
 
+  // Global pipeline: inflight + pending live outside downloadDocuments so that
+  // downloads from one combo overlap with the next combo's cascade work. The
+  // outer cascade only blocks here when MAX_CONCURRENT_DOWNLOADS is reached.
+  let inflight = 0;
+  const pending = [];
+
   async function downloadDocuments(prefix) {
     const links = [...docsDiv.querySelectorAll('a[href]')];
     if (links.length === 0) {
       console.log(`[skip] ${prefix} - no documents`);
       return;
     }
-    let inflight = 0;
-    const pending = [];
-    for (const a of links) {
-      const url = a.href;
-      const origName = (a.textContent.trim() || url.split('/').pop()) || 'document';
-      const filename = sanitize(`${prefix} - ${origName}`);
+    // Snapshot href + name immediately; the outer cascade will mutate
+    // #documents (replace its contents on the next setSelect), but the URLs
+    // we've captured here keep working.
+    const items = links.map(a => ({
+      url: a.href,
+      name: sanitize(`${prefix} - ${(a.textContent.trim() || a.href.split('/').pop()) || 'document'}`),
+    }));
+    for (const { url, name } of items) {
       while (inflight >= MAX_CONCURRENT_DOWNLOADS) {
         await new Promise(r => setTimeout(r, 50));
       }
       inflight++;
-      pending.push(downloadOne(url, filename).finally(() => { inflight--; }));
+      pending.push(downloadOne(url, name).finally(() => { inflight--; }));
       const gap = jitteredGap();
-      console.log(`[start] ${filename} (${inflight} inflight, next in ${Math.round(gap)}ms)`);
+      console.log(`[start] ${name} (${inflight} inflight, next in ${Math.round(gap)}ms)`);
       await new Promise(r => setTimeout(r, gap));
     }
-    await Promise.allSettled(pending);
   }
 
   // Optional resume point: set window.OSPI_SCRAPER_START before running the
@@ -203,7 +208,9 @@
       console.log('Resume requested:', START);
     }
     await descend(0, [], Object.keys(START).length ? START : null);
-    console.log(`Done. ${combosProcessed} combinations processed.`);
+    console.log(`Cascade complete after ${combosProcessed} combinations; waiting on ${pending.length} download(s) (${inflight} still inflight)...`);
+    await Promise.allSettled(pending);
+    console.log(`Done. ${combosProcessed} combinations processed, ${pending.length} downloads finished.`);
   } finally {
     $(document).off('ajaxSend.starsScraper ajaxComplete.starsScraper');
   }
