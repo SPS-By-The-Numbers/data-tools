@@ -141,50 +141,68 @@
     await Promise.allSettled(pending);
   }
 
-  try {
-    const years = realOptions('years');
-    console.log(`Found ${years.length} year(s). Report types and orgs vary per year.`);
+  // Optional resume point: set window.OSPI_SCRAPER_START before running the
+  // loader to start at a specific combination, e.g.
+  //   window.OSPI_SCRAPER_START = { years: '2023', report_types: '14', orgs: '3247' };
+  // Each key is a level's box id; each value can be the option's value (string)
+  // or its visible label. Lower-priority keys may be omitted -- e.g.
+  // { years: '2023' } resumes at year 2023 and iterates all report types/orgs
+  // from there. Once the cascade passes the start point at a given level, the
+  // filter is dropped for deeper levels, so later iterations are full.
+  const START = (typeof window !== 'undefined' && window.OSPI_SCRAPER_START) || {};
+  const LEVELS = ['years', 'report_types', 'orgs'];
+  const matchesStart = (opt, target) => target === opt.value || target === opt.label;
 
-    let combosProcessed = 0;
-    for (const y of years) {
-      console.group(`year=${y.label} (${y.value})`);
-      // Changing year refetches both report_types and orgs.
-      setSelect('years', y.value);
+  let combosProcessed = 0;
+
+  async function descend(levelIdx, prefixParts, startPath) {
+    if (levelIdx >= LEVELS.length) {
+      await downloadDocuments(prefixParts.join(' - '));
+      combosProcessed++;
+      if (combosProcessed && combosProcessed % 25 === 0) {
+        console.log(`Progress: ${combosProcessed} combinations processed.`);
+      }
+      return;
+    }
+    const boxId = LEVELS[levelIdx];
+    const opts = realOptions(boxId);
+    if (opts.length === 0) {
+      await downloadDocuments(prefixParts.join(' - '));
+      combosProcessed++;
+      return;
+    }
+
+    const startTarget = startPath ? startPath[boxId] : undefined;
+    let foundStart = !startTarget;
+    let justMatched = false;
+    let skipped = 0;
+    for (const o of opts) {
+      if (!foundStart) {
+        if (!matchesStart(o, startTarget)) { skipped++; continue; }
+        foundStart = true;
+        justMatched = true;
+        if (skipped) console.log(`[resume] ${boxId}: skipped ${skipped} option(s), starting at ${o.label} (${o.value})`);
+      }
+      console.group(`${boxId}: ${o.label} (${o.value})`);
+      if (!setSelect(boxId, o.value)) { console.groupEnd(); justMatched = false; continue; }
       await new Promise(r => setTimeout(r, POST_TRIGGER_PAUSE_MS));
       await waitForAjaxIdle();
-
-      const reportTypes = realOptions('report_types');
-      console.log(`  ${reportTypes.length} report type(s) for this year`);
-
-      for (const r of reportTypes) {
-        console.group(`report=${r.label} (${r.value})`);
-        // Changing report_type refetches orgs.
-        if (!setSelect('report_types', r.value)) { console.groupEnd(); continue; }
-        await new Promise(rr => setTimeout(rr, POST_TRIGGER_PAUSE_MS));
-        await waitForAjaxIdle();
-
-        const orgs = realOptions('orgs');
-        console.log(`    ${orgs.length} org(s) for this combination`);
-
-        if (orgs.length === 0) {
-          await downloadDocuments(`${y.label} - ${r.label}`);
-          combosProcessed++;
-        } else {
-          for (const o of orgs) {
-            if (!setSelect('orgs', o.value)) continue;
-            await new Promise(rr => setTimeout(rr, POST_TRIGGER_PAUSE_MS));
-            await waitForAjaxIdle();
-            await downloadDocuments(`${y.label} - ${r.label} - ${o.label}`);
-            combosProcessed++;
-            if (combosProcessed % 25 === 0) {
-              console.log(`Progress: ${combosProcessed} combinations processed.`);
-            }
-          }
-        }
-        console.groupEnd();
-      }
+      // startPath stays in effect only on the exact matched path. Once we
+      // step past the matched option at this level, deeper levels iterate fully.
+      await descend(levelIdx + 1, [...prefixParts, o.label], justMatched ? startPath : null);
+      justMatched = false;
       console.groupEnd();
     }
+    if (!foundStart) {
+      console.warn(`[resume] ${boxId}: start target ${JSON.stringify(startTarget)} not found among ${opts.length} option(s); skipping entire branch.`);
+    }
+  }
+
+  try {
+    if (Object.keys(START).length) {
+      console.log('Resume requested:', START);
+    }
+    await descend(0, [], Object.keys(START).length ? START : null);
     console.log(`Done. ${combosProcessed} combinations processed.`);
   } finally {
     $(document).off('ajaxSend.starsScraper ajaxComplete.starsScraper');

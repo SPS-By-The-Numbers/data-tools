@@ -153,11 +153,26 @@
   // settle, then look at the next level's container. If a select with real
   // options appeared, iterate it; otherwise the current path terminates with
   // a download of whatever is in #documents.
+  //
+  // Optional resume point: set window.OSPI_SCRAPER_START before running the
+  // loader to start at a specific combination, e.g.
+  //   window.OSPI_SCRAPER_START = { years: '2023', report_types: '3', orgs: '...' };
+  // Each key is a level's box id; each value can be the option's value or
+  // visible label. Lower-priority keys may be omitted -- e.g. { years: '2023' }
+  // resumes at year 2023 and iterates everything from there. Once the cascade
+  // passes the start point at a given level, the filter is dropped for deeper
+  // levels, so subsequent iterations are full.
+  const START = (typeof window !== 'undefined' && window.OSPI_SCRAPER_START) || {};
+  const matchesStart = (opt, target) => target === opt.value || target === opt.label;
+
   let combosProcessed = 0;
-  async function descend(levelIdx, prefixParts) {
+  async function descend(levelIdx, prefixParts, startPath) {
     if (levelIdx >= LEVELS.length) {
       await downloadDocuments(prefixParts.join(' - '));
       combosProcessed++;
+      if (combosProcessed && combosProcessed % 25 === 0) {
+        console.log(`Progress: ${combosProcessed} combinations processed.`);
+      }
       return;
     }
     const boxId = LEVELS[levelIdx];
@@ -171,21 +186,35 @@
       return;
     }
 
+    const startTarget = startPath ? startPath[boxId] : undefined;
+    let foundStart = !startTarget;
+    let justMatched = false;
+    let skipped = 0;
     console.group(`${boxId}: ${opts.length} option(s)`);
     for (const o of opts) {
-      if (!setSelect(boxId, o.value)) continue;
+      if (!foundStart) {
+        if (!matchesStart(o, startTarget)) { skipped++; continue; }
+        foundStart = true;
+        justMatched = true;
+        if (skipped) console.log(`[resume] ${boxId}: skipped ${skipped} option(s), starting at ${o.label} (${o.value})`);
+      }
+      if (!setSelect(boxId, o.value)) { justMatched = false; continue; }
       await new Promise(r => setTimeout(r, POST_TRIGGER_PAUSE_MS));
       await waitForAjaxIdle();
-      await descend(levelIdx + 1, [...prefixParts, o.label]);
-      if (combosProcessed && combosProcessed % 25 === 0) {
-        console.log(`Progress: ${combosProcessed} combinations processed.`);
-      }
+      await descend(levelIdx + 1, [...prefixParts, o.label], justMatched ? startPath : null);
+      justMatched = false;
+    }
+    if (!foundStart) {
+      console.warn(`[resume] ${boxId}: start target ${JSON.stringify(startTarget)} not found among ${opts.length} option(s); skipping entire branch.`);
     }
     console.groupEnd();
   }
 
   try {
-    await descend(0, []);
+    if (Object.keys(START).length) {
+      console.log('Resume requested:', START);
+    }
+    await descend(0, [], Object.keys(START).length ? START : null);
     console.log(`Done. ${combosProcessed} combinations processed.`);
   } finally {
     $(document).off('ajaxSend.fundingScraper ajaxComplete.fundingScraper');
