@@ -4,8 +4,10 @@ google-cloud-storage
 inflection
 openpyxl
 pandas
+pdfplumber
 pytest
 pytest-mock
+python-docx
 python-poppler
 researchpy
 zstandard
