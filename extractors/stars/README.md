@@ -143,6 +143,65 @@ Notes on the values:
   COMPACT) and are skipped (logged at INFO level, 143 of 2,908 files in
   the corpus). See TODO.md for details.
 
+### `stars_quarterly_district` (parsed from `quarterly_district/`)
+
+Long-form per district per school year per quarter per metric. OSPI
+publishes one Quarterly District Detail report per quarter (FALL / WINTER
+/ SPRING) with three summary sections that this parser captures
+(STUDENT DETAIL, ROUTE SUMMARY, BUS SUMMARY). Each (school_year, ccddd,
+quarter) tuple emits 28 rows, one per metric.
+
+| column           | type        | meaning |
+|------------------|-------------|---------|
+| `stars_quarterly_district_id` | auto_primary_key | surrogate key |
+| `school_year`    | string (LK) | School year of the report (e.g. `2024-2025`). |
+| `class_of`       | int         | End year of the school year as an int. |
+| `ccddd`          | int (LK)    | OSPI county-and-district code. Joins to `d_ccddd`. |
+| `county`         | string      | County name (filled via `d_ccddd` join). |
+| `district`       | string      | District name from the filename. |
+| `quarter`        | string (LK) | `FALL` / `WINTER` / `SPRING`, extracted from the filename's original-name segment. |
+| `metric_code`    | string (LK) | One of 28 metric identifiers (see schema). |
+| `value`          | decimal     | Metric value. NULL when the source's data row was absent. |
+| `_source`        | string      | Originating PDF/DOCX filename. |
+| `_source_table`  | string      | `stars_quarterly_district`. |
+
+Logical key: `(school_year, ccddd, quarter, metric_code)`.
+
+The 28 metrics split into:
+
+- **STUDENT DETAIL** (10): basic-program rider counts (`basic_students_*`:
+  `on_buses`, `in_walk_areas`, `transit_buses`, `total`) and special-program
+  rider subdivisions (`special_students_*`: `special_ed`, `bilingual`,
+  `gifted`, `homeless`, `early_ed`, `total`).
+- **ROUTE SUMMARY** (10): route counts by program (`routes_basic`,
+  `routes_special`, `routes_bilingual`, `routes_gifted`, `routes_homeless`,
+  `routes_early_ed`, `routes_total`) plus `route_summary_destinations`,
+  `route_summary_total_buses`, and `route_summary_average_distance`.
+- **BUS SUMMARY** (8): bus counts by program (`buses_*` with the same
+  six programs) plus `bus_summary_destinations`, `bus_summary_total_buses`.
+
+Notes on the values:
+
+- **Per-route ROUTE DETAIL is not extracted.** Every report has a
+  trailing per-route section with one row per individual bus route
+  (route number, bus, state bus, destination, stop count, total stops,
+  average distance). Voluminous (hundreds of rows for larger districts)
+  and not needed for current analyses; could be its own
+  `stars_quarterly_route` table later.
+- **COVID dip is preserved as zero, not NULL.** Districts that genuinely
+  reported zero transportation in 2020-2021 (Seattle FALL 2020-2021 has
+  `basic_students_total = 0`) keep the literal zero so consumers can
+  compute the recovery curve.
+- **NULL vs 0.** OSPI sometimes generates a report where the data row
+  is entirely absent (small districts that didn't transport anyone, or
+  charter schools whose ROUTE SUMMARY has no average distance because
+  they have no routes). The parser keeps the row coverage and fills
+  unparsable metric slots with NULL to distinguish "reported zero"
+  from "not reported".
+- **Quarter detection.** The parser reads FALL / WINTER / SPRING out of
+  the filename's last segment (e.g. `Almira FALL` -> `FALL`). Case-
+  insensitive search, so `AlmiraWinter` also works if it ever shows up.
+
 ## Pipeline (current state)
 
 1. **Filename parse** (`filename.py`) -- strict on the `(NNNNN)` ccddd
@@ -152,5 +211,5 @@ Notes on the values:
 3. **CLI driver** (`extract_<report>.py`) -- walks a directory, dispatches
    to the right parser, emits CSV / JSON / summary.
 
-Currently implemented: `kpi`, `operations_allocation`. Quarterly District,
-Efficiency, and Efficiency Review are pending.
+Currently implemented: `kpi`, `operations_allocation`, `quarterly_district`.
+Efficiency and Efficiency Review are pending.
