@@ -99,6 +99,50 @@ The cohort *rankings* (the `+10`...`-10` column on those tables) are
 the one piece of cohort-specific information that isn't recoverable
 elsewhere -- they're not currently extracted; revisit if needed.
 
+### `stars_operations_allocation` (parsed from `operations_allocation/`)
+
+Long-form per district per school year per line item. OSPI's Operations
+Allocation Detail Report (form 1026A) is a single page (PDF) or single
+document (DOCX) per district per year with a fixed 30-item layout
+organized into four sections (see schema doc). Each district-year emits
+30 rows.
+
+Column reference (in addition to `SCHOOL_YEAR_DISTRICT_FIELDS`):
+
+| column            | type        | meaning |
+|-------------------|-------------|---------|
+| `section_code`    | string      | `A` / `B` / `C` / `D` — which section the item is in. |
+| `item_code`       | string (LK) | Canonical snake_case identifier (e.g. `land_area`, `a6_calculated_expected_allocation`, `d8_actual_allocation_amount`). 30 distinct codes. |
+| `item_label`      | string      | Raw label from the PDF/DOCX. |
+| `item_value`      | decimal     | Section A detail input value (Land Area square miles, Basic Program enrollment, etc.). NULL on summary / dollar rows. |
+| `coefficient`     | decimal     | Per-item coefficient/rate. Set for Section A detail rows and C.1 Alt Calendar Modifier. |
+| `calculated_value`| decimal     | Unitless calculated value: Section A detail products + A.1-A.3 / A.5 summary rows. NULL on dollar rows. |
+| `amount`          | decimal     | Dollar amount (Section A.4 / A.6 and every B / C / D row). |
+| `running_total`   | decimal     | Cumulative dollar running total on B.6, C.1, C.3 (rows that print both an adjustment and its resulting subtotal). |
+
+Logical key: `(school_year, ccddd, item_code)`.
+
+Notes on the values:
+
+- **Same data driven from formula inputs.** Section A details are the
+  inputs (per-district land area, ridership counts) plus annual
+  coefficients OSPI publishes; Sections B-D layer in fixed adjustments
+  and the final amount. The numbers we care about for analysis are
+  almost always `a6_calculated_expected_allocation` (what the formula
+  produced), `d2_prior_year_expenditures` (what the district actually
+  spent the previous year), and `d8_actual_allocation_amount` (the
+  bottom-line transportation allocation the district receives).
+- **COVID dip.** 2020-2021 allocations crash because pupil
+  transportation was largely suspended; the `d2_prior_year_expenditures`
+  trail shows the recovery over the following years.
+- **`item_value` for Non-High rows.** OSPI prints a Yes/No flag in the
+  "Value" column of `non_high_yes` / `non_high_no`. We capture only the
+  numeric coefficient and `calculated_value`; the yes/no answer is
+  effectively encoded in `calculated_value` being nonzero.
+- **Tribal compacts and charter schools use a different form** (1026A
+  COMPACT) and are skipped (logged at INFO level, 143 of 2,908 files in
+  the corpus). See TODO.md for details.
+
 ## Pipeline (current state)
 
 1. **Filename parse** (`filename.py`) -- strict on the `(NNNNN)` ccddd
@@ -108,5 +152,5 @@ elsewhere -- they're not currently extracted; revisit if needed.
 3. **CLI driver** (`extract_<report>.py`) -- walks a directory, dispatches
    to the right parser, emits CSV / JSON / summary.
 
-Currently implemented: `kpi`. Operations Allocation, Quarterly District,
+Currently implemented: `kpi`, `operations_allocation`. Quarterly District,
 Efficiency, and Efficiency Review are pending.

@@ -2,6 +2,7 @@
 
 import re
 from decimal import Decimal, InvalidOperation
+from pathlib import Path
 from typing import Optional
 
 
@@ -79,6 +80,60 @@ def normalize_pdf_text(s: str) -> str:
     s = re.sub(r"[—–]", "-", s)
     s = re.sub(r"[ ]", " ", s)
     return s
+
+
+def read_pdf_lines(path: Path) -> list:
+    """Extract every non-empty text line from a PDF in document order.
+
+    Uses pdfplumber's text-flow extraction so cells in the same visual row
+    end up on a single line. Each line is `normalize_pdf_text`-cleaned and
+    stripped before being yielded.
+    """
+    import pdfplumber  # local import: avoid hard dep when only DOCX is used.
+    lines = []
+    with pdfplumber.open(path) as pdf:
+        for page in pdf.pages:
+            text = normalize_pdf_text(page.extract_text() or "")
+            for ln in text.split("\n"):
+                ln = ln.strip()
+                if ln:
+                    lines.append(ln)
+    return lines
+
+
+_DOCX_W_NS = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
+
+
+def read_docx_lines(path: Path) -> list:
+    """Extract every non-empty paragraph from a DOCX in document order.
+
+    OSPI's DOCX renderings nest tables inside tables to lay out the report.
+    python-docx's top-level `.paragraphs` / `.tables` views only see the
+    outermost wrapper, so we walk the underlying XML tree for every
+    `<w:p>` descendant -- this yields one line per cell in document order.
+    """
+    import docx  # local import.
+    doc = docx.Document(path)
+    lines = []
+    for p in doc.element.body.iter(f"{_DOCX_W_NS}p"):
+        text = "".join(
+            (t.text or "")
+            for t in p.iter(f"{_DOCX_W_NS}t")
+        )
+        text = text.strip()
+        if text:
+            lines.append(text)
+    return lines
+
+
+def read_lines(path: Path) -> list:
+    """Dispatch to read_pdf_lines / read_docx_lines based on file extension."""
+    suffix = path.suffix.lower()
+    if suffix == ".pdf":
+        return read_pdf_lines(path)
+    if suffix == ".docx":
+        return read_docx_lines(path)
+    raise ValueError(f"Unsupported file extension {suffix!r} for {path.name!r}")
 
 
 def tokenize_value_line(line: str) -> list:

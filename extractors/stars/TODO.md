@@ -108,6 +108,19 @@ Most (district, year) tuples have all three quarters: `FALL`, `WINTER`,
   anchor not found` and emits 0 rows. Either re-scrape (rare OSPI publish
   bug) or accept the missing district-year.
 
+### Operations Allocation Detail
+
+- **143 files (out of 2,908) use a non-standard 1026A variant** for tribal
+  compacts and charter schools: `Operations Allocation Detail Report 1026A
+  (COMPACT)` is the common header. Instead of the formula-driven A.1-D.8
+  layout we parse, these reports compute the allocation as
+  `(host district per-rider) x (tribal/charter eligible riders prorated by
+  season)`. Schema is fundamentally different (Section A: host-district
+  per-rider calculation; Section B: seasonal eligible riders; Section C:
+  final). Skipped by the current parser (logs INFO `no standard 1026A
+  items matched`). Add a dedicated `stars_operations_allocation_compact`
+  schema + parser later if/when this data is wanted.
+
 ## Action items
 
 - [ ] Manually verify the four "probable not-published" cells against the
