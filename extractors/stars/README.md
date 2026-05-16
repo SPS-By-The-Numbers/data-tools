@@ -182,12 +182,9 @@ The 28 metrics split into:
 
 Notes on the values:
 
-- **Per-route ROUTE DETAIL is not extracted.** Every report has a
-  trailing per-route section with one row per individual bus route
-  (route number, bus, state bus, destination, stop count, total stops,
-  average distance). Voluminous (hundreds of rows for larger districts)
-  and not needed for current analyses; could be its own
-  `stars_quarterly_route` table later.
+- **Per-route ROUTE DETAIL** lives in the companion
+  `stars_quarterly_district_route` table -- one row per individual bus
+  route -- documented in the next section.
 - **COVID dip is preserved as zero, not NULL.** Districts that genuinely
   reported zero transportation in 2020-2021 (Seattle FALL 2020-2021 has
   `basic_students_total = 0`) keep the literal zero so consumers can
@@ -201,6 +198,58 @@ Notes on the values:
 - **Quarter detection.** The parser reads FALL / WINTER / SPRING out of
   the filename's last segment (e.g. `Almira FALL` -> `FALL`). Case-
   insensitive search, so `AlmiraWinter` also works if it ever shows up.
+
+### `stars_quarterly_district_route` (parsed from `quarterly_district/`)
+
+Companion table to `stars_quarterly_district`. Each Quarterly District
+Detail report has a ROUTE DETAIL section listing every individual bus
+route the district operated that quarter, grouped under one of six
+program codes. Larger districts run hundreds of routes per quarter
+(Seattle: 709 in 2017-18, Kent: 628 in 2025-26).
+
+Long-form: one row per `(school_year, ccddd, quarter, program, route_number)`.
+
+| column            | type        | meaning |
+|-------------------|-------------|---------|
+| `stars_quarterly_district_route_id` | auto_primary_key | surrogate key |
+| `school_year`     | string (LK) | School year of the report. |
+| `class_of`        | int         | End year of the school year as an int. |
+| `ccddd`           | int (LK)    | OSPI county-and-district code. |
+| `county`          | string      | County name (via `d_ccddd` join). |
+| `district`        | string      | District name. |
+| `quarter`         | string (LK) | `FALL` / `WINTER` / `SPRING`. |
+| `program`         | string (LK) | `basic`, `special_ed`, `bilingual`, `gifted`, `homeless`, or `early_ed`. |
+| `route_number`    | string (LK) | District route identifier. String because some districts use suffixed forms (`0079-I`, `0405-T`) while small districts use bare integers (`1`, `7`). |
+| `district_bus_number` | int     | District-assigned bus identifier. |
+| `state_bus_number` | int        | OSPI state bus identifier (typically 6 digits). |
+| `destination_name` | string     | Free-text destination as printed (e.g. `Kimball Elementary`, `Robert Eagle Staff M.S.`). |
+| `stop_count`      | int         | Number of stops on this route. |
+| `total_stops`     | int         | Total stops including pickups and dropoffs. |
+| `average_distance` | decimal    | Average per-stop distance in miles. |
+| `_source`         | string      | Originating PDF/DOCX filename. |
+| `_source_table`   | string      | `stars_quarterly_district_route`. |
+
+Notes on parsing:
+
+- **PDF format**: each route is one space-separated line, optionally
+  prefixed with `Basic Program (A)` / `Special Ed Program (S)` / etc.
+  on the first route of each program group on each page. Parser walks
+  lines after `ROUTE DETAIL`, skips page chrome (`STF-N`, `Page X of
+  Y`, re-printed section/column headers, district banner caps),
+  picks up program labels, and emits one route per recognized data line.
+- **DOCX format**: route detail is an 8-column table where cell 0 holds
+  the program label on the first row of each program group (empty on
+  continuation rows) and cells 1-7 are the route fields. Parser
+  iterates the underlying `<w:tr>` XML rows directly because
+  per-paragraph extraction drops empty cells and misaligns the
+  grouping (Seattle 2017-18 routes had blank route_number / bus
+  cells on some continuation rows -- iterating cells preserves them).
+- **Counts cross-check the summary table.** For every (school_year,
+  ccddd, quarter), `count(*) where program='basic'` matches
+  `routes_basic` from `stars_quarterly_district`, etc. Used as
+  the parser correctness check (Seattle 2017-18 FALL: 225 basic +
+  344 special_ed + 12 bilingual + 68 gifted + 13 homeless + 47
+  early_ed = 709 routes, matches `routes_total = 709`).
 
 ## Pipeline (current state)
 

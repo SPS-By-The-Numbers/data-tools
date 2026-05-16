@@ -204,3 +204,219 @@ def parse_quarterly_district(info: StarsFilename) -> Iterator[dict]:
 
         for metric_code, val in zip(metric_codes, values[:expected_n]):
             yield {**base, "metric_code": metric_code, "value": val}
+
+
+# ---------- per-route detail parsing -----------------------------------
+
+# PDF ROUTE DETAIL lines look like:
+#   "Basic Program (A) 0079-I 9018 214367 Kimball Elementary 8 8 1.19"
+#   "0157-I 9039 214365 Sandpoint Elementary 11 11 1.90"
+# DOCX puts each of the seven cells on its own paragraph, preceded by the
+# program label as its own paragraph:
+#   "Basic Program (A)"
+#   "1"
+#   "1"
+#   "203249"
+#   "Coulee City Elementary"
+#   "1"
+#   "1"
+#   "19.15"
+_PROGRAM_LABEL_RE = re.compile(
+    r"^(Basic|Special Ed|Bilingual|Gifted|Homeless|Early Ed)"
+    r"\s+Program\s*\(([ASBGHE])\)"
+)
+
+# Map program label -> canonical snake_case code (matches the summary
+# metric_codes' program suffix, e.g. routes_basic / routes_special).
+_PROGRAM_CANONICAL = {
+    "Basic": "basic",
+    "Special Ed": "special_ed",
+    "Bilingual": "bilingual",
+    "Gifted": "gifted",
+    "Homeless": "homeless",
+    "Early Ed": "early_ed",
+}
+
+
+def _parse_pdf_route_line(line: str) -> Tuple[Optional[str], Optional[dict]]:
+    """Parse a single PDF ROUTE DETAIL line.
+
+    Returns (program_or_None, route_dict_or_None). When the line begins
+    with a program label, also returns the canonical program name (the
+    program continues until another label is seen).
+    """
+    program = None
+    m = _PROGRAM_LABEL_RE.match(line)
+    if m:
+        program = _PROGRAM_CANONICAL[m.group(1)]
+        line = line[m.end():].lstrip()
+    tokens = line.split()
+    if len(tokens) < 7:
+        return program, None
+    avg = parse_decimal(tokens[-1])
+    if avg is None:
+        return program, None
+    total = parse_decimal(tokens[-2])
+    stop = parse_decimal(tokens[-3])
+    dist_bus = parse_decimal(tokens[1])
+    state_bus = parse_decimal(tokens[2])
+    if any(v is None for v in (total, stop, dist_bus, state_bus)):
+        return program, None
+    return program, {
+        "route_number": tokens[0],
+        "district_bus_number": int(dist_bus),
+        "state_bus_number": int(state_bus),
+        "destination_name": " ".join(tokens[3:-3]),
+        "stop_count": int(stop),
+        "total_stops": int(total),
+        "average_distance": avg,
+    }
+
+
+def _looks_like_pdf_route_chrome(line: str) -> bool:
+    """Lines that show up between routes on a PDF page break or section header."""
+    if _is_chrome(line):
+        return True
+    if line.startswith("ROUTE DETAIL"):
+        return True
+    if _ROUTE_DETAIL_RE.match(line):
+        return True
+    # Re-printed column headers (the header lines we saw in the PDF dump).
+    if line.startswith("District District State"):
+        return True
+    if line.startswith("Destination Name"):
+        return True
+    if line.startswith("Route Number Bus Number"):
+        return True
+    # District banner ("ALMIRA", "SEATTLE"). Pure-uppercase short string.
+    if line.isupper() and 2 <= len(line.split()) <= 5 and not any(c.isdigit() for c in line):
+        return True
+    # Single ALL-UPPER token like "ALMIRA"
+    if line.isupper() and len(line.split()) == 1 and line.isalpha():
+        return True
+    return False
+
+
+def _parse_routes_pdf(lines: List[str]) -> Iterator[dict]:
+    """Yield route dicts (without base fields) from PDF lines.
+
+    Walks every line, ignores chrome / column header / district banner
+    reprints, picks up program labels, and emits a route dict per route
+    line. The function operates on the *full* line list; it locates the
+    first ROUTE DETAIL header itself.
+    """
+    started = False
+    current_program: Optional[str] = None
+    for line in lines:
+        if not started:
+            if line.startswith("ROUTE DETAIL"):
+                started = True
+            continue
+        if _looks_like_pdf_route_chrome(line):
+            continue
+        program, route = _parse_pdf_route_line(line)
+        if program is not None:
+            current_program = program
+        if route is not None:
+            if current_program is None:
+                logger.warning("route before program: %r", line)
+                continue
+            yield {**route, "program": current_program}
+
+
+def _parse_routes_docx(path: Path) -> Iterator[dict]:
+    """Yield route dicts from a DOCX, walking the underlying table rows.
+
+    The OSPI Quarterly District Detail DOCX renders ROUTE DETAIL as an
+    8-column table: col 0 holds the program label on the first row of
+    each program group (empty on continuation rows), and cols 1-7 are
+    route_number / district_bus_number / state_bus_number /
+    destination_name / stop_count / total_stops / average_distance.
+
+    Iterating `<w:tr>` directly instead of walking paragraphs is
+    necessary because per-paragraph extraction filters out empty cells
+    and breaks the 7-cell grouping for routes where some columns are
+    blank (e.g. continuation rows in older Seattle reports).
+    """
+    import docx
+    from docx.oxml.ns import qn
+    w = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
+    d = docx.Document(path)
+
+    current_program: Optional[str] = None
+    for tr in d.element.body.iter(f"{w}tr"):
+        cells = list(tr.iter(f"{w}tc"))
+        if len(cells) != 8:
+            continue
+        texts = []
+        for tc in cells:
+            text = "".join((t.text or "") for t in tc.iter(f"{w}t")).strip()
+            texts.append(text)
+        # Cell 0: program label (or empty continuation). If it matches a
+        # known program, update current_program.
+        m = _PROGRAM_LABEL_RE.match(texts[0]) if texts[0] else None
+        if m:
+            current_program = _PROGRAM_CANONICAL[m.group(1)]
+        # Cells 1-7 are the route fields.
+        route_number = texts[1]
+        if not route_number:
+            # Header or padding row.
+            continue
+        if current_program is None:
+            logger.warning("docx route row before any program label: %r", texts)
+            continue
+        dist_bus = parse_decimal(texts[2])
+        state_bus = parse_decimal(texts[3])
+        stop = parse_decimal(texts[5])
+        total = parse_decimal(texts[6])
+        avg = parse_decimal(texts[7])
+        if any(v is None for v in (dist_bus, state_bus, stop, total, avg)):
+            logger.info("docx route row has unparsable numerics: %r", texts)
+            continue
+        yield {
+            "route_number": route_number,
+            "district_bus_number": int(dist_bus),
+            "state_bus_number": int(state_bus),
+            "destination_name": texts[4],
+            "stop_count": int(stop),
+            "total_stops": int(total),
+            "average_distance": avg,
+            "program": current_program,
+        }
+
+
+def parse_quarterly_district_routes(info: StarsFilename) -> Iterator[dict]:
+    """Yield stars_quarterly_district_route rows for one PDF or DOCX."""
+
+    quarter = _quarter_from_original_name(info.original_name)
+    if quarter is None:
+        logger.warning(
+            "%s: cannot infer quarter from original_name %r; skipping",
+            info.path.name, info.original_name,
+        )
+        return
+
+    lines = read_lines(info.path)
+    base = {
+        "school_year": info.school_year,
+        "class_of": info.class_of,
+        "ccddd": info.ccddd,
+        "county": None,
+        "district": info.district_name,
+        "quarter": quarter,
+        "_source": info.path.name,
+        "_source_table": "stars_quarterly_district_route",
+    }
+
+    ext = info.path.suffix.lower()
+    if ext == ".pdf":
+        routes = _parse_routes_pdf(lines)
+    elif ext == ".docx":
+        # DOCX routes need the underlying table structure (empty cells
+        # preserved); the pre-extracted `lines` list dropped them.
+        routes = _parse_routes_docx(info.path)
+    else:
+        raise ValueError(f"Unsupported extension {ext!r}")
+
+    for route in routes:
+        yield {**base, **route}
