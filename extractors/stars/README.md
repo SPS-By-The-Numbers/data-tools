@@ -251,6 +251,75 @@ Notes on parsing:
   344 special_ed + 12 bilingual + 68 gifted + 13 homeless + 47
   early_ed = 709 routes, matches `routes_total = 709`).
 
+### `stars_efficiency` + `stars_efficiency_cohort` (parsed from `efficiency/`)
+
+The Efficiency Detail Report (form STF-8) compares each district's
+transportation operations against a cohort of peer districts and
+publishes a final Relative Efficiency Rating (RER, percentage where
+100% = on-target with the cohort weighting). Each report is one page
+per district per school year and lays out:
+
+  - One subject row with the district's own metrics.
+  - 0..N `Cohort <Peer>` rows, each with a peer's metrics and a cohort
+    weight (cohort weights sum to ~100%).
+  - One `Target <Subject> Target 100%` row carrying the cohort-weighted
+    target expenditure and bus count.
+  - A `Relative Efficiency Rating <pct>%` footer.
+
+The data splits cleanly into two tables:
+
+**`stars_efficiency`** -- one row per (school_year, ccddd). Carries the
+subject district's own metrics, the target's expenditure + bus count,
+and the RER.
+
+| column                          | type        | meaning |
+|---------------------------------|-------------|---------|
+| `stars_efficiency_id`           | auto_primary_key | surrogate key |
+| `school_year`                   | string (LK) | School year of the report |
+| `class_of` / `ccddd` / `county` / `district` | (from `SCHOOL_YEAR_DISTRICT_FIELDS`) | |
+| `prior_year_expenditures`       | decimal     | Subject's prior-year total transportation expenditures, in dollars. |
+| `buses`                         | int         | Buses operated. |
+| `basic_riders`                  | int         | Basic program riders. |
+| `special_riders`                | int         | Special education riders. |
+| `avg_distance`                  | decimal     | Average route distance, miles. |
+| `num_destinations`              | int         | Distinct destinations. |
+| `land_area`                     | decimal     | District land area, square miles. |
+| `k_rte`                         | int         | OSPI "K Rte" column. Almost always 0; meaning not documented publicly. |
+| `road_miles_per_sq_mile`        | decimal     | Road miles per square mile of district area. |
+| `students_per_road_mile`        | decimal     | Riders per road mile (density). |
+| `target_prior_year_expenditures`| decimal     | Cohort-weighted target expenditure. |
+| `target_buses`                  | int         | Cohort-weighted target bus count. |
+| `relative_efficiency_rating`    | decimal     | RER as a percentage (e.g. `74.95` means 74.95%). |
+
+Logical key: `(school_year, ccddd)`.
+
+**`stars_efficiency_cohort`** -- one row per (subject, peer). Each
+cohort peer's metrics are denormalized (also available via that peer's
+own `stars_efficiency` row).
+
+| column            | type        | meaning |
+|-------------------|-------------|---------|
+| `stars_efficiency_cohort_id` | auto_primary_key | surrogate key |
+| `school_year` / `class_of` / `ccddd` / `county` / `district` | | subject district |
+| `cohort_district` | string (LK) | Peer district name as printed in the report (short name). |
+| `weight_pct`      | decimal     | Cohort weight percentage. Weights sum to ~100% for a given subject. |
+| (10 metric columns same as `stars_efficiency`) | | Peer's metrics. |
+
+Logical key: `(school_year, ccddd, cohort_district)`.
+
+Notes on the values:
+
+- **DOCX side**: the data table is a 13-cell `<w:tr>` (col 0 = role
+  marker like `Cohort`/`Target`/blank, col 1 = district name, col 2 =
+  weight, cols 3-12 = the 10 metrics). Parsed via direct XML iteration.
+- **PDF side**: each row is one space-separated line; the parser
+  classifies by leading token (`Cohort`, `Target`, `Relative Efficiency
+  Rating`, or otherwise a self row whose name precedes the first `$`).
+- **Districts with no transportation** (tribal compacts, charter
+  schools without buses) produce a subject row of all zeros and zero
+  cohort peers -- their RER is left NULL because OSPI doesn't compute
+  one for these cases.
+
 ## Pipeline (current state)
 
 1. **Filename parse** (`filename.py`) -- strict on the `(NNNNN)` ccddd
@@ -260,5 +329,5 @@ Notes on parsing:
 3. **CLI driver** (`extract_<report>.py`) -- walks a directory, dispatches
    to the right parser, emits CSV / JSON / summary.
 
-Currently implemented: `kpi`, `operations_allocation`, `quarterly_district`.
-Efficiency and Efficiency Review are pending.
+Currently implemented: `kpi`, `operations_allocation`, `quarterly_district`,
+`efficiency`. Efficiency Review is pending.
