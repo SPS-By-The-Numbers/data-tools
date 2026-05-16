@@ -320,6 +320,58 @@ Notes on the values:
   cohort peers -- their RER is left NULL because OSPI doesn't compute
   one for these cases.
 
+### `stars_efficiency_review` (parsed from `efficiency_review/`)
+
+OSPI's Regional Transportation Coordinators (RTCs) publish a written
+review for any district whose Relative Efficiency Rating (RER) crossed
+the 90% threshold versus the prior year, or that remained below 90%
+for multiple years. Each report is a multi-page **narrative** document
+-- mostly prose, not structured tables -- so this parser extracts
+just the executive-summary numerics + the metadata that is reliably
+present in every report.
+
+One row per (school_year, ccddd).
+
+| column                       | type        | meaning |
+|------------------------------|-------------|---------|
+| `stars_efficiency_review_id` | auto_primary_key | surrogate key |
+| `school_year`                | string (LK) | School year of the published review. |
+| `class_of` / `ccddd` / `county` / `district` | | from `SCHOOL_YEAR_DISTRICT_FIELDS` |
+| `subcategory`                | string      | Raw subcategory label from the filename, e.g. `Current above 90% Prior below 90%`. |
+| `current_band`               | string      | `above_90` / `below_90`. RER band at this review. |
+| `prior_band`                 | string      | `above_90` / `below_90`. RER band the year before. |
+| `review_year_text`           | string      | School year being reviewed, as printed (e.g. `2015-16`). Typically one year before `school_year`. |
+| `review_date`                | string      | Date the review was issued, as printed on the cover (free text, not normalized). |
+| `rtc_name`                   | string      | RTC who conducted the review (NULL when the template's placeholder text was never filled in). |
+| `rtc_esd`                    | string      | RTC's Educational Service District. Only populated for the older format with a `from <ESD>` suffix (16-17, 17-18 reports). |
+| `fte_enrollment`             | decimal     | Full-time-equivalent enrollment. |
+| `basic_riders`               | int         | Average daily basic-program riders. |
+| `special_riders`             | int         | Average daily special-program riders. |
+| `buses`                      | int         | School buses operated. |
+| `total_cost`                 | decimal     | Total transportation expenditures. |
+| `current_rer`                | decimal     | The report's headline RER percentage. |
+| `prior_rer`                  | decimal     | RER from one year before. |
+| `two_years_prior_rer`        | decimal     | RER from two years before. |
+
+Logical key: `(school_year, ccddd)`.
+
+Notes on the values:
+
+- **Best-effort regex extraction.** Each field is independently extracted
+  with a regex against the joined PDF text; when the pattern doesn't
+  match (rare phrasing variants, template placeholders like "conducted
+  by .", redacted/anonymized fields) the column is left NULL.
+- **Fill rates in the current 504-file corpus**: school year / ccddd /
+  band metadata / current_rer / prior_rer = 100%; review_date /
+  two_years_prior_rer = 99%+; rtc_name / fte_enrollment = 95%+;
+  buses / total_cost = 93%; basic_riders / special_riders = 74%
+  (some reports phrase ridership differently); rtc_esd = 13% (only
+  the older "from ESD" phrasing).
+- **No structured cohort table.** The Efficiency Review's narrative
+  cohort table varies in format too much to parse reliably; if you
+  need cohort comparisons see `stars_efficiency_cohort` for the
+  same school year, which has the same data more cleanly.
+
 ## Pipeline (current state)
 
 1. **Filename parse** (`filename.py`) -- strict on the `(NNNNN)` ccddd
@@ -330,4 +382,4 @@ Notes on the values:
    to the right parser, emits CSV / JSON / summary.
 
 Currently implemented: `kpi`, `operations_allocation`, `quarterly_district`,
-`efficiency`. Efficiency Review is pending.
+`efficiency`, `efficiency_review`.
