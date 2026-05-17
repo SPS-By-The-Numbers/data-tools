@@ -112,14 +112,12 @@ Most (district, year) tuples have all three quarters: `FALL`, `WINTER`,
 
 - **143 files (out of 2,908) use a non-standard 1026A variant** for tribal
   compacts and charter schools: `Operations Allocation Detail Report 1026A
-  (COMPACT)` is the common header. Instead of the formula-driven A.1-D.8
-  layout we parse, these reports compute the allocation as
-  `(host district per-rider) x (tribal/charter eligible riders prorated by
-  season)`. Schema is fundamentally different (Section A: host-district
-  per-rider calculation; Section B: seasonal eligible riders; Section C:
-  final). Skipped by the current parser (logs INFO `no standard 1026A
-  items matched`). Add a dedicated `stars_operations_allocation_compact`
-  schema + parser later if/when this data is wanted.
+  (COMPACT)` / `(CHARTER)` / `Charter Schools (9/2020)` / `Revised` are
+  the cover-page variants. These are now handled by the
+  `stars_operations_allocation_compact` table with its own parser. The
+  standard 1026A parser silently skips them; the compact parser
+  silently skips standard 1026A files. Together they cover all 2,908
+  files in the corpus.
 
 ## Action items
 

@@ -140,8 +140,69 @@ Notes on the values:
   numeric coefficient and `calculated_value`; the yes/no answer is
   effectively encoded in `calculated_value` being nonzero.
 - **Tribal compacts and charter schools use a different form** (1026A
-  COMPACT) and are skipped (logged at INFO level, 143 of 2,908 files in
-  the corpus). See TODO.md for details.
+  COMPACT / CHARTER) and are handled by `stars_operations_allocation_compact`
+  (next section). The standard parser silently skips them; the compact
+  parser silently skips standard 1026A files. Together they cover all
+  2,908 files in the corpus.
+
+### `stars_operations_allocation_compact` (parsed from `operations_allocation/`)
+
+Tribal compact schools and charter school districts use a different
+1026A form than regular school districts. Their allocation is computed
+from a host district's per-rider allocation multiplied by the
+compact/charter's own eligible ridership prorated across the year:
+
+  - Section A: host district's per-student allocation (A.1 total
+    eligible riders, A.2 operations allocation, A.3 depreciation, A.4
+    total funding = A.2+A.3, A.5 per-rider = A.4/A.1).
+  - Section B: compact/charter's eligible riders by season (B.1 Spring,
+    B.2 Fall, B.3 Winter, B.4 prorated = (B.1*3/8)+(B.2*2/8)+(B.3*3/8)).
+  - Section C: final allocation = A.5 * B.4.
+
+One row per (school_year, ccddd).
+
+| column                              | type        | meaning |
+|-------------------------------------|-------------|---------|
+| `stars_operations_allocation_compact_id` | auto_primary_key | surrogate key |
+| `school_year` / `class_of` / `ccddd` / `county` / `district` | | from `SCHOOL_YEAR_DISTRICT_FIELDS` |
+| `report_type`                       | string      | `COMPACT` (tribal) or `CHARTER`. |
+| `school_name`                       | string      | School/compact name as printed on the cover page; may differ from the filename district. |
+| `host_district`                     | string      | Host district name (e.g. `North Kitsap`, `Ferndale`, `SPOKANE Public Schools`). |
+| `host_data_year`                    | string      | School year of the host's data used for the per-rider calc. |
+| `host_total_eligible_riders`        | decimal     | A.1. |
+| `host_operations_allocation`        | decimal     | A.2 ($). |
+| `host_depreciation`                 | decimal     | A.3 ($); for charters this is the A.3.c total of in-lieu + bus depreciation. |
+| `host_total_transportation_funding` | decimal     | A.4 ($, = A.2+A.3). |
+| `host_per_rider_allocation`         | decimal     | A.5 ($, = A.4/A.1). |
+| `spring_riders`                     | int         | B.1. |
+| `fall_riders`                       | int         | B.2. |
+| `winter_riders`                     | int         | B.3. |
+| `prorated_riders`                   | decimal     | B.4. |
+| `final_allocation`                  | decimal     | Section C ($, = A.5 * B.4). |
+
+Logical key: `(school_year, ccddd)`.
+
+Notes on parsing:
+
+- **Detection** is by the unique Section A header pattern
+  (`Calculation of YYYY-YY per Student Allocation for ...`) -- not the
+  cover-page tag, which has multiple variants: `Report 1026A (COMPACT)`,
+  `Report 1026A (CHARTER)`, `Report 1026A Charter Schools (9/2020)`,
+  or just `Report 1026A Revised` for older revisions.
+- **Type classification** falls back through: explicit tag -> filename
+  keyword (`Tribal`/`Compact` -> COMPACT, `Charter` -> CHARTER) -> body
+  keyword. If everything fails, defaults to COMPACT with a warning.
+- **Parenthesized formula text** like `((B.1*3/8) + (B.2*2/8) + (B.3*3/8))`
+  is stripped before regex matching so the formula digits don't pollute
+  the value scan. The `(COMPACT)` / `(CHARTER)` cover-page tag is
+  detected BEFORE that stripping happens.
+- **Dollar-amount fields are anchored on `$`** so embedded host-district
+  reference years (e.g. `From Ferndale 2016-17 1191TRNF $2,243,521.03`)
+  don't get captured instead of the actual amount.
+
+Coverage: 143 of 2,908 operations_allocation files (48 COMPACT + 95
+CHARTER); the other 2,765 are standard 1026A handled by the sibling
+`stars_operations_allocation` table.
 
 ### `stars_quarterly_district` (parsed from `quarterly_district/`)
 
