@@ -433,6 +433,31 @@ Notes on the values:
   need cohort comparisons see `stars_efficiency_cohort` for the
   same school year, which has the same data more cleanly.
 
+## Domain (lookup) tables
+
+Six small reference tables in `schemas/domains.py` turn the opaque
+string codes used on the fact tables into self-documenting joins.
+Materialize them as CSVs with `extract_domains.py`:
+
+```bash
+python3 -m extractors.stars.extract_domains out_stars/
+```
+
+| table | rows | joins to |
+|---|--:|---|
+| `d_stars_kpi_metric`           |  6 | `stars_kpi.metric_code` |
+| `d_stars_quarterly_metric`     | 28 | `stars_quarterly_district.metric_code` |
+| `d_stars_route_program`        |  6 | `stars_quarterly_district_route.program` |
+| `d_stars_quarter`              |  3 | `stars_quarterly_district.quarter`, `stars_quarterly_district_route.quarter` |
+| `d_stars_ops_allocation_section` |  4 | `stars_operations_allocation.section_code` |
+| `d_stars_ops_allocation_item`  | 30 | `stars_operations_allocation.item_code` |
+
+Each carries a `description` column plus a few categorical metadata
+columns (e.g. `unit`, `program`, `is_change_pct`) for grouping queries.
+The data is small and stable across years, so it lives inline as Python
+constants in `schemas/domains.py:ROWS_BY_TABLE` -- there's no separate
+load step needed.
+
 ## Pipeline (current state)
 
 1. **Filename parse** (`filename.py`) -- strict on the `(NNNNN)` ccddd
