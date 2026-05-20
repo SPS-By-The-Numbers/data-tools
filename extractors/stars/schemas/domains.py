@@ -1,4 +1,4 @@
-"""STARS-specific domain (lookup) tables.
+"""STARS-specific domain + dimension (lookup) tables.
 
 These mirror the convention used by `extractors.safs.schemas.domains`:
 each domain table is named `d_<thing>`, has a string-or-int primary key
@@ -12,6 +12,84 @@ materialize them as CSV files.
 """
 
 from .common import AUDIT_FIELDS
+
+
+# ============================================================
+# d_stars_source -- one row per scraped source file
+# ============================================================
+
+D_STARS_SOURCE = {
+    "name": "d_stars_source",
+    "doc": ("Dimension table for the _source filename column on every "
+            "STARS fact table. Each row corresponds to a single scraped "
+            "PDF/DOCX. Pulled out because filenames repeat 12-35x per "
+            "row across the fact tables; replacing _source with the "
+            "integer source_id FK cuts tens of megabytes from the CSV "
+            "outputs."),
+    "fields": [
+        {
+            "name": "source_id",
+            "field_type": "int",
+            "is_primary_key": True,
+            "doc": ("Sequential integer assigned in sorted-filename order. "
+                    "Stable as long as the set of files is stable; new "
+                    "files appended at the end keep existing IDs intact."),
+        },
+        {
+            "name": "source_filename",
+            "field_type": "string",
+            "is_logical_key": True,
+            "doc": "Original scraped filename. Unique across all STARS report types.",
+        },
+        {
+            "name": "report_dir",
+            "field_type": "string",
+            "doc": ("Subdirectory under data/stars/ this file came from: "
+                    "kpi, operations_allocation, quarterly_district, "
+                    "efficiency, or efficiency_review."),
+        },
+        {
+            "name": "school_year",
+            "field_type": "string",
+            "doc": "School year from the filename's first segment (e.g. '2024-2025').",
+        },
+        {
+            "name": "class_of",
+            "field_type": "int",
+            "doc": "End year of school_year as an int (e.g. 2025).",
+        },
+        {
+            "name": "ccddd",
+            "field_type": "int",
+            "doc": "OSPI county-and-district code from the filename's org segment.",
+        },
+        {
+            "name": "district",
+            "field_type": "string",
+            "doc": "District name from the filename's org-label segment.",
+        },
+        {
+            "name": "subcategory",
+            "field_type": "string",
+            "doc": ("5-segment filename's optional 3rd segment "
+                    "(efficiency_review band crossings like "
+                    "'Current above 90% Prior below 90%'). NULL for "
+                    "the standard 4-segment filenames."),
+        },
+        {
+            "name": "original_name",
+            "field_type": "string",
+            "doc": ("Filename's last segment minus extension (OSPI-supplied "
+                    "original name; may include quarter suffix like "
+                    "'Almira FALL')."),
+        },
+        {
+            "name": "extension",
+            "field_type": "string",
+            "doc": "File extension: 'pdf' or 'docx'.",
+        },
+    ],
+}
 
 
 # ============================================================
@@ -493,6 +571,7 @@ D_STARS_OPS_ALLOCATION_ITEM_ROWS = [
 # Public API: list of all schemas, and a mapping from schema name to its rows.
 
 ALL_SCHEMAS = [
+    D_STARS_SOURCE,
     D_STARS_KPI_METRIC,
     D_STARS_QUARTERLY_METRIC,
     D_STARS_ROUTE_PROGRAM,

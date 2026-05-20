@@ -433,18 +433,14 @@ Notes on the values:
   need cohort comparisons see `stars_efficiency_cohort` for the
   same school year, which has the same data more cleanly.
 
-## Domain (lookup) tables
+## Domain + dimension (lookup) tables
 
-Six small reference tables in `schemas/domains.py` turn the opaque
-string codes used on the fact tables into self-documenting joins.
-Materialize them as CSVs with `extract_domains.py`:
-
-```bash
-python3 -m extractors.stars.extract_domains out_stars/
-```
+Seven reference tables in `schemas/domains.py` turn opaque string codes
+on the fact tables into self-documenting joins.
 
 | table | rows | joins to |
 |---|--:|---|
+| `d_stars_source`               | per scraped file (~15.5K) | `_source_id` on every fact table |
 | `d_stars_kpi_metric`           |  6 | `stars_kpi.metric_code` |
 | `d_stars_quarterly_metric`     | 28 | `stars_quarterly_district.metric_code` |
 | `d_stars_route_program`        |  6 | `stars_quarterly_district_route.program` |
@@ -452,11 +448,31 @@ python3 -m extractors.stars.extract_domains out_stars/
 | `d_stars_ops_allocation_section` |  4 | `stars_operations_allocation.section_code` |
 | `d_stars_ops_allocation_item`  | 30 | `stars_operations_allocation.item_code` |
 
-Each carries a `description` column plus a few categorical metadata
-columns (e.g. `unit`, `program`, `is_change_pct`) for grouping queries.
-The data is small and stable across years, so it lives inline as Python
-constants in `schemas/domains.py:ROWS_BY_TABLE` -- there's no separate
-load step needed.
+The 6 small domains carry `description` plus categorical metadata
+(`unit`, `program`, `is_change_pct`, `value_kind`, etc.); their data
+is small and stable across years and lives inline as Python constants
+in `schemas/domains.py:ROWS_BY_TABLE`. Generate the CSVs with:
+
+```bash
+python3 -m extractors.stars.extract_domains out_stars/
+```
+
+`d_stars_source` is a dimension table with one row per scraped file
+(filename, `report_dir`, school_year, ccddd, district, subcategory,
+original_name, extension). Built by walking `data/stars/*/` and
+parsing each filename. The script also rewrites the fact CSVs to
+replace the repeated `_source` filename column with a small integer
+`_source_id` FK -- a ~40% size reduction (~52 MB saved on the
+current corpus):
+
+```bash
+python3 -m extractors.stars.build_sources \
+    --data-dir data/stars/ \
+    --out-dir  out_stars/
+```
+
+Pass `--no-rewrite` to write just the source table without modifying
+the fact CSVs.
 
 ## Pipeline (current state)
 
