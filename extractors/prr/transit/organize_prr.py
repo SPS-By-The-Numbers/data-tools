@@ -20,6 +20,8 @@ questions about the RFP102112 → RFP022242 cancellation and Hunter
 
 import argparse
 import csv
+import email
+import email.policy
 import logging
 import os
 import re
@@ -34,6 +36,197 @@ import pdfplumber
 from .split_bundle import detect_email_header
 
 logger = logging.getLogger(__name__)
+
+
+# ----------------------------------------------------------------------
+# Portable-mode converters: turn .eml/.msg into universally-readable .txt
+# files (with optional sibling attachment directories). Everything else
+# (PDFs, docx, xlsx, zip) is copied verbatim because those are already
+# universally readable.
+# ----------------------------------------------------------------------
+
+def _safe_attachment_name(name, fallback):
+    if not name:
+        return fallback
+    name = re.sub(r"[\\/:\"*?<>|\r\n\t]+", "_", str(name))
+    name = name.strip("._ ") or fallback
+    return name[:120]
+
+
+def convert_eml_to_txt(src_path, dest_txt_path, attach_dir=None):
+    """Parse an .eml file and write a plain-text rendering plus
+    attachments. Returns the list of attachment filenames written."""
+    with open(src_path, "rb") as f:
+        msg = email.message_from_binary_file(f, policy=email.policy.default)
+
+    # Pick a body: prefer text/plain, fall back to a stripped text/html.
+    body_text = ""
+    body_html = ""
+    attachments_info = []
+    if msg.is_multipart():
+        for part in msg.walk():
+            ct = part.get_content_type()
+            disp = (part.get("Content-Disposition") or "").lower()
+            if "attachment" in disp:
+                try:
+                    payload = part.get_payload(decode=True) or b""
+                    fname = _safe_attachment_name(
+                        part.get_filename(),
+                        f"attachment_{len(attachments_info)+1}",
+                    )
+                    attachments_info.append((fname, payload, ct))
+                except Exception as e:
+                    logger.warning("eml attachment skip in %s: %s", src_path, e)
+                continue
+            if ct == "text/plain" and not body_text:
+                try:
+                    body_text = part.get_content()
+                except Exception:
+                    pass
+            elif ct == "text/html" and not body_html:
+                try:
+                    body_html = part.get_content()
+                except Exception:
+                    pass
+    else:
+        ct = msg.get_content_type()
+        if ct.startswith("text/"):
+            try:
+                body_text = msg.get_content()
+            except Exception:
+                pass
+
+    if not body_text and body_html:
+        # Quick-and-dirty HTML strip: replace <br>/<p>/<div> with newline
+        # then drop the remaining tags.
+        h = re.sub(r"(?i)<br\s*/?>", "\n", body_html)
+        h = re.sub(r"(?i)</(p|div|tr|h[1-6])>", "\n", h)
+        h = re.sub(r"<[^>]+>", "", h)
+        body_text = h
+
+    # Write the .txt.
+    lines = []
+    lines.append(f"Date:    {msg.get('Date', '')}")
+    lines.append(f"From:    {msg.get('From', '')}")
+    lines.append(f"To:      {msg.get('To', '')}")
+    if msg.get("Cc"):
+        lines.append(f"Cc:      {msg.get('Cc')}")
+    if msg.get("Bcc"):
+        lines.append(f"Bcc:     {msg.get('Bcc')}")
+    lines.append(f"Subject: {msg.get('Subject', '')}")
+    if msg.get("Message-ID"):
+        lines.append(f"Message-ID: {msg.get('Message-ID')}")
+    if msg.get("In-Reply-To"):
+        lines.append(f"In-Reply-To: {msg.get('In-Reply-To')}")
+    if attachments_info:
+        names = ", ".join(a[0] for a in attachments_info)
+        lines.append(f"Attachments ({len(attachments_info)}): {names}")
+    lines.append("")
+    lines.append("-" * 72)
+    lines.append("")
+    lines.append(body_text or "(no body)")
+
+    dest_txt_path.parent.mkdir(parents=True, exist_ok=True)
+    dest_txt_path.write_text("\n".join(lines), encoding="utf-8")
+
+    # Write attachments.
+    written_names = []
+    if attachments_info:
+        if attach_dir is None:
+            attach_dir = dest_txt_path.with_suffix("").with_name(
+                dest_txt_path.stem + "__attachments")
+        attach_dir.mkdir(parents=True, exist_ok=True)
+        for fname, payload, _ct in attachments_info:
+            target = attach_dir / fname
+            # Avoid collisions
+            i = 2
+            while target.exists():
+                stem, dot, ext = fname.rpartition(".")
+                target = attach_dir / (
+                    f"{stem}_{i}.{ext}" if dot else f"{fname}_{i}")
+                i += 1
+            target.write_bytes(payload)
+            written_names.append(target.name)
+    return written_names
+
+
+def convert_msg_to_txt(src_path, dest_txt_path, attach_dir=None):
+    """Parse a .msg file via extract_msg and write a plain-text rendering
+    plus attachments."""
+    import extract_msg
+    m = extract_msg.Message(str(src_path))
+
+    body_text = m.body or ""
+    if not body_text and getattr(m, "htmlBody", None):
+        h = m.htmlBody
+        if isinstance(h, bytes):
+            try:
+                h = h.decode("utf-8", errors="replace")
+            except Exception:
+                h = h.decode("latin-1", errors="replace")
+        h = re.sub(r"(?i)<br\s*/?>", "\n", h)
+        h = re.sub(r"(?i)</(p|div|tr|h[1-6])>", "\n", h)
+        h = re.sub(r"<[^>]+>", "", h)
+        body_text = h
+
+    lines = []
+    lines.append(f"Date:    {m.date.isoformat() if m.date else ''}")
+    lines.append(f"From:    {m.sender or ''}")
+    lines.append(f"To:      {m.to or ''}")
+    if m.cc:
+        lines.append(f"Cc:      {m.cc}")
+    lines.append(f"Subject: {m.subject or ''}")
+    if m.messageId:
+        lines.append(f"Message-ID: {m.messageId}")
+    if m.inReplyTo:
+        lines.append(f"In-Reply-To: {m.inReplyTo}")
+    if m.attachments:
+        names = ", ".join(
+            _safe_attachment_name(
+                getattr(a, "longFilename", None) or getattr(a, "shortFilename", None),
+                f"attachment_{i+1}")
+            for i, a in enumerate(m.attachments)
+        )
+        lines.append(f"Attachments ({len(m.attachments)}): {names}")
+    lines.append("")
+    lines.append("-" * 72)
+    lines.append("")
+    lines.append(body_text or "(no body)")
+
+    dest_txt_path.parent.mkdir(parents=True, exist_ok=True)
+    dest_txt_path.write_text("\n".join(lines), encoding="utf-8")
+
+    written_names = []
+    if m.attachments:
+        if attach_dir is None:
+            attach_dir = dest_txt_path.with_suffix("").with_name(
+                dest_txt_path.stem + "__attachments")
+        attach_dir.mkdir(parents=True, exist_ok=True)
+        for i, a in enumerate(m.attachments):
+            fname = _safe_attachment_name(
+                getattr(a, "longFilename", None) or getattr(a, "shortFilename", None),
+                f"attachment_{i+1}")
+            try:
+                payload = a.data
+            except Exception as e:
+                logger.warning("msg attachment extract failed %s: %s",
+                               src_path, e)
+                continue
+            if payload is None:
+                continue
+            target = attach_dir / fname
+            j = 2
+            while target.exists():
+                stem, dot, ext = fname.rpartition(".")
+                target = attach_dir / (
+                    f"{stem}_{j}.{ext}" if dot else f"{fname}_{j}")
+                j += 1
+            if isinstance(payload, bytes):
+                target.write_bytes(payload)
+            else:
+                target.write_bytes(bytes(payload))
+            written_names.append(target.name)
+    return written_names
 
 
 def probe_pdf_header(pdf_path):
@@ -430,18 +623,61 @@ def chunk_pdf_path(bundle_slug, chunk_idx, start_page, end_page,
 
 def materialize_entry(src_path, dest_dir, dest_name, mode="symlink",
                       repo_root=None):
-    """Create dest_dir/dest_name pointing at src_path. Returns relative
-    path for the symlink target so the link is portable within the repo."""
+    """Create dest_dir/dest_name pointing at src_path.
+
+    Modes:
+      - symlink: relative symlink (default).
+      - copy:    plain file copy.
+      - portable: copy + convert .eml/.msg to .txt sidecars with
+        extracted attachments. PDFs, docx, xlsx are copied verbatim.
+
+    Returns the actual destination path used (so callers can record the
+    filename for READMEs).
+    """
     dest_dir.mkdir(parents=True, exist_ok=True)
     dest = dest_dir / dest_name
     if dest.exists() or dest.is_symlink():
         dest.unlink()
+
+    if mode == "portable":
+        ext = Path(dest_name).suffix.lower()
+        # Re-name eml/msg destinations to .txt so the file extension
+        # matches the actual format on disk.
+        if ext == ".eml":
+            txt_dest = dest.with_suffix(".txt")
+            if txt_dest.exists() or txt_dest.is_symlink():
+                txt_dest.unlink()
+            try:
+                convert_eml_to_txt(src_path, txt_dest)
+            except Exception as e:
+                logger.warning("eml conversion failed %s: %s — copying raw",
+                               src_path, e)
+                shutil.copy2(src_path, dest)
+                return dest
+            return txt_dest
+        if ext == ".msg":
+            txt_dest = dest.with_suffix(".txt")
+            if txt_dest.exists() or txt_dest.is_symlink():
+                txt_dest.unlink()
+            try:
+                convert_msg_to_txt(src_path, txt_dest)
+            except Exception as e:
+                logger.warning("msg conversion failed %s: %s — copying raw",
+                               src_path, e)
+                shutil.copy2(src_path, dest)
+                return dest
+            return txt_dest
+        # All other formats: copy as-is (PDFs, docx, xlsx, zip, etc.).
+        shutil.copy2(src_path, dest)
+        return dest
+
     if mode == "copy":
         shutil.copy2(src_path, dest)
-    else:
-        # Compute a relative symlink target.
-        rel = os.path.relpath(src_path, start=dest_dir)
-        os.symlink(rel, dest)
+        return dest
+
+    # Default: relative symlink.
+    rel = os.path.relpath(src_path, start=dest_dir)
+    os.symlink(rel, dest)
     return dest
 
 
@@ -481,8 +717,14 @@ def main():
     parser.add_argument("--emails", default="prr_transportation/_all_emails.csv")
     parser.add_argument("--chunks-root", default="data/transit/chunks")
     parser.add_argument("--out", default="prr_transportation")
-    parser.add_argument("--mode", choices=("symlink", "copy"),
-                        default="symlink")
+    parser.add_argument(
+        "--mode", choices=("symlink", "copy", "portable"),
+        default="symlink",
+        help="symlink (default): relative symlinks back into data/. "
+             "copy: plain file copies. "
+             "portable: copy + convert .eml/.msg to readable .txt "
+             "sidecars with attachments extracted to a sibling dir. "
+             "Use portable when zipping the tree for sharing.")
     parser.add_argument("--log-level", default="INFO")
     args = parser.parse_args()
     logging.basicConfig(
@@ -553,13 +795,15 @@ def main():
         filename = safe_filename(filename, 200)
 
         topic_dir = out_root / topic
-        materialize_entry(src_path, topic_dir, filename, mode=args.mode)
+        actual_dest = materialize_entry(
+            src_path, topic_dir, filename, mode=args.mode)
+        actual_name = actual_dest.name if actual_dest else filename
 
         topic_entries[topic].append({
             "date": date_iso[:16].replace("T", " ") if date_iso else "",
             "from": rec.get("from", ""),
             "subject_or_title": rec.get("subject", "") or "(no subject)",
-            "filename": filename,
+            "filename": actual_name,
             "source_label": (
                 f"{kind} {('('+bundle_slug+' chunk '+str(rec['chunk_idx'])+')') if kind == 'bundle' else ''}".strip()
             ),
@@ -637,12 +881,14 @@ def main():
         filename = f"{date_label}_FILE_{basename[:-len(ext)]}{sub_slug}{ext}"
         filename = safe_filename(filename, 200)
         topic_dir = out_root / topic
-        materialize_entry(src, topic_dir, filename, mode=args.mode)
+        actual_dest = materialize_entry(
+            src, topic_dir, filename, mode=args.mode)
+        actual_name = actual_dest.name if actual_dest else filename
         topic_entries[topic].append({
             "date": date_iso.replace("T", " ") if date_iso else "(undated)",
             "from": probed_from or "",
             "subject_or_title": probed_subject or m["basename"],
-            "filename": filename,
+            "filename": actual_name,
             "source_label": f"file ({m['container_class']})",
             "_rec": {"file": True, "manifest_row": m},
         })
