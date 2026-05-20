@@ -30,17 +30,24 @@ before scraping; if the dropdown offers downloads for these (year, report)
 combinations and we just missed them, re-scrape with
 `window.OSPI_SCRAPER_START` / `OSPI_SCRAPER_END` set to that combination.
 
-### Probable not-published-by-OSPI
+### Confirmed not-published-by-OSPI
+
+- **2020-2021 and 2021-2022 for `efficiency` and `kpi`.** Verified
+  2026-05-17 against the live STARS dropdown -- neither year offers
+  Efficiency Detail or KPI report types. Consistent with the COVID
+  shutdown: buses didn't run, so efficiency/KPI metrics weren't
+  computed. `operations_allocation` and `quarterly_district` were
+  still produced because allocations and quarterly accounting continued.
+
+### Probable not-published-by-OSPI (not yet verified)
 
 - **2016-2017 for `efficiency`, `kpi`, `operations_allocation`,
   `quarterly_district`.** Only `efficiency_review` has 2016-17 data.
   STARS as a reporting program likely launched 2017-2018; the 2016-17
   efficiency_review is probably a retrospective comparison file.
-- **2020-2021 and 2021-2022 for `efficiency`, `efficiency_review`, `kpi`.**
-  Almost certainly the COVID transportation shutdown — buses didn't run,
-  so efficiency/KPI metrics weren't computed. `operations_allocation` and
-  `quarterly_district` were still produced because allocations and
-  quarterly accounting continued.
+- **2020-2021 and 2021-2022 for `efficiency_review`.** Probably no
+  reviews because there were no efficiency ratings during COVID;
+  verify same way as the efficiency/KPI cells above.
 - **2018-2019 for `efficiency_review`.** Worth a manual check on the live
   page; could be a real gap.
 - **2025-2026 for `efficiency_review`.** Current school year — review
@@ -103,10 +110,11 @@ Most (district, year) tuples have all three quarters: `FALL`, `WINTER`,
 ### KPI
 
 - **`2025-2026 - Key Performance Indicators - Winlock School District (21232) - Winlock.pdf`**
-  is truncated by OSPI -- only 4 pages (Tables 1-4 cohort comparison) with
-  no "District KPI" block on pages 4-5. The parser logs `'District KPI'
-  anchor not found` and emits 0 rows. Either re-scrape (rare OSPI publish
-  bug) or accept the missing district-year.
+  is truncated by OSPI -- only 4 pages (Tables 1-4 cohort comparison)
+  with no "District KPI" block on pages 4-5. Verified 2026-05-17:
+  Winlock isn't in the orgs dropdown for 2025-26 KPI, so OSPI didn't
+  publish a full version. Permanent hole for (Winlock, 2025-26, KPI).
+  The parser logs `'District KPI' anchor not found` and emits 0 rows.
 
 ### Operations Allocation Detail
 
@@ -121,13 +129,17 @@ Most (district, year) tuples have all three quarters: `FALL`, `WINTER`,
 
 ## Action items
 
-- [ ] Manually verify the four "probable not-published" cells against the
-      live STARS dropdown before treating them as final gaps.
+- [x] **Verified 2020-21 and 2021-22 efficiency/KPI** -- not offered by
+      OSPI's dropdown; confirmed gap.
+- [x] **Verified Winlock 2025-26 KPI** -- not offered by OSPI; the
+      4-page truncated PDF is what they shipped.
+- [ ] Verify the remaining "probable not-published" cells: 2016-17
+      (all but efficiency_review), 2018-19 efficiency_review,
+      2020-21/2021-22 efficiency_review, 2025-26 efficiency_review.
 - [ ] Re-scrape any that turn out to be real misses with
       `OSPI_SCRAPER_START`/`END` to bound the range.
-- [ ] Decide handling for the Lind 2023-2024 duplicate set (keep both?
-      pick latest?).
-- [ ] Re-scrape `Winlock 2025-2026 KPI` to see if OSPI republished the
-      full PDF; if not, leave as a one-row gap in the stars_kpi table.
+- [x] **Lind 2023-24 dedup** -- the 6 files are 3 pairs of byte-identical
+      duplicates from the scraper running twice; deleted the `(1)`-suffixed
+      copies.
 - [ ] Once `from_pdfs.py` runs, log any (year, report_type) for which
       parsing produced zero rows so we can flag silent-empty PDFs/DOCXs.
