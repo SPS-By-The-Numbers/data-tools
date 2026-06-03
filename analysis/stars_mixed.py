@@ -118,7 +118,57 @@ def report_insample(se, recs, dn):
         u = float(np.asarray(re[c]).ravel()[0])
         print(f"    {dn.get(c, c)[:34]:34s} {np.mean(size[c]):>13,.0f} "
               f"{u:>+11.3f} {math.exp(u):>10.2f}x")
-    return tau2, sigma2
+    return res, X, y, years
+
+
+def _r2(actual, pred):
+    actual = np.asarray(actual); pred = np.asarray(pred)
+    ybar = actual.mean()
+    return 1.0 - np.sum((actual - pred) ** 2) / np.sum((actual - ybar) ** 2)
+
+
+def report_per_year_r2(se, recs, res, X, y, years):
+    """Per-year R^2 (same per-year denominator) for three fits:
+      - STARS recreation : per-year cross-sectional OLS of ln(cost) on the 7
+                           predictors (free coefficients each year) -- our F-196
+                           recreation of the original formula.
+      - mixed marginal   : the pooled fixed effects only (shared coefficients).
+      - mixed conditional: fixed effects + district random intercept.
+    In-sample / explanatory (the random intercept sees each year's own data), so
+    read this as 'structure captured', not forecasting skill -- that's report (B).
+    """
+    fe = np.asarray(res.fe_params)
+    re = res.random_effects
+    idx_by_year = defaultdict(list)
+    for i, (ccddd, _c, sy, _v, _lc, _cost) in enumerate(recs):
+        idx_by_year[sy].append(i)
+
+    print("\n=== Per-year R^2: STARS recreation vs mixed (marginal / conditional) ===")
+    print("  In-sample, same per-year denominator (variance of ln cost about the year mean).")
+    print(f"  {'year':10s} {'n':>4s} {'STARS recreation':>17s} "
+          f"{'mixed marginal':>15s} {'mixed conditional':>18s}")
+    print(f"  {'':10s} {'':>4s} {'(per-yr OLS)':>17s} {'(fixed only)':>15s} "
+          f"{'(fixed+random)':>18s}")
+    print("  " + "-" * 66)
+    s_l, m_l, c_l = [], [], []
+    for sy in years:
+        ii = idx_by_year[sy]
+        yy = y[ii]
+        vecs = np.array([recs[i][3] for i in ii])
+        r2_stars = sm.OLS(yy, sm.add_constant(vecs)).fit().rsquared
+        fixed_pred = X[ii] @ fe
+        full_pred = np.array([fixed_pred[k] + float(np.asarray(re[recs[i][0]]).ravel()[0])
+                              for k, i in enumerate(ii)])
+        r2_marg, r2_cond = _r2(yy, fixed_pred), _r2(yy, full_pred)
+        s_l.append(r2_stars); m_l.append(r2_marg); c_l.append(r2_cond)
+        print(f"  {sy:10s} {len(ii):4d} {r2_stars:17.4f} {r2_marg:15.4f} {r2_cond:18.4f}")
+    print("  " + "-" * 66)
+    print(f"  {'mean':10s} {'':>4s} {np.mean(s_l):17.4f} {np.mean(m_l):15.4f} "
+          f"{np.mean(c_l):18.4f}")
+    unexp_stars, unexp_cond = 1 - np.mean(s_l), 1 - np.mean(c_l)
+    print(f"\n  Unexplained within-year variance: STARS {unexp_stars*100:.1f}% -> "
+          f"conditional {unexp_cond*100:.1f}%  "
+          f"({(1-unexp_cond/unexp_stars)*100:.0f}% cut; matches ICC).")
 
 
 def backtest(se, recs, dn, min_prior):
@@ -193,7 +243,8 @@ def main():
 
     recs = gather(se, rows)
     dn = district_names()
-    report_insample(se, recs, dn)
+    res, X, y, years = report_insample(se, recs, dn)
+    report_per_year_r2(se, recs, res, X, y, years)
 
     print("\n=== (B) Walk-forward forecast: mixed (+RE) vs pooled OLS (no RE) ===")
     bt = backtest(se, recs, dn, args.min_prior)

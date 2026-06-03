@@ -36,6 +36,20 @@ BLUP offsets `u_d` (relative to the pooled fixed-effects):
 
 RE wins 68% (all) / 75% (fat end). **SPS: 31%→4% (2019-20), 49%→21% (2024-25).**
 
+**Per-year R² vs the STARS recreation** (in-sample, same per-year denominator):
+| | STARS recreation (per-yr OLS) | mixed marginal (fixed only) | mixed conditional (fixed+random) |
+|---|---|---|---|
+| mean R² | 0.9672 | 0.9541 | **0.9938** |
+
+- Pooling coefficients costs ~1.3 pts on the fixed part (0.967 → 0.954: shared vs
+  free per-year coefficients), but the random intercept lifts every year well above
+  STARS (→ 0.994).
+- Unexplained within-year variance: STARS **3.3% → conditional 0.6%** — an **~81%
+  cut**, matching ICC=0.85.
+- Caveat: this is **explanatory** R² (the random intercept sees each year's own
+  data) — "structure captured", not forecasting skill. The honest predictive gain
+  is the walk-forward APE above.
+
 ## Reconciliations
 - **τ² = 0.073 here vs 0.050 in the credibility run.** The credibility version fit
   a fresh cross-section per year (year-specific coefficients absorbed more), while
