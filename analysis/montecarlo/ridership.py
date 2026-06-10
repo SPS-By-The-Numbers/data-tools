@@ -103,6 +103,17 @@ class RidershipParams:
     beta_absent: float = 0.0
     p_max: float = 0.95        # per-cell propensity cap
     gifted_propensity: float | None = None  # None → solve vs the gifted target
+    # HS rides as a FRACTION of the MS propensity (USER assumption, s10).
+    # Two named discounts, applied multiplicatively to hs-band cells:
+    hs_indep_factor: float = 0.7  # all HS grades: rides lost to independent
+                                  # travel on public transit (esp. after
+                                  # school — yellow bus AM, Metro/activity PM)
+    hs_car_factor: float = 0.5    # ADDITIONAL multiplier for grades 11-12
+                                  # (age 16+: kids get cars); grades 9-10 and
+                                  # 11-12 weighted 50/50 within the hs band.
+    # Effective hs multiplier = hs_indep_factor·(0.5 + 0.5·hs_car_factor)
+    # = 0.7·0.75 = 0.525 at the defaults. Only matters when a scenario adds
+    # HS basic service; the baseline has no HS cells.
 
 
 # ---------------------------------------------------------------------------
@@ -194,7 +205,9 @@ def basic_cells(assignment: pd.DataFrame | None = None,
         pts.reindex(df["school_id"]).to_numpy(),
     ) / FEET_PER_MILE
 
-    df["is_ms"] = (df["grade_band"] == "ms").astype(float)
+    # HS rides "like MS but smaller" (USER, s10): hs cells take the MS tilt
+    # here and the hs_factor discount in _cell_shape.
+    df["is_ms"] = df["grade_band"].isin(("ms", "hs")).astype(float)
     cov = school_covariates(year)
     df = df.merge(cov, left_on="school_id", right_index=True, how="left")
     w = df["n_eligible"].to_numpy()
@@ -225,7 +238,9 @@ def _cell_shape(cells: pd.DataFrame, params: RidershipParams) -> np.ndarray:
             + params.beta_low_income * cells["x_low_income_frac"].to_numpy()
             + params.beta_swd * cells["x_swd_frac"].to_numpy()
             + params.beta_absent * cells["x_absent_rate"].to_numpy())
-    return np.maximum(f, 0.0) * np.exp(tilt)
+    hs_mult = params.hs_indep_factor * (0.5 + 0.5 * params.hs_car_factor)
+    hs = np.where(cells["grade_band"].to_numpy() == "hs", hs_mult, 1.0)
+    return np.maximum(f, 0.0) * np.exp(tilt) * hs
 
 
 def _solve_scale(e: np.ndarray, shape: np.ndarray, target: float,
@@ -576,7 +591,8 @@ def load_params() -> RidershipParams:
         raise FileNotFoundError(
             f"{path} not found. Run: python3 -m analysis.montecarlo.ridership --build")
     row = pd.read_csv(path).iloc[0]
-    return RidershipParams(**{f.name: row[f.name] for f in fields(RidershipParams)})
+    return RidershipParams(**{f.name: row[f.name] for f in fields(RidershipParams)
+                              if f.name in row.index})  # absent cols → defaults
 
 
 # ---------------------------------------------------------------------------

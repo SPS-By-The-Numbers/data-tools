@@ -259,8 +259,8 @@ between half and all of the figure — long-route kids often ride AM only).
 | scenario | spec | Δ basic rides/day | Δ est routes | Δ buses (Δ$M/yr) | Δ avg stop→school dist |
 |---|---|---|---|---|---|
 | `ms_walk_1mi` | MS walk zones 2 → 1 mi | **+2,073** [+1,901, +2,228] | +41.8 [+38.4, +45.0] | **+0.0 (+$0.00)** | −0.08 mi (district mean) |
-| `hs_bussing` | re-add HS yellow bus, walk zones as-is (2 mi) | **+2,780** [+2,542, +3,016] | +56.1 [+51.3, +60.9] | **+0.0 (+$0.00)** | +0.23 mi |
-| `hs_bussing_1mi` | HS yellow bus + HS walk zones 2 → 1 mi | **+5,908** [+5,463, +6,364] | +119.2 [+110.3, +128.4] | +3.5 [0, +13.9] (+$0.52) | +0.08 mi |
+| `hs_bussing` | re-add HS yellow bus, walk zones as-is (2 mi) | **+1,659** [+1,143, +2,332] | +33.5 [+23.1, +47.1] | **+0.0 (+$0.00)** | +0.15 mi |
+| `hs_bussing_1mi` | HS yellow bus + HS walk zones 2 → 1 mi | **+3,532** [+2,411, +4,908] | +71.3 [+48.7, +99.1] | **+0.0 (+$0.00)** | +0.06 mi |
 | `close_option_a` | KUOW "well-resourced" plan: close 21 schools | **+850** [+758, +937] | +17.2 [+15.3, +18.9] | +17.1 (+$2.55) | +0.06 mi |
 | `close_option_b` | KUOW "choice" plan: close 17 schools incl. Thurgood Marshall | **+1,136** [+1,078, +1,188] | +22.9 [+21.8, +24.0] | +23.0 (+$3.42) | +0.06 mi |
 | `close_fab4` | close North Beach, Sacajawea, Stevens, Sanislo → named single receivers | **+174** [+141, +206] | +3.5 [+2.8, +4.2] | +3.5 (+$0.52) | ±0.00 mi |
@@ -279,8 +279,8 @@ state reimbursement change, cost = bus fleet change, NET = revenue − cost):
 | scenario | Δ EXAL revenue $M/yr | Δ bus cost $M/yr | **NET $M/yr** |
 |---|---|---|---|
 | `ms_walk_1mi` | +5.33 [+4.90, +5.71] | 0.00 | **+5.33** |
-| `hs_bussing` | +17.13 [+16.40, +17.83] | 0.00 | **+17.13** |
-| `hs_bussing_1mi` | +25.72 [+24.50, +26.93] (CROSSES the $59.8M cap) | +0.52 | **+25.19** |
+| `hs_bussing` | +13.56 [+11.92, +15.74] | 0.00 | **+13.56** |
+| `hs_bussing_1mi` | +18.94 [+15.60, +22.94] (≈$55.6M total — back under the $59.8M cap) | 0.00 | **+18.94** |
 | `close_option_a` | −7.03 [−7.22, −6.86] | +2.55 | **−9.58** |
 | `close_option_b` | −4.09 [−4.22, −3.98] | +3.42 | **−7.51** |
 | `close_option_b_dearborn` | −4.58 [−4.71, −4.48] | +3.40 | **−7.99** |
@@ -318,12 +318,14 @@ scatters central-Seattle kids farther. Both plans skew rider GAINS toward
 high-poverty areas (equity cut, e.g. A: high-poverty ES tercile +705 vs
 low +362) — displaced kids in those areas more often land outside their
 receiver's walk zone.
-The HS pair rests on a **non-calibratable assumption**: HS riders get the
-baseline ES/MS propensity model (distance decay + demographic tilt, is_ms=0)
-and the basic 49.5 riders-per-route — there is no SPS HS yellow-bus history
-to fit against (HS has been ORCA-only; STARS shows zero HS basic routes).
-All 13 open HS-level sites get service, incl. Center School (option) and
-Nova (service).
+The HS pair rests on a **non-calibratable assumption** (refined s10, user
+direction): HS rides = a fraction of the MS propensity — MS tilt ×
+hs_indep_factor 0.7 (all HS; independent transit travel, esp. PM) ×
+(0.5 + 0.5·hs_car_factor 0.5) (grades 11-12; cars) ⇒ 0.525 × MS, both
+factors MC-sampled — plus the basic 49.5 rides-per-route. There is no SPS
+HS yellow-bus history to fit against (HS has been ORCA-only; STARS shows
+zero HS basic routes). All 13 open HS-level sites get service, incl.
+Center School (option) and Nova (service).
 `school_code` (4-digit OSPI building code) is a **clean** join across
 geography + enrollment + absenteeism:
 - `parse_shapes.load_locations().school_code` ↔ `rc_seattle` enrollment/attendance
@@ -1204,6 +1206,24 @@ Still genuinely open for the user:
   pushes EXAL to ~$62.4M > the $59.8M cap — its +$25.7M revenue assumes
   the user's never-hit-cap instruction; capped reality would clip it to
   ~+$23.1M.
+- **2026-06-10 (s10)** HS ridership model REFINED (user direction): HS is
+  now a *fraction of MS*, not ES-like. HS cells take the MS tilt (is_ms=1)
+  × `hs_indep_factor` (default **0.7**, all HS grades — rides lost to
+  independent travel on public transit, especially after school) ×
+  (0.5 + 0.5·`hs_car_factor`) (default **0.5** for grades 11-12 — age 16+,
+  kids get cars; grade pairs weighted 50/50) ⇒ effective **0.525 × MS**.
+  Both factors are new RidershipParams fields (defaults in dataclass;
+  load_params tolerates the old params.csv) sampled in the MC
+  (N(0.7, 0.1) / N(0.5, 0.2), clipped to [0.05, 1]). Baseline untouched
+  (no HS cells; empty-scenario check PASS). HS scenarios re-run:
+  `hs_bussing` +2,780 → **+1,659** rides/day [+1,143, +2,332], EXAL
+  +$13.6M; `hs_bussing_1mi` +5,908 → **+3,532** [+2,411, +4,908], EXAL
+  +$18.9M — now +0 buses (the smaller MS/HS shift no longer overtakes the
+  ES shift) and back UNDER the $59.8M cap (~$55.6M total), retiring the
+  earlier cap flag. CIs are much wider than before — the sampled HS
+  factors dominate the uncertainty, as they should for an uncalibrated
+  assumption. OVERVIEW.md ridership section, MC distribution table, and
+  assumption 2 updated.
 - **2026-06-10 (s10)** "Fab-4" closure modeled (`close_fab4`): North Beach
   259→Viewlands 276, Sacajawea 268→Rogers 266, Stevens 272→Montlake 255,
   Sanislo 273→Highland Park 235 — explicit single receivers (the named

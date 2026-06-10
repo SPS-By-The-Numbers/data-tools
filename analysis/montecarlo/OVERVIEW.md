@@ -173,6 +173,16 @@ attendance areas from the district's pathway maps — see
 Rides → routes via district rides-per-route (2024-25: basic 49.5, gifted
 32.9 — ≈ 25 students on a one-way run).
 
+**High school** (cells exist only when a scenario adds HS service — SPS
+runs no HS basic yellow bus): HS rides are modeled as a *fraction of the
+MS propensity*. HS cells take the MS tilt, times
+`hs_indep_factor · (0.5 + 0.5·hs_car_factor)` — an all-HS discount
+(default 0.7) for rides lost to independent travel on public transit,
+especially after school, and an additional grades-11-12 discount (default
+0.5; age 16+, kids get cars), with the two grade pairs weighted 50/50.
+Effective default: 0.525 × the MS-like propensity. These are
+user-specified assumptions, not fits (see assumption 2).
+
 ## Scenario engine (stage 9) <a id="scenario-engine"></a>
 
 A scenario is an ordered list of ops in a JSON spec
@@ -239,6 +249,8 @@ which are pinned to the official numbers in every draw.
 | population: grade-band split per block group | Dirichlet(α), α_band = n_pub_band + 0.5 per BG; the sampled fractions × the BG's fixed `n_pub_total` | `sample_synth_pop` in [`synth_population.py`](synth_population.py) |
 | `decay_mi` | lognormal around the fit: `decay·exp(N(0, σ=0.2))` | `sample_params` in [`simulate.py`](simulate.py) |
 | each β (4 of them) | Normal(β̂, max(0.2·\|β̂\|, 0.05)) | same |
+| `hs_indep_factor` (HS-only scenarios) | Normal(0.7, 0.1), clipped to [0.05, 1] | same |
+| `hs_car_factor` (HS-only scenarios) | Normal(0.5, 0.2), clipped to [0.05, 1] | same |
 | ρ, p_max | **fixed** at fitted values (the fit pinned ρ; p_max is structural) | same |
 | scale s, gifted propensity | **solved per draw** on that draw's baseline cells, then reused for the paired scenario arm | `run_mc` |
 | scenario behavioral params (stay-rate etc.) | **not sampled** — spec constants | — |
@@ -350,9 +362,13 @@ Roughly ordered by how much they could move a result.
    student (max 2), and its fitted distance decay partly *is* the AM-only
    behavior on long routes.
 2. **HS ridership is an extrapolation.** SPS has run no HS basic yellow bus
-   in the STARS record (ORCA only), so `add_basic_service` scenarios give
-   HS riders the ES/MS-fitted propensity (is_ms = 0) and basic
-   rides-per-route. Nothing calibrates this.
+   in the STARS record (ORCA only), so `add_basic_service` scenarios model
+   HS as a *fraction of MS*: the MS tilt × 0.7 (all HS — losses to
+   independent transit travel, especially PM) × (0.5 + 0.5·0.5) (grades
+   11-12 at half — cars), ≈ 0.525 overall, with both factors sampled in
+   the MC. The structure and the levels are user-specified judgment, and
+   basic rides-per-route is reused for routes; nothing calibrates any of
+   it.
 3. **Fixed residence strata / single-year OD anchor.** Where kids live and
    the area→school flow structure are 2024-25 snapshots; scenarios get
    steady-state reassignment, no enrollment growth/decline, no behavioral

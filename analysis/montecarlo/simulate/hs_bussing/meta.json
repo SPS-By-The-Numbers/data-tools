@@ -1,6 +1,6 @@
 {
   "scenario": "hs_bussing",
-  "description": "Re-add high-school basic yellow-bus service (SPS currently gives HS students ORCA only) keeping all original walk zones \u2014 the official 2-mile HS walk polygons stay as-is. HS riders get the baseline-calibrated ES/MS propensity model; no HS yellow-bus history exists to calibrate against.",
+  "description": "Re-add high-school basic yellow-bus service (SPS currently gives HS students ORCA only) keeping all original walk zones \u2014 the official 2-mile HS walk polygons stay as-is. HS rides are modeled as a fraction of MS propensity: x0.7 all-HS (independent transit travel, esp. PM) and grades 11-12 additionally x0.5 (cars) => 0.525 x MS; user assumption, nothing calibrates it (no HS yellow-bus history).",
   "ops": [
     {
       "op": "add_basic_service",
@@ -11,5 +11,5 @@
   "seed": 20260610,
   "sample_theta": true,
   "sample_pop": true,
-  "runtime_s": 42.7
+  "runtime_s": 42.6
 }

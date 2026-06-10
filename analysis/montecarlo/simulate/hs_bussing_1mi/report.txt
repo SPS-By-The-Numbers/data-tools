@@ -1,50 +1,50 @@
 === MC report: hs_bussing_1mi (200 draws, seed 20260610) ===
-  Re-add high-school basic yellow-bus service AND shrink HS walk zones from the 2-mile rule to 1 mile (regenerated as calibrated buffers), so students 1-2 miles out are bus-eligible too. Same propensity caveat as hs_bussing.
+  Re-add high-school basic yellow-bus service AND shrink HS walk zones from the 2-mile rule to 1 mile (regenerated as calibrated buffers), so students 1-2 miles out are bus-eligible too. Same HS-as-fraction-of-MS propensity model and caveat as hs_bussing.
 
 District (means over draws; deltas show 95% CI). NOTE: 'riders' = STARS rides/day —
   AM and PM boardings each count, so a both-ways student counts as 2; unique
   students are between half and all of the figure (long-route kids often ride AM only):
-  basic : riders  10,008.5 →  15,916.2   Δ +5907.7 [+5463.3, +6363.7]   est routes Δ +119.23 [+110.26, +128.44]
+  basic : riders  10,008.5 →  13,540.8   Δ +3532.3 [+2411.4, +4908.1]   est routes Δ +71.29 [+48.67, +99.06]
   gifted: riders   1,315.5 →   1,315.5   Δ    +0.0 [+0.0, +0.0]   est routes Δ +0.00 [+0.00, +0.00]
 
 Bus fleet + annual cost (2 bell shifts: fleet = busier of ES vs MS/HS shift;
   $148.9k per bus-year, SY2024-25 all-in vendor cost — see report.py constants):
-  buses:  179.7 →  183.3   Δ +3.5 [+0.0, +13.9]
-  annual cost Δ: +0.52 [+0.00, +2.07] $M/yr
+  buses:  179.7 →  179.7   Δ +0.0 [+0.0, +0.0]
+  annual cost Δ: +0.00 [+0.00, +0.00] $M/yr
 
 State funding (STARS EXAL reimbursement, 2025-26 formula; baseline $36.68M,
   assumed below cap; Δinputs: basic/gifted ride deltas, served-school count, avg distance):
-  Δ inputs (means): BasicRiders +5,908, SpecialRiders +0, Destinations +13.0, AvgDistance +0.080 mi
-  revenue Δ: +25.72 [+24.50, +26.93] $M/yr
-  NET fiscal Δ (revenue − bus cost): +25.19 [+24.26, +26.10] $M/yr
+  Δ inputs (means): BasicRiders +3,532, SpecialRiders +0, Destinations +13.0, AvgDistance +0.057 mi
+  revenue Δ: +18.94 [+15.60, +22.94] $M/yr
+  NET fiscal Δ (revenue − bus cost): +18.94 [+15.60, +22.94] $M/yr
 
 Avg stop→school distance, rider-weighted (basic, miles; STARS calls this 'average_distance'):
-   mean:  1.56 →  1.64   Δ +0.080 [+0.061, +0.097]
-    p50:  1.26 →  1.32   Δ +0.056 [+0.034, +0.075]
-    p90:  2.80 →  2.89   Δ +0.099 [+0.058, +0.144]
+   mean:  1.56 →  1.61   Δ +0.057 [+0.037, +0.080]
+    p50:  1.26 →  1.30   Δ +0.037 [+0.015, +0.057]
+    p90:  2.79 →  2.85   Δ +0.067 [+0.030, +0.128]
 
 Per-school movers (|mean Δriders| > 0.5): 13
-  Center School            basic      0.0 →   110.2   Δ  +110.2 [+86.0, +139.9]   routes Δ +2.22
-  Nova                     basic      0.0 →   202.4   Δ  +202.4 [+158.6, +230.5]   routes Δ +4.09
-  Cleveland                basic      0.0 →   314.6   Δ  +314.6 [+264.5, +372.1]   routes Δ +6.35
-  Rainier Beach            basic      0.0 →   393.2   Δ  +393.2 [+358.4, +434.1]   routes Δ +7.94
-  Garfield                 basic      0.0 →   460.8   Δ  +460.8 [+382.8, +552.9]   routes Δ +9.30
-  Roosevelt                basic      0.0 →   463.8   Δ  +463.8 [+413.6, +530.2]   routes Δ +9.36
-  Nathan Hale              basic      0.0 →   478.1   Δ  +478.1 [+453.2, +499.2]   routes Δ +9.65
-  Lincoln                  basic      0.0 →   497.1   Δ  +497.1 [+430.1, +583.3]   routes Δ +10.03
-  West Seattle High        basic      0.0 →   547.3   Δ  +547.3 [+498.5, +605.3]   routes Δ +11.05
-  Ballard                  basic      0.0 →   548.0   Δ  +548.0 [+495.5, +610.1]   routes Δ +11.06
-  Chief Sealth             basic      0.0 →   575.0   Δ  +575.0 [+539.7, +603.3]   routes Δ +11.60
-  Franklin                 basic      0.0 →   580.2   Δ  +580.2 [+531.0, +629.2]   routes Δ +11.71
-  Ingraham                 basic      0.0 →   737.0   Δ  +737.0 [+707.6, +769.9]   routes Δ +14.88
+  Center School            basic      0.0 →    67.8   Δ   +67.8 [+40.0, +99.8]   routes Δ +1.37
+  Nova                     basic      0.0 →   143.8   Δ  +143.8 [+83.8, +199.4]   routes Δ +2.90
+  Cleveland                basic      0.0 →   185.4   Δ  +185.4 [+125.6, +261.5]   routes Δ +3.74
+  Rainier Beach            basic      0.0 →   233.9   Δ  +233.9 [+158.6, +330.1]   routes Δ +4.72
+  Garfield                 basic      0.0 →   271.9   Δ  +271.9 [+183.5, +382.2]   routes Δ +5.49
+  Roosevelt                basic      0.0 →   275.2   Δ  +275.2 [+186.2, +383.5]   routes Δ +5.55
+  Nathan Hale              basic      0.0 →   284.8   Δ  +284.8 [+191.9, +407.0]   routes Δ +5.75
+  Lincoln                  basic      0.0 →   293.7   Δ  +293.7 [+199.1, +412.5]   routes Δ +5.93
+  West Seattle High        basic      0.0 →   324.3   Δ  +324.3 [+223.5, +446.6]   routes Δ +6.54
+  Ballard                  basic      0.0 →   325.1   Δ  +325.1 [+220.2, +452.1]   routes Δ +6.56
+  Chief Sealth             basic      0.0 →   342.8   Δ  +342.8 [+230.0, +490.0]   routes Δ +6.92
+  Franklin                 basic      0.0 →   344.6   Δ  +344.6 [+233.9, +484.7]   routes Δ +6.95
+  Ingraham                 basic      0.0 →   439.0   Δ  +439.0 [+300.7, +627.6]   routes Δ +8.86
 
 Equity cuts (basic program; Δriders summed per group per draw):
   by school low-income share (RC 2024-25 terciles):
-    low (≤18%)             ( 31 schools,   3,295 base riders)  Δ +1155.3 [+1052.6, +1280.7]
-    mid (18%–48%)          ( 31 schools,   3,292 base riders)  Δ +2889.4 [+2707.4, +3075.3]
-    high (>48%)            ( 28 schools,   3,421 base riders)  Δ +1863.0 [+1698.9, +2020.0]
+    low (≤18%)             ( 31 schools,   3,293 base riders)  Δ  +686.7 [+474.5, +939.0]
+    mid (18%–48%)          ( 31 schools,   3,295 base riders)  Δ +1738.9 [+1179.2, +2407.2]
+    high (>48%)            ( 28 schools,   3,421 base riders)  Δ +1106.7 [+754.0, +1567.2]
   by ES attendance-area poverty % (terciles; neighborhood ES only):
     low (≤18)              ( 20 schools,   1,783 base riders)  Δ    +0.0 [+0.0, +0.0]
-    mid (18–46)            ( 18 schools,   1,767 base riders)  Δ    +0.0 [+0.0, +0.0]
-    high (>46)             ( 14 schools,   1,601 base riders)  Δ    +0.0 [+0.0, +0.0]
-    (no ES area)           ( 38 schools,   4,857 base riders)  Δ +5907.7 [+5463.3, +6363.7]
+    mid (18–46)            ( 18 schools,   1,768 base riders)  Δ    +0.0 [+0.0, +0.0]
+    high (>46)             ( 14 schools,   1,598 base riders)  Δ    +0.0 [+0.0, +0.0]
+    (no ES area)           ( 38 schools,   4,860 base riders)  Δ +3532.3 [+2411.4, +4908.1]

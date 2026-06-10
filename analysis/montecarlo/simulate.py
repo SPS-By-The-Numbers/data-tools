@@ -102,6 +102,12 @@ def sample_params(rng: np.random.Generator,
     for name in _BETAS:
         b = getattr(base, name)
         kw[name] = float(rng.normal(b, max(_BETA_SD_FRAC * abs(b), _BETA_SD_FLOOR)))
+    # HS-vs-MS discounts (USER assumption, s10) — both uncertain, sampled
+    # independently; only move results when a scenario adds HS basic service:
+    # all-HS loss to independent transit travel, and the additional gr 11-12
+    # (age 16+) car discount.
+    kw["hs_indep_factor"] = float(np.clip(rng.normal(base.hs_indep_factor, 0.1), 0.05, 1.0))
+    kw["hs_car_factor"] = float(np.clip(rng.normal(base.hs_car_factor, 0.2), 0.05, 1.0))
     return replace(base, **kw)
 
 
