@@ -219,6 +219,19 @@ conversion targets.
 (θᵢ, populationᵢ) once and evaluates baseline and scenario with the *same*
 draw, so deltas difference out shared noise. 200 draws ≈ 40 s.
 
+**What a draw means.** Each draw constructs one plausible alternate world
+by perturbing two kinds of inputs — *where the kids are* (the grade-band
+mix of every block group, which the Census only measures with survey noise
+and an approximate age→grade mapping) and *how families behave* (how fast
+bus-riding falls off with distance, and how strongly it tilts with school
+demographics — both estimated from a single year of noisy data). Baseline
+and scenario are then evaluated in that same world. A reported interval
+like "+2,073 [+1,901, +2,228]" reads: across a few hundred plausible
+combinations of those inputs, the expected effect of the policy lands in
+this range. It is uncertainty about the world the policy is applied to —
+not year-to-year randomness, and not doubt about the district totals,
+which are pinned to the official numbers in every draw.
+
 **What is sampled, and from what:**
 
 | variable | distribution | code |
@@ -230,13 +243,44 @@ draw, so deltas difference out shared noise. 200 draws ≈ 40 s.
 | scale s, gifted propensity | **solved per draw** on that draw's baseline cells, then reused for the paired scenario arm | `run_mc` |
 | scenario behavioral params (stay-rate etc.) | **not sampled** — spec constants | — |
 
-Two deliberate choices to scrutinize:
+**Why these shapes:**
+
+- **Dirichlet (population).** The (ES, MS, HS) shares of each block group
+  must be non-negative and sum to 1 — a draw that adds middle schoolers
+  must take them from the other bands, not invent people. The
+  concentration α = estimated count + 0.5 (a weakly informative
+  Jeffreys-style prior) makes the draw's mean ≈ the point estimate and its
+  variance shrink as counts grow: a 200-kid block group barely moves, a
+  6-kid one swings a lot. Each BG's total stays fixed; draws are
+  independent across block groups (no spatial error correlation — a known
+  simplification).
+- **Lognormal (decay).** The decay length must stay positive, and its
+  uncertainty is naturally relative ("about ±20%") rather than additive —
+  `exp(N(0, 0.2))` is a multiplicative wiggle whose *median* is the fitted
+  4.69 mi.
+- **Normal with a floor (βs).** sd = 20% of each estimate expresses "trust
+  each tilt to within about a fifth of its size"; the 0.05 absolute floor
+  keeps near-zero coefficients (β_absent = 0.06) from being treated as
+  precisely known when they are the least pinned-down. βs are sampled
+  independently of each other and of the decay — no covariance from a
+  joint fit.
+- **Fixed ρ.** The fit pinned ρ; sampling it would re-introduce a shape
+  the data firmly rejected.
+
+These are "start-simple" perturbations around a point fit — chosen for
+shape correctness (positivity, sum-to-one, relative scaling), not derived
+from a likelihood or posterior; the 0.2's and the 0.05 floor are judgment
+calls (assumption 9 below).
+
+Two further deliberate choices to scrutinize:
 
 1. **Calibration is per-draw.** The district targets (10,008.5 / 1,315.5)
    are observed facts, not uncertain inputs, so every sampled world
    reproduces them at baseline; uncertainty lives in the per-school split
    and in all deltas. Baseline district totals are therefore degenerate
-   across draws *by construction*.
+   across draws *by construction*. The solved scale and gifted propensity
+   are not distributions of their own — they are deterministic functions
+   of the draw.
 2. **No count noise.** Draws propagate parameter (θ) and population
    uncertainty through *expected* rides per cell; there is no Poisson
    resampling in the driver (a `sample_riders` wrapper exists in
@@ -337,7 +381,10 @@ Roughly ordered by how much they could move a result.
 9. **θ sampling is start-simple**: lognormal/Normal perturbations of a
    point fit, ρ and p_max fixed, no posterior; scenario behavioral
    parameters (conversion stay-rate, opt-in) are constants. CIs understate
-   structural uncertainty.
+   structural uncertainty — the independence assumptions (βs sampled
+   independently of each other and of the decay; block-group population
+   draws spatially uncorrelated) are the most likely source of
+   under-coverage.
 10. **Closure receiver defaults** (3-nearest split ∝ existing draw) stand
     in for SPS's actual boundary redraws unless the spec names receivers;
     one HCC pathway era config (`pathway_2023_2025`) assumes Madison+Denny
