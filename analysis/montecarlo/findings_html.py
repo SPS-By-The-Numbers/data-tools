@@ -1,5 +1,7 @@
-"""Generate findings.html — a self-contained findings report for the saved
-scenario MC runs (charts are inline SVG; no external dependencies).
+"""Generate the scenario-findings report page (self-contained HTML, inline
+SVG, no external dependencies) into the GitHub Pages tree:
+docs/montecarlo/findings.html, published at
+https://sps-by-the-numbers.github.io/data-tools/montecarlo/findings.html
 
 Run:  python3 -m analysis.montecarlo.findings_html
 Reads every run listed in SCENARIOS from simulate/<name>/ via the report-stage
@@ -15,7 +17,10 @@ from pathlib import Path
 from analysis.montecarlo import report as rpt
 from analysis.montecarlo import simulate as sim
 
-OUT = Path(__file__).resolve().parent / "findings.html"
+OUT = (Path(__file__).resolve().parents[2]
+       / "docs" / "montecarlo" / "findings.html")
+OVERVIEW_URL = ("https://github.com/SPS-By-The-Numbers/data-tools/"
+                "blob/main/analysis/montecarlo/OVERVIEW.md")
 
 # Display order, grouping, and one-line interpretations (kept here, not in the
 # specs, because they are editorial).
@@ -102,8 +107,8 @@ def collect() -> list[dict]:
 
 INK = "#16130e"
 YELLOW = "#f7c200"
-GREEN = "#2a6f4e"
-BRICK = "#a03123"
+SLATE = "#46618a"   # funding bars — deliberately valence-neutral (the bar
+BRICK = "#a03123"   # direction, not the hue, says good/bad)
 PAPER = "#faf6ec"
 MUTED = "#8c8475"
 
@@ -187,18 +192,18 @@ def fiscal_chart(rows: list[dict]) -> str:
         y = PAD_T + i * ROW_H
         parts.append(f'<text x="{LABEL_W}" y="{y + 14:.1f}" text-anchor="end" '
                      f'fill="{INK}">{esc(r["label"])}</text>')
-        # revenue bar (thin, top)
+        # funding bar (thin, top)
         rv = r["rev"]
         bx = sx(min(rv, 0.0)) if rv < 0 else zero
         parts.append(f'<rect x="{bx:.1f}" y="{y + 4:.1f}" '
                      f'width="{max(abs(sx(rv) - zero), 1):.1f}" height="9" '
-                     f'fill="{GREEN}" opacity="0.85"/>')
+                     f'fill="{SLATE}"/>')
         # cost bar plotted as negative (money out), below
         cv = -r["cost"]
         bx = sx(min(cv, 0.0)) if cv < 0 else zero
         parts.append(f'<rect x="{bx:.1f}" y="{y + 16:.1f}" '
                      f'width="{max(abs(sx(cv) - zero), 1):.1f}" height="9" '
-                     f'fill="{BRICK}" opacity="0.85"/>')
+                     f'fill="{YELLOW}" stroke="{INK}" stroke-width="1"/>')
         # net diamond + CI whisker on the centerline below the bars
         cy = y + 33
         parts.append(f'<line x1="{sx(r["net_lo"]):.1f}" y1="{cy}" '
@@ -416,7 +421,7 @@ def build(rows: list[dict]) -> str:
   ridership, fleet size, and state transportation funding.</p>
   <div class="byline">Generated {today} · {n_draws} paired draws per scenario
   (seed {seed}) · baseline school year 2024-25 ·
-  methods: <a href="OVERVIEW.md">OVERVIEW.md</a></div>
+  methods: <a href="{OVERVIEW_URL}">OVERVIEW.md</a></div>
 </header>
 
 <h2><span class="no">§1</span>How to read this</h2>
@@ -467,8 +472,8 @@ formula. It pays for <i>more riders</i>, <i>more served schools</i>, and
 <b>$2,650 per daily boarding-count per year</b> and roughly
 <b>$550k per served school</b>.</p>
 <figure>
-<div class="legend"><span><span class="sw" style="background:var(--green);border:none"></span>Δ state funding</span>
-<span><span class="sw" style="background:var(--brick);border:none"></span>Δ bus cost (shown as money out)</span>
+<div class="legend"><span><span class="sw" style="background:#46618a;border:none"></span>Δ state funding</span>
+<span><span class="sw" style="background:var(--yellow)"></span>Δ bus cost (shown as money out)</span>
 <span>◆ net, with 95% whisker</span></div>
 {fiscal_svg}
 <figcaption><b>Fig. 3 — Annual fiscal impact, $M/yr.</b> Net = funding change
@@ -516,7 +521,7 @@ being closed (see per-run equity cuts in the full reports).</li>
 <b>Methods &amp; caveats</b>
 <ol>
 <li>Full technical documentation, calibration and validation:
-<a href="OVERVIEW.md">OVERVIEW.md</a>. Per-scenario detail (per-school
+<a href="{OVERVIEW_URL}">OVERVIEW.md</a>. Per-scenario detail (per-school
 movers, distance distributions, equity cuts):
 <code>simulate/&lt;scenario&gt;/report.txt</code>.</li>
 <li>High-school ridership is an uncalibrated assumption (SPS has never run

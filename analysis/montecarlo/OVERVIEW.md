@@ -5,7 +5,11 @@ stages, the variables and the distributions they are drawn from, the
 calibration strategy, and the modeling assumptions an expert should check
 before trusting a number. Links go to the code in this directory; the
 living project log (decision history, open questions, per-session results)
-is [NOTES.md](NOTES.md).
+is [NOTES.md](NOTES.md). For the results rather than the methods, see the
+**[scenario findings report](https://sps-by-the-numbers.github.io/data-tools/montecarlo/findings.html)**
+(charts, fiscal impacts, and plain-language interpretation of every
+scenario; generated from the saved runs by
+[`findings_html.py`](findings_html.py)).
 
 **What it estimates.** For a *scenario* — walk-zone resizes, school
 closures, option→neighborhood conversions, school moves, adding bus service
