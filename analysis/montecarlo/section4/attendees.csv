@@ -1,0 +1,852 @@
+level,grade_band,school,residence_area,n
+ES,,Dunlap,Dunlap,195
+ES,,Dunlap,Out of District/Unknown,5
+ES,,Dunlap,Emerson,5
+ES,,Dunlap,Martin Luther King,4
+ES,,Dunlap,John Muir,3
+ES,,Dunlap,Hawthorne,2
+ES,,Dunlap,Leschi,2
+ES,,Dunlap,Dearborn Park Intl,1
+ES,,Dunlap,Graham Hill,1
+ES,,Dunlap,Kimball,1
+ES,,Dunlap,Wing Luke,1
+ES,,Emerson,Emerson,340
+ES,,Emerson,Rainier View,10
+ES,,Emerson,Out of District/Unknown,8
+ES,,Emerson,Wing Luke,8
+ES,,Emerson,Dunlap,6
+ES,,Emerson,Graham Hill,3
+ES,,Emerson,Martin Luther King,2
+ES,,Emerson,Thurgood Marshall,2
+ES,,Emerson,Stevens,1
+ES,,Graham Hill,Graham Hill,208
+ES,,Graham Hill,Emerson,12
+ES,,Graham Hill,Hawthorne,11
+ES,,Graham Hill,Martin Luther King,9
+ES,,Graham Hill,John Muir,5
+ES,,Graham Hill,Wing Luke,4
+ES,,Graham Hill,Out of District/Unknown,3
+ES,,Graham Hill,Kimball,3
+ES,,Graham Hill,Rainier View,2
+ES,,Graham Hill,Rising Star,2
+ES,,Graham Hill,Beacon Hill Intl,1
+ES,,Graham Hill,Dearborn Park Intl,1
+ES,,Graham Hill,Madrona,1
+ES,,Graham Hill,North Beach,1
+ES,,Graham Hill,Roxhill,1
+ES,,Graham Hill,Sand Point,1
+ES,,Hawthorne,Hawthorne,375
+ES,,Hawthorne,John Muir,5
+ES,,Hawthorne,Out of District/Unknown,3
+ES,,Hawthorne,Emerson,3
+ES,,Hawthorne,Thurgood Marshall,3
+ES,,Hawthorne,Graham Hill,2
+ES,,Hawthorne,Kimball,2
+ES,,Hawthorne,Dunlap,1
+ES,,Hawthorne,Maple,1
+ES,,Hawthorne,Martin Luther King,1
+ES,,Martin Luther King Jr.,Martin Luther King,212
+ES,,Martin Luther King Jr.,Graham Hill,10
+ES,,Martin Luther King Jr.,Dunlap,5
+ES,,Martin Luther King Jr.,Out of District/Unknown,4
+ES,,Martin Luther King Jr.,Emerson,4
+ES,,Martin Luther King Jr.,Dearborn Park Intl,3
+ES,,Martin Luther King Jr.,Rising Star,3
+ES,,Martin Luther King Jr.,Wing Luke,3
+ES,,Martin Luther King Jr.,Bailey Gatzert,2
+ES,,Martin Luther King Jr.,Beacon Hill Intl,2
+ES,,Martin Luther King Jr.,John Muir,2
+ES,,Martin Luther King Jr.,Kimball,2
+ES,,Martin Luther King Jr.,Rainier View,2
+ES,,Martin Luther King Jr.,Concord Intl,1
+ES,,Martin Luther King Jr.,Hawthorne,1
+ES,,Martin Luther King Jr.,Highland Park,1
+ES,,Martin Luther King Jr.,Lowell,1
+ES,,Martin Luther King Jr.,Roxhill,1
+ES,,Rainier View,Rainier View,153
+ES,,Rainier View,Out of District/Unknown,8
+ES,,Rainier View,Emerson,3
+ES,,Rainier View,Dunlap,2
+ES,,Rainier View,Dearborn Park Intl,1
+ES,,Rainier View,Rising Star,1
+ES,,Wing Luke,Wing Luke,229
+ES,,Wing Luke,Rising Star,12
+ES,,Wing Luke,Emerson,11
+ES,,Wing Luke,Out of District/Unknown,9
+ES,,Wing Luke,Dearborn Park Intl,8
+ES,,Wing Luke,Rainier View,7
+ES,,Wing Luke,Dunlap,6
+ES,,Wing Luke,Sand Point,3
+ES,,Wing Luke,Maple,2
+ES,,Wing Luke,Concord Intl,1
+ES,,Wing Luke,John Rogers,1
+ES,,Wing Luke,Kimball,1
+ES,,Wing Luke,Lowell,1
+ES,,Wing Luke,Madrona,1
+ES,,Wing Luke,Martin Luther King,1
+ES,,Wing Luke,Stevens,1
+ES,,Wing Luke,Thurgood Marshall,1
+ES,,Arbor Heights,Arbor Heights,436
+ES,,Arbor Heights,Concord Intl,9
+ES,,Arbor Heights,Gatewood,8
+ES,,Arbor Heights,Out of District/Unknown,6
+ES,,Arbor Heights,Sanislo,5
+ES,,Arbor Heights,Emerson,2
+ES,,Arbor Heights,Highland Park,2
+ES,,Arbor Heights,Lafayette,2
+ES,,Arbor Heights,Alki,1
+ES,,Arbor Heights,Fairmount Park,1
+ES,,Arbor Heights,West Seattle ES,1
+ES,,Concord Intl,Concord Intl,203
+ES,,Concord Intl,Out of District/Unknown,9
+ES,,Concord Intl,Highland Park,9
+ES,,Concord Intl,Roxhill,8
+ES,,Concord Intl,Lafayette,3
+ES,,Concord Intl,Fairmount Park,2
+ES,,Concord Intl,Kimball,2
+ES,,Concord Intl,Rainier View,2
+ES,,Concord Intl,Rising Star,2
+ES,,Concord Intl,Sanislo,2
+ES,,Concord Intl,Adams,1
+ES,,Concord Intl,Arbor Heights,1
+ES,,Concord Intl,Bailey Gatzert,1
+ES,,Concord Intl,Beacon Hill Intl,1
+ES,,Concord Intl,Gatewood,1
+ES,,Concord Intl,Hawthorne,1
+ES,,Highland Park,Highland Park,237
+ES,,Highland Park,Sanislo,10
+ES,,Highland Park,Out of District/Unknown,9
+ES,,Highland Park,Concord Intl,6
+ES,,Highland Park,Roxhill,4
+ES,,Highland Park,Fairmount Park,3
+ES,,Highland Park,West Seattle ES,3
+ES,,Highland Park,Lafayette,2
+ES,,Highland Park,Hawthorne,1
+ES,,Highland Park,Lowell,1
+ES,,Roxhill,Roxhill,233
+ES,,Roxhill,Highland Park,9
+ES,,Roxhill,Out of District/Unknown,6
+ES,,Roxhill,West Seattle ES,6
+ES,,Roxhill,Gatewood,2
+ES,,Roxhill,Sanislo,2
+ES,,Roxhill,Concord Intl,1
+ES,,Roxhill,Fairmount Park,1
+ES,,Sanislo,Sanislo,116
+ES,,Sanislo,West Seattle ES,8
+ES,,Sanislo,Concord Intl,6
+ES,,Sanislo,Out of District/Unknown,5
+ES,,Sanislo,Roxhill,4
+ES,,Sanislo,Highland Park,2
+ES,,Sanislo,John Rogers,2
+ES,,Sanislo,Fairmount Park,1
+ES,,Sanislo,Lafayette,1
+ES,,West Seattle Elem.,West Seattle ES,307
+ES,,West Seattle Elem.,Sanislo,9
+ES,,West Seattle Elem.,Out of District/Unknown,7
+ES,,West Seattle Elem.,Roxhill,7
+ES,,West Seattle Elem.,Concord Intl,6
+ES,,West Seattle Elem.,Highland Park,5
+ES,,West Seattle Elem.,Fairmount Park,3
+ES,,West Seattle Elem.,Alki,2
+ES,,West Seattle Elem.,Arbor Heights,1
+ES,,West Seattle Elem.,Bailey Gatzert,1
+ES,,West Seattle Elem.,Genesee Hill,1
+ES,,Bryant,Bryant,452
+ES,,Bryant,Sand Point,6
+ES,,Bryant,View Ridge,5
+ES,,Bryant,Wedgwood,5
+ES,,Bryant,Out of District/Unknown,1
+ES,,Bryant,Green Lake,1
+ES,,Bryant,Laurelhurst,1
+ES,,Bryant,West Woodland,1
+ES,,Green Lake,Green Lake,345
+ES,,Green Lake,B.F. Day,2
+ES,,Green Lake,Bryant,2
+ES,,Green Lake,Greenwood,2
+ES,,Green Lake,Sand Point,2
+ES,,Green Lake,Viewlands,2
+ES,,Green Lake,Broadview-Thomson K-8,1
+ES,,Green Lake,Catharine Blaine K-8,1
+ES,,Green Lake,James Baldwin,1
+ES,,Green Lake,Laurelhurst,1
+ES,,Green Lake,Magnolia,1
+ES,,Green Lake,Maple,1
+ES,,Green Lake,North Beach,1
+ES,,Green Lake,Olympic View,1
+ES,,Laurelhurst,Laurelhurst,244
+ES,,Laurelhurst,Sand Point,9
+ES,,Laurelhurst,Bryant,7
+ES,,Laurelhurst,Wedgwood,5
+ES,,Laurelhurst,Green Lake,3
+ES,,Laurelhurst,John Rogers,2
+ES,,Laurelhurst,Broadview-Thomson K-8,1
+ES,,Laurelhurst,Viewlands,1
+ES,,Sand Point,Sand Point,124
+ES,,Sand Point,Bryant,8
+ES,,Sand Point,View Ridge,6
+ES,,Sand Point,Out of District/Unknown,3
+ES,,Sand Point,Green Lake,2
+ES,,Sand Point,John Rogers,1
+ES,,Sand Point,Laurelhurst,1
+ES,,Sand Point,Olympic View,1
+ES,,View Ridge,View Ridge,271
+ES,,View Ridge,Sand Point,14
+ES,,View Ridge,John Rogers,4
+ES,,View Ridge,Green Lake,1
+ES,,View Ridge,Sacajawea,1
+ES,,View Ridge,Wedgwood,1
+ES,,Wedgwood,Wedgwood,302
+ES,,Wedgwood,View Ridge,10
+ES,,Wedgwood,John Rogers,8
+ES,,Wedgwood,Bryant,3
+ES,,Wedgwood,Green Lake,3
+ES,,Wedgwood,Sacajawea,3
+ES,,Wedgwood,B.F. Day,1
+ES,,Wedgwood,Laurelhurst,1
+ES,,Wedgwood,Maple,1
+ES,,Wedgwood,Olympic View,1
+ES,,Wedgwood,Wing Luke,1
+ES,,B.F. Day,B.F. Day,347
+ES,,B.F. Day,Green Lake,5
+ES,,B.F. Day,Greenwood,2
+ES,,B.F. Day,John Hay,2
+ES,,B.F. Day,Lowell,2
+ES,,B.F. Day,Bailey Gatzert,1
+ES,,B.F. Day,Daniel Bagley,1
+ES,,B.F. Day,Whittier,1
+ES,,West Woodland,West Woodland,330
+ES,,West Woodland,B.F. Day,6
+ES,,West Woodland,Whittier,6
+ES,,West Woodland,Green Lake,4
+ES,,West Woodland,Adams,2
+ES,,West Woodland,Loyal Heights,2
+ES,,West Woodland,Out of District/Unknown,1
+ES,,West Woodland,Broadview-Thomson K-8,1
+ES,,West Woodland,Lawton,1
+ES,,West Woodland,Maple,1
+ES,,John Rogers,John Rogers,232
+ES,,John Rogers,Olympic View,4
+ES,,John Rogers,Out of District/Unknown,3
+ES,,John Rogers,Olympic Hills,2
+ES,,John Rogers,View Ridge,2
+ES,,John Rogers,Green Lake,1
+ES,,John Rogers,James Baldwin,1
+ES,,John Rogers,Lowell,1
+ES,,John Rogers,Sand Point,1
+ES,,John Rogers,Wedgwood,1
+ES,,Olympic Hills,Olympic Hills,374
+ES,,Olympic Hills,John Rogers,30
+ES,,Olympic Hills,Out of District/Unknown,10
+ES,,Olympic Hills,Sacajawea,7
+ES,,Olympic Hills,Olympic View,4
+ES,,Olympic Hills,James Baldwin,3
+ES,,Olympic Hills,Broadview-Thomson K-8,2
+ES,,Olympic Hills,Graham Hill,2
+ES,,Olympic Hills,Green Lake,2
+ES,,Olympic Hills,Daniel Bagley,1
+ES,,Olympic Hills,Lowell,1
+ES,,Olympic Hills,Sand Point,1
+ES,,Olympic Hills,View Ridge,1
+ES,,Olympic Hills,Viewlands,1
+ES,,Olympic View,Olympic View,307
+ES,,Olympic View,Sacajawea,11
+ES,,Olympic View,John Rogers,9
+ES,,Olympic View,James Baldwin,5
+ES,,Olympic View,Olympic Hills,3
+ES,,Olympic View,Out of District/Unknown,2
+ES,,Olympic View,Broadview-Thomson K-8,2
+ES,,Olympic View,Daniel Bagley,2
+ES,,Olympic View,Green Lake,2
+ES,,Olympic View,Wedgwood,2
+ES,,Olympic View,Sand Point,1
+ES,,Olympic View,Viewlands,1
+ES,,Sacajawea,Sacajawea,154
+ES,,Sacajawea,Olympic View,19
+ES,,Sacajawea,John Rogers,9
+ES,,Sacajawea,Olympic Hills,5
+ES,,Sacajawea,Wedgwood,3
+ES,,Sacajawea,Bryant,2
+ES,,Sacajawea,Green Lake,2
+ES,,Sacajawea,Greenwood,1
+ES,,Sacajawea,Viewlands,1
+ES,,Alki,Alki,250
+ES,,Alki,Genesee Hill,6
+ES,,Alki,Arbor Heights,3
+ES,,Alki,Out of District/Unknown,2
+ES,,Alki,Gatewood,2
+ES,,Alki,Highland Park,1
+ES,,Alki,John Muir,1
+ES,,Alki,Lafayette,1
+ES,,Alki,Lowell,1
+ES,,Alki,Thurgood Marshall,1
+ES,,Alki,West Seattle ES,1
+ES,,Fairmount Park,Fairmount Park,309
+ES,,Fairmount Park,Gatewood,9
+ES,,Fairmount Park,Out of District/Unknown,5
+ES,,Fairmount Park,West Seattle ES,5
+ES,,Fairmount Park,Alki,2
+ES,,Fairmount Park,Lafayette,2
+ES,,Fairmount Park,Madrona,2
+ES,,Fairmount Park,Roxhill,2
+ES,,Fairmount Park,Sanislo,2
+ES,,Fairmount Park,Concord Intl,1
+ES,,Fairmount Park,Genesee Hill,1
+ES,,Fairmount Park,James Baldwin,1
+ES,,Gatewood,Gatewood,373
+ES,,Gatewood,Arbor Heights,6
+ES,,Gatewood,Fairmount Park,6
+ES,,Gatewood,Roxhill,6
+ES,,Gatewood,Genesee Hill,4
+ES,,Gatewood,Concord Intl,3
+ES,,Gatewood,Out of District/Unknown,1
+ES,,Gatewood,Lafayette,1
+ES,,Genesee Hill,Genesee Hill,389
+ES,,Genesee Hill,Lafayette,22
+ES,,Genesee Hill,Fairmount Park,16
+ES,,Genesee Hill,Alki,10
+ES,,Genesee Hill,Gatewood,7
+ES,,Genesee Hill,Arbor Heights,5
+ES,,Genesee Hill,Wing Luke,2
+ES,,Genesee Hill,Concord Intl,1
+ES,,Genesee Hill,Emerson,1
+ES,,Genesee Hill,Highland Park,1
+ES,,Genesee Hill,Roxhill,1
+ES,,Genesee Hill,West Seattle ES,1
+ES,,Lafayette,Lafayette,478
+ES,,Lafayette,Genesee Hill,14
+ES,,Lafayette,Alki,7
+ES,,Lafayette,Fairmount Park,4
+ES,,Lafayette,Gatewood,4
+ES,,Lafayette,Arbor Heights,3
+ES,,Lafayette,Roxhill,2
+ES,,Lafayette,West Seattle ES,2
+ES,K-5,Catharine Blaine K-8,Catharine Blaine K-8,241
+ES,K-5,Catharine Blaine K-8,Magnolia,17
+ES,K-5,Catharine Blaine K-8,Lawton,14
+ES,K-5,Catharine Blaine K-8,North Beach,2
+ES,K-5,Catharine Blaine K-8,Coe,1
+ES,K-5,Catharine Blaine K-8,John Muir,1
+ES,6-8,Catharine Blaine K-8,McClure,164
+ES,6-8,Catharine Blaine K-8,Hamilton Intl,1
+ES,6-8,Catharine Blaine K-8,Washington,1
+ES,,Coe,Coe,450
+ES,,Coe,Magnolia,5
+ES,,Coe,Adams,4
+ES,,Coe,John Hay,3
+ES,,Coe,B.F. Day,1
+ES,,Coe,Broadview-Thomson K-8,1
+ES,,Coe,Catharine Blaine K-8,1
+ES,,Coe,Lawton,1
+ES,,Coe,West Woodland,1
+ES,,John Hay,John Hay,223
+ES,,John Hay,Coe,13
+ES,,John Hay,Magnolia,7
+ES,,John Hay,Lawton,4
+ES,,John Hay,Lowell,4
+ES,,John Hay,Bailey Gatzert,2
+ES,,John Hay,Catharine Blaine K-8,1
+ES,,John Hay,Graham Hill,1
+ES,,John Hay,Hawthorne,1
+ES,,John Hay,Maple,1
+ES,,John Hay,Whittier,1
+ES,,Lawton,Lawton,298
+ES,,Lawton,Catharine Blaine K-8,6
+ES,,Lawton,Magnolia,5
+ES,,Lawton,Adams,1
+ES,,Lawton,B.F. Day,1
+ES,,Lawton,Lowell,1
+ES,,Lawton,Olympic View,1
+ES,,Lawton,Wing Luke,1
+ES,,Magnolia,Magnolia,287
+ES,,Magnolia,Lawton,15
+ES,,Magnolia,Catharine Blaine K-8,13
+ES,,Magnolia,John Hay,2
+ES,,Magnolia,John Muir,2
+ES,,Magnolia,Out of District/Unknown,1
+ES,,Magnolia,Coe,1
+ES,,Leschi,Leschi,206
+ES,,Leschi,Thurgood Marshall,9
+ES,,Leschi,Bailey Gatzert,5
+ES,,Leschi,Madrona,5
+ES,,Leschi,Out of District/Unknown,4
+ES,,Leschi,Emerson,3
+ES,,Leschi,John Muir,3
+ES,,Leschi,Lowell,3
+ES,,Leschi,Kimball,2
+ES,,Leschi,Beacon Hill Intl,1
+ES,,Leschi,Daniel Bagley,1
+ES,,Lowell,Lowell,311
+ES,,Lowell,Bailey Gatzert,9
+ES,,Lowell,Out of District/Unknown,8
+ES,,Lowell,Madrona,5
+ES,,Lowell,John Hay,4
+ES,,Lowell,Leschi,4
+ES,,Lowell,Kimball,3
+ES,,Lowell,Stevens,3
+ES,,Lowell,Beacon Hill Intl,2
+ES,,Lowell,Coe,2
+ES,,Lowell,Green Lake,2
+ES,,Lowell,McGilvra,2
+ES,,Lowell,Rising Star,2
+ES,,Lowell,Wing Luke,2
+ES,,Lowell,Alki,1
+ES,,Lowell,B.F. Day,1
+ES,,Lowell,Emerson,1
+ES,,Lowell,Fairmount Park,1
+ES,,Lowell,John Muir,1
+ES,,Lowell,Martin Luther King,1
+ES,,Lowell,Olympic View,1
+ES,,Madrona,Madrona,192
+ES,,Madrona,Leschi,6
+ES,,Madrona,Bailey Gatzert,5
+ES,,Madrona,Lowell,4
+ES,,Madrona,Out of District/Unknown,3
+ES,,Madrona,Alki,1
+ES,,Madrona,B.F. Day,1
+ES,,Madrona,Beacon Hill Intl,1
+ES,,Madrona,Hawthorne,1
+ES,,Madrona,Thurgood Marshall,1
+ES,,McGilvra,McGilvra,185
+ES,,McGilvra,Leschi,3
+ES,,McGilvra,Graham Hill,2
+ES,,McGilvra,Bailey Gatzert,1
+ES,,McGilvra,Green Lake,1
+ES,,McGilvra,Maple,1
+ES,,Montlake,Montlake,154
+ES,,Montlake,Lowell,5
+ES,,Montlake,McGilvra,3
+ES,,Montlake,Maple,2
+ES,,Montlake,West Woodland,2
+ES,,Montlake,B.F. Day,1
+ES,,Montlake,Bailey Gatzert,1
+ES,,Montlake,Green Lake,1
+ES,,Montlake,Stevens,1
+ES,,Montlake,Wing Luke,1
+ES,,Stevens,Stevens,117
+ES,,Stevens,Lowell,14
+ES,,Stevens,Madrona,4
+ES,,Stevens,Thurgood Marshall,4
+ES,,Stevens,Bailey Gatzert,3
+ES,,Stevens,Graham Hill,3
+ES,,Stevens,Hawthorne,2
+ES,,Stevens,John Muir,2
+ES,,Stevens,McGilvra,2
+ES,,Stevens,Kimball,1
+ES,,Stevens,Leschi,1
+ES,,Stevens,View Ridge,1
+ES,,Beacon Hill Intl,Beacon Hill Intl,291
+ES,,Beacon Hill Intl,Kimball,13
+ES,,Beacon Hill Intl,Maple,9
+ES,,Beacon Hill Intl,Rising Star,5
+ES,,Beacon Hill Intl,Roxhill,5
+ES,,Beacon Hill Intl,Thurgood Marshall,5
+ES,,Beacon Hill Intl,Out of District/Unknown,4
+ES,,Beacon Hill Intl,Dearborn Park Intl,4
+ES,,Beacon Hill Intl,Hawthorne,3
+ES,,Beacon Hill Intl,John Muir,2
+ES,,Beacon Hill Intl,Wing Luke,2
+ES,,Beacon Hill Intl,Alki,1
+ES,,Beacon Hill Intl,Graham Hill,1
+ES,,Beacon Hill Intl,Lafayette,1
+ES,,Beacon Hill Intl,Laurelhurst,1
+ES,,Beacon Hill Intl,Leschi,1
+ES,,Beacon Hill Intl,Lowell,1
+ES,,Beacon Hill Intl,Martin Luther King,1
+ES,,Beacon Hill Intl,Sanislo,1
+ES,,Dearborn Park Intl,Dearborn Park Intl,264
+ES,,Dearborn Park Intl,Hawthorne,11
+ES,,Dearborn Park Intl,Emerson,10
+ES,,Dearborn Park Intl,Rising Star,9
+ES,,Dearborn Park Intl,Dunlap,4
+ES,,Dearborn Park Intl,Rainier View,4
+ES,,Dearborn Park Intl,Out of District/Unknown,3
+ES,,Dearborn Park Intl,Alki,3
+ES,,Dearborn Park Intl,John Muir,3
+ES,,Dearborn Park Intl,Kimball,3
+ES,,Dearborn Park Intl,Maple,2
+ES,,Dearborn Park Intl,Beacon Hill Intl,1
+ES,,Dearborn Park Intl,Concord Intl,1
+ES,,Dearborn Park Intl,Leschi,1
+ES,,Dearborn Park Intl,Martin Luther King,1
+ES,,Dearborn Park Intl,Thurgood Marshall,1
+ES,,Maple,Maple,320
+ES,,Maple,Dearborn Park Intl,35
+ES,,Maple,Rising Star,10
+ES,,Maple,Beacon Hill Intl,9
+ES,,Maple,Out of District/Unknown,6
+ES,,Maple,Emerson,5
+ES,,Maple,Rainier View,5
+ES,,Maple,Dunlap,3
+ES,,Maple,Hawthorne,3
+ES,,Maple,Kimball,2
+ES,,Maple,Martin Luther King,2
+ES,,Maple,Bailey Gatzert,1
+ES,,Maple,Lafayette,1
+ES,,Maple,Wing Luke,1
+ES,,Rising Star,Rising Star,228
+ES,,Rising Star,Wing Luke,18
+ES,,Rising Star,Martin Luther King,9
+ES,,Rising Star,Dunlap,8
+ES,,Rising Star,Emerson,8
+ES,,Rising Star,Rainier View,7
+ES,,Rising Star,Dearborn Park Intl,6
+ES,,Rising Star,Hawthorne,3
+ES,,Rising Star,Out of District/Unknown,2
+ES,,Rising Star,Graham Hill,2
+ES,,Rising Star,Roxhill,1
+ES,,Rising Star,Thurgood Marshall,1
+ES,K-5,Broadview-Thomson K-8,Broadview-Thomson K-8,399
+ES,K-5,Broadview-Thomson K-8,James Baldwin,11
+ES,K-5,Broadview-Thomson K-8,Viewlands,6
+ES,K-5,Broadview-Thomson K-8,Out of District/Unknown,3
+ES,K-5,Broadview-Thomson K-8,Greenwood,2
+ES,K-5,Broadview-Thomson K-8,Loyal Heights,2
+ES,K-5,Broadview-Thomson K-8,Olympic Hills,2
+ES,K-5,Broadview-Thomson K-8,Olympic View,2
+ES,K-5,Broadview-Thomson K-8,B.F. Day,1
+ES,K-5,Broadview-Thomson K-8,Bryant,1
+ES,K-5,Broadview-Thomson K-8,Green Lake,1
+ES,K-5,Broadview-Thomson K-8,John Rogers,1
+ES,6-8,Broadview-Thomson K-8,Robert Eagle Staff,96
+ES,6-8,Broadview-Thomson K-8,Whitman,7
+ES,6-8,Broadview-Thomson K-8,Jane Addams MS,2
+ES,6-8,Broadview-Thomson K-8,Out of District/Unknown,1
+ES,6-8,Broadview-Thomson K-8,Aki Kurose,1
+ES,,Daniel Bagley,Daniel Bagley,283
+ES,,Daniel Bagley,Broadview-Thomson K-8,9
+ES,,Daniel Bagley,Greenwood,9
+ES,,Daniel Bagley,Viewlands,9
+ES,,Daniel Bagley,Green Lake,7
+ES,,Daniel Bagley,West Woodland,4
+ES,,Daniel Bagley,Adams,3
+ES,,Daniel Bagley,Bryant,3
+ES,,Daniel Bagley,Catharine Blaine K-8,2
+ES,,Daniel Bagley,Sand Point,2
+ES,,Daniel Bagley,B.F. Day,1
+ES,,Daniel Bagley,James Baldwin,1
+ES,,Daniel Bagley,John Rogers,1
+ES,,Daniel Bagley,Lawton,1
+ES,,Daniel Bagley,Olympic Hills,1
+ES,,Daniel Bagley,Olympic View,1
+ES,,Daniel Bagley,Sacajawea,1
+ES,,Greenwood,Greenwood,316
+ES,,Greenwood,North Beach,4
+ES,,Greenwood,Daniel Bagley,3
+ES,,Greenwood,Viewlands,3
+ES,,Greenwood,Broadview-Thomson K-8,2
+ES,,Greenwood,Whittier,2
+ES,,Greenwood,Bailey Gatzert,1
+ES,,Greenwood,Olympic Hills,1
+ES,,James Baldwin,James Baldwin,198
+ES,,James Baldwin,Broadview-Thomson K-8,12
+ES,,James Baldwin,Olympic View,8
+ES,,James Baldwin,John Rogers,6
+ES,,James Baldwin,Viewlands,4
+ES,,James Baldwin,Out of District/Unknown,3
+ES,,James Baldwin,Olympic Hills,2
+ES,,James Baldwin,Greenwood,1
+ES,,James Baldwin,Sand Point,1
+ES,,James Baldwin,View Ridge,1
+ES,,James Baldwin,Wedgwood,1
+ES,,Bailey Gatzert,Bailey Gatzert,335
+ES,,Bailey Gatzert,Lowell,10
+ES,,Bailey Gatzert,Out of District/Unknown,8
+ES,,Bailey Gatzert,Leschi,8
+ES,,Bailey Gatzert,John Muir,3
+ES,,Bailey Gatzert,Kimball,3
+ES,,Bailey Gatzert,Beacon Hill Intl,2
+ES,,Bailey Gatzert,Emerson,2
+ES,,Bailey Gatzert,Madrona,2
+ES,,Bailey Gatzert,Sanislo,2
+ES,,Bailey Gatzert,Thurgood Marshall,2
+ES,,Bailey Gatzert,Daniel Bagley,1
+ES,,Bailey Gatzert,John Hay,1
+ES,,Bailey Gatzert,Martin Luther King,1
+ES,,Bailey Gatzert,Sacajawea,1
+ES,,Bailey Gatzert,Stevens,1
+ES,,Bailey Gatzert,West Seattle ES,1
+ES,,Bailey Gatzert,Wing Luke,1
+ES,,John Muir,John Muir,281
+ES,,John Muir,Kimball,5
+ES,,John Muir,Rising Star,4
+ES,,John Muir,Out of District/Unknown,3
+ES,,John Muir,Wing Luke,3
+ES,,John Muir,Hawthorne,2
+ES,,John Muir,Leschi,2
+ES,,John Muir,Thurgood Marshall,2
+ES,,John Muir,Bailey Gatzert,1
+ES,,John Muir,Dearborn Park Intl,1
+ES,,John Muir,Dunlap,1
+ES,,John Muir,Fairmount Park,1
+ES,,John Muir,Gatewood,1
+ES,,John Muir,Lafayette,1
+ES,,Kimball,Kimball,335
+ES,,Kimball,Bailey Gatzert,7
+ES,,Kimball,John Muir,7
+ES,,Kimball,Martin Luther King,7
+ES,,Kimball,Maple,6
+ES,,Kimball,Dearborn Park Intl,5
+ES,,Kimball,Hawthorne,4
+ES,,Kimball,Rising Star,3
+ES,,Kimball,Out of District/Unknown,2
+ES,,Kimball,Beacon Hill Intl,2
+ES,,Kimball,Graham Hill,2
+ES,,Kimball,Leschi,1
+ES,,Kimball,Olympic View,1
+ES,,Kimball,Thurgood Marshall,1
+ES,,Kimball,Wing Luke,1
+ES,,Thurgood Marshall,Thurgood Marshall,227
+ES,,Thurgood Marshall,John Muir,31
+ES,,Thurgood Marshall,Leschi,28
+ES,,Thurgood Marshall,Hawthorne,21
+ES,,Thurgood Marshall,Kimball,20
+ES,,Thurgood Marshall,Madrona,19
+ES,,Thurgood Marshall,McGilvra,12
+ES,,Thurgood Marshall,Bailey Gatzert,11
+ES,,Thurgood Marshall,Maple,10
+ES,,Thurgood Marshall,Fairmount Park,9
+ES,,Thurgood Marshall,Wing Luke,8
+ES,,Thurgood Marshall,Beacon Hill Intl,7
+ES,,Thurgood Marshall,Dearborn Park Intl,7
+ES,,Thurgood Marshall,Dunlap,7
+ES,,Thurgood Marshall,Emerson,7
+ES,,Thurgood Marshall,Martin Luther King,6
+ES,,Thurgood Marshall,Roxhill,6
+ES,,Thurgood Marshall,Stevens,6
+ES,,Thurgood Marshall,Out of District/Unknown,5
+ES,,Thurgood Marshall,Lowell,5
+ES,,Thurgood Marshall,Montlake,5
+ES,,Thurgood Marshall,West Seattle ES,5
+ES,,Thurgood Marshall,Rainier View,4
+ES,,Thurgood Marshall,Graham Hill,3
+ES,,Thurgood Marshall,Lafayette,3
+ES,,Thurgood Marshall,Alki,2
+ES,,Thurgood Marshall,Gatewood,2
+ES,,Thurgood Marshall,Concord Intl,1
+ES,,Thurgood Marshall,Daniel Bagley,1
+ES,,Thurgood Marshall,Genesee Hill,1
+ES,,Thurgood Marshall,Highland Park,1
+ES,,Thurgood Marshall,Rising Star,1
+ES,,Thurgood Marshall,Sanislo,1
+ES,,Adams,Adams,260
+ES,,Adams,Loyal Heights,6
+ES,,Adams,James Baldwin,4
+ES,,Adams,Whittier,3
+ES,,Adams,B.F. Day,2
+ES,,Adams,Greenwood,2
+ES,,Adams,Broadview-Thomson K-8,1
+ES,,Adams,Bryant,1
+ES,,Adams,Coe,1
+ES,,Adams,Daniel Bagley,1
+ES,,Adams,John Hay,1
+ES,,Adams,Lafayette,1
+ES,,Adams,Lawton,1
+ES,,Adams,North Beach,1
+ES,,Adams,Thurgood Marshall,1
+ES,,Adams,Viewlands,1
+ES,,Loyal Heights,Loyal Heights,488
+ES,,Loyal Heights,North Beach,9
+ES,,Loyal Heights,Adams,7
+ES,,Loyal Heights,Broadview-Thomson K-8,4
+ES,,Loyal Heights,Viewlands,4
+ES,,Loyal Heights,Out of District/Unknown,3
+ES,,Loyal Heights,James Baldwin,3
+ES,,Loyal Heights,Greenwood,2
+ES,,Loyal Heights,West Woodland,2
+ES,,Loyal Heights,Wing Luke,2
+ES,,Loyal Heights,B.F. Day,1
+ES,,Loyal Heights,John Hay,1
+ES,,Loyal Heights,Montlake,1
+ES,,Loyal Heights,Olympic View,1
+ES,,North Beach,North Beach,295
+ES,,North Beach,Viewlands,18
+ES,,North Beach,Broadview-Thomson K-8,8
+ES,,North Beach,Adams,2
+ES,,North Beach,Greenwood,2
+ES,,North Beach,James Baldwin,2
+ES,,North Beach,Loyal Heights,2
+ES,,North Beach,Out of District/Unknown,1
+ES,,North Beach,Daniel Bagley,1
+ES,,Viewlands,Viewlands,258
+ES,,Viewlands,Broadview-Thomson K-8,3
+ES,,Viewlands,Loyal Heights,3
+ES,,Viewlands,Hawthorne,2
+ES,,Viewlands,North Beach,2
+ES,,Viewlands,Out of District/Unknown,1
+ES,,Viewlands,James Baldwin,1
+ES,,Whittier,Whittier,311
+ES,,Whittier,Loyal Heights,13
+ES,,Whittier,Viewlands,8
+ES,,Whittier,West Woodland,3
+ES,,Whittier,Adams,2
+ES,,Whittier,Broadview-Thomson K-8,2
+ES,,Whittier,Daniel Bagley,2
+ES,,Whittier,Green Lake,2
+ES,,Whittier,Greenwood,2
+ES,,Whittier,B.F. Day,1
+MS,,Aki Kurose,Aki Kurose,778
+MS,,Aki Kurose,Washington,14
+MS,,Aki Kurose,Mercer Intl,11
+MS,,Aki Kurose,Out of District/Unknown,11
+MS,,Aki Kurose,Meany,2
+MS,,Aki Kurose,David T. Denny Intl,1
+MS,,Aki Kurose,McClure,1
+MS,,Denny Intl,David T. Denny Intl,678
+MS,,Denny Intl,Out of District/Unknown,20
+MS,,Denny Intl,Madison,19
+MS,,Denny Intl,Jane Addams MS,3
+MS,,Denny Intl,Robert Eagle Staff,2
+MS,,Denny Intl,Meany,1
+MS,,Denny Intl,Washington,1
+MS,,Eckstein,Eckstein,1008
+MS,,Eckstein,Jane Addams MS,5
+MS,,Eckstein,Out of District/Unknown,4
+MS,,Eckstein,Robert Eagle Staff,4
+MS,,Eckstein,Hamilton Intl,3
+MS,,Eckstein,Meany,2
+MS,,Eckstein,David T. Denny Intl,1
+MS,,Hamilton,Hamilton Intl,703
+MS,,Hamilton,McClure,140
+MS,,Hamilton,Eckstein,43
+MS,,Hamilton,Jane Addams MS,35
+MS,,Hamilton,Robert Eagle Staff,30
+MS,,Hamilton,Whitman,20
+MS,,Hamilton,Meany,13
+MS,,Hamilton,Out of District/Unknown,3
+MS,,Hamilton,Aki Kurose,2
+MS,,Jane Addams,Jane Addams MS,721
+MS,,Jane Addams,Eckstein,92
+MS,,Jane Addams,Out of District/Unknown,7
+MS,,Jane Addams,Meany,4
+MS,,Jane Addams,Hamilton Intl,2
+MS,,Jane Addams,Robert Eagle Staff,2
+MS,,Jane Addams,Washington,1
+MS,,Madison,Madison,965
+MS,,Madison,David T. Denny Intl,37
+MS,,Madison,Out of District/Unknown,7
+MS,,Madison,Mercer Intl,3
+MS,,Madison,Washington,2
+MS,,Madison,Aki Kurose,1
+MS,,Madison,McClure,1
+MS,,Madison,Meany,1
+MS,,McClure,McClure,455
+MS,,McClure,Meany,5
+MS,,McClure,Hamilton Intl,3
+MS,,McClure,Out of District/Unknown,3
+MS,,McClure,Whitman,3
+MS,,McClure,Robert Eagle Staff,2
+MS,,McClure,Washington,2
+MS,,McClure,Aki Kurose,1
+MS,,McClure,Eckstein,1
+MS,,Meany,Meany,477
+MS,,Meany,Washington,14
+MS,,Meany,Out of District/Unknown,9
+MS,,Meany,Aki Kurose,4
+MS,,Meany,David T. Denny Intl,2
+MS,,Meany,Madison,2
+MS,,Meany,Jane Addams MS,1
+MS,,Meany,McClure,1
+MS,,Meany,Mercer Intl,1
+MS,,Mercer Intl,Mercer Intl,643
+MS,,Mercer Intl,Washington,59
+MS,,Mercer Intl,Aki Kurose,46
+MS,,Mercer Intl,Out of District/Unknown,6
+MS,,Mercer Intl,Meany,5
+MS,,Robert Eagle Staff,Robert Eagle Staff,588
+MS,,Robert Eagle Staff,Whitman,120
+MS,,Robert Eagle Staff,Hamilton Intl,5
+MS,,Robert Eagle Staff,Out of District/Unknown,5
+MS,,Robert Eagle Staff,Jane Addams MS,4
+MS,,Robert Eagle Staff,Eckstein,2
+MS,,Robert Eagle Staff,McClure,2
+MS,,Robert Eagle Staff,Aki Kurose,1
+MS,,Robert Eagle Staff,David T. Denny Intl,1
+MS,,Robert Eagle Staff,Madison,1
+MS,,Washington,Washington,476
+MS,,Washington,Aki Kurose,37
+MS,,Washington,Meany,36
+MS,,Washington,Mercer Intl,12
+MS,,Washington,Out of District/Unknown,5
+MS,,Washington,Hamilton Intl,1
+MS,,Washington,McClure,1
+MS,,Whitman,Whitman,621
+MS,,Whitman,Robert Eagle Staff,8
+MS,,Whitman,McClure,3
+MS,,Whitman,Jane Addams MS,2
+HS,,Ballard,Ballard,1645
+HS,,Ballard,Ingraham,20
+HS,,Ballard,Lincoln,15
+HS,,Ballard,Garfield,2
+HS,,Chief Sealth Intl,Chief Sealth Intl,996
+HS,,Chief Sealth Intl,West Seattle HS,44
+HS,,Chief Sealth Intl,Out of District/Unknown,28
+HS,,Chief Sealth Intl,Garfield,3
+HS,,Chief Sealth Intl,Franklin,2
+HS,,Chief Sealth Intl,Ingraham,1
+HS,,Chief Sealth Intl,Rainier Beach,1
+HS,,Franklin,Franklin,1129
+HS,,Franklin,Rainier Beach,37
+HS,,Franklin,Out of District/Unknown,18
+HS,,Franklin,Garfield,10
+HS,,Franklin,Ballard,1
+HS,,Franklin,Nathan Hale,1
+HS,,Franklin,Roosevelt,1
+HS,,Garfield,Garfield,1223
+HS,,Garfield,Franklin,121
+HS,,Garfield,Rainier Beach,65
+HS,,Garfield,Out of District/Unknown,18
+HS,,Garfield,Lincoln,3
+HS,,Garfield,Chief Sealth Intl,2
+HS,,Garfield,West Seattle HS,2
+HS,,Garfield,Ballard,1
+HS,,Garfield,Nathan Hale,1
+HS,,Ingraham,Ingraham,1206
+HS,,Ingraham,Nathan Hale,61
+HS,,Ingraham,Ballard,39
+HS,,Ingraham,Out of District/Unknown,15
+HS,,Ingraham,Lincoln,12
+HS,,Ingraham,Roosevelt,10
+HS,,Ingraham,Garfield,4
+HS,,Ingraham,Chief Sealth Intl,1
+HS,,Lincoln,Lincoln,1215
+HS,,Lincoln,Roosevelt,196
+HS,,Lincoln,Nathan Hale,135
+HS,,Lincoln,Ballard,122
+HS,,Lincoln,Ingraham,59
+HS,,Lincoln,Garfield,10
+HS,,Lincoln,Franklin,5
+HS,,Lincoln,Chief Sealth Intl,2
+HS,,Lincoln,Out of District/Unknown,2
+HS,,Lincoln,Rainier Beach,2
+HS,,Lincoln,West Seattle HS,1
+HS,,Nathan Hale,Nathan Hale,926
+HS,,Nathan Hale,Roosevelt,35
+HS,,Nathan Hale,Ingraham,20
+HS,,Nathan Hale,Out of District/Unknown,12
+HS,,Nathan Hale,Ballard,4
+HS,,Nathan Hale,Garfield,4
+HS,,Nathan Hale,Franklin,2
+HS,,Nathan Hale,Lincoln,2
+HS,,Rainier Beach,Rainier Beach,728
+HS,,Rainier Beach,Franklin,23
+HS,,Rainier Beach,Out of District/Unknown,17
+HS,,Rainier Beach,Garfield,5
+HS,,Rainier Beach,Ingraham,2
+HS,,Rainier Beach,Ballard,1
+HS,,Rainier Beach,Chief Sealth Intl,1
+HS,,Rainier Beach,Lincoln,1
+HS,,Roosevelt,Roosevelt,1472
+HS,,Roosevelt,Nathan Hale,24
+HS,,Roosevelt,Lincoln,10
+HS,,Roosevelt,Garfield,6
+HS,,Roosevelt,Out of District/Unknown,6
+HS,,Roosevelt,Ballard,5
+HS,,Roosevelt,Ingraham,5
+HS,,Roosevelt,Franklin,3
+HS,,Roosevelt,Rainier Beach,3
+HS,,Roosevelt,Chief Sealth Intl,2
+HS,,West Seattle,West Seattle HS,1383
+HS,,West Seattle,Chief Sealth Intl,56
+HS,,West Seattle,Out of District/Unknown,6
+HS,,West Seattle,Garfield,3
+HS,,West Seattle,Franklin,2

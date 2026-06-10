@@ -1,0 +1,198 @@
+name,school_id,match_type
+APP at Lincoln,15,manual
+AS #1,935,manual
+Adams,201,exact
+Aki Kurose,130,exact
+Alan T. Sugiyama,,non_school
+Alki,202,exact
+Arbor Heights,203,exact
+B. F. Day,218,exact
+B.F. Day,218,manual
+Bailey Gatzert,226,manual
+Ballard,11,exact
+Beacon Hill Int'l,205,exact
+Beacon Hill Intl,205,exact
+Beacon Hill Intl.,205,exact
+Bridges,,non_school
+Bridges Transition Program,,non_school
+Broadview-Thomson,208,exact
+Broadview-Thomson K-8,208,exact
+Bryant,209,exact
+Cascade PP Prog*,,non_school
+Cascade PP Prog**,,non_school
+Cascade Parent,,non_school
+Cascade Parent Part'ship,,non_school
+Cascade Parent Partner.,,non_school
+Cascade Parent Partnersh,,non_school
+Cascade Parent Partnershi,,non_school
+Cascade Parent Partnership,,non_school
+Cascade Parent Partnership Pro,,non_school
+Cascade Parent Partnership Program,,non_school
+Cascade Virtual Option,,non_school
+Cascade Virtual Option K-12,,non_school
+Cascadia,971,exact
+Catharine Blaine,289,manual
+Catharine Blaine K-8,289,manual
+Cedar Park,210,exact
+Center School,24,exact
+Chief Sealth Int'l,18,exact
+Chief Sealth Intl,18,exact
+Chief Sealth Intl.,18,exact
+Cleveland,12,exact
+Cleveland STEM,12,manual
+Coe,211,exact
+Concord,215,exact
+Concord Int'l,215,exact
+Concord Intl,215,exact
+Concord Intl.,215,exact
+Daniel Bagley,204,manual
+David T. Denny Int'l,103,manual
+David T. Denny Intl,103,manual
+Dearborn Park,251,exact
+Dearborn Park Intl,251,exact
+Decatur,287,exact
+Denny Intl,103,exact
+Denny Intl.,103,exact
+Dunlap,219,exact
+Eagle Staff,113,manual
+Eckstein,104,exact
+Ed. Serv. Center,,non_school
+Education Service Centers,,non_school
+Emerson,221,exact
+Exp. Ed. Unit,,non_school
+Fairmount Park,222,exact
+Franklin,13,exact
+Frantz Coe,211,manual
+Franz Coe,211,manual
+Garfield,14,exact
+Gatewood,225,exact
+Gatzert,226,exact
+Genesee Hill,270,exact
+Graham Hill,220,exact
+Green Lake,229,exact
+Greenwood,230,exact
+Hamilton,105,exact
+Hamilton Int'l,105,exact
+Hamilton Intl,105,exact
+Hamilton Intl.,105,exact
+Hawthorne,233,exact
+Hazel Wolf K-8,292,exact
+Highland Park,235,exact
+Home School,,non_school
+Home School Resource,,non_school
+Hutch School,,non_school
+In Tandem,,non_school
+Ingraham,20,exact
+InterAgency,,non_school
+Interagency,,non_school
+J. Stanford Intl.,241,manual
+James Baldwin,257,manual
+Jane Addams,106,exact
+Jane Addams MS,106,manual
+John Hay,234,manual
+John Muir,256,manual
+John Rogers,266,manual
+John Stanford Int'l,241,manual
+John Stanford Intl,241,manual
+John Stanford Intl.,241,manual
+K-5 STEM at Boren,972,manual
+Kimball,288,exact
+Lafayette,239,exact
+Laurelhurst,242,exact
+Lawton,243,exact
+Leschi,244,exact
+Licton Springs K-8,955,exact
+Lincoln,15,exact
+Lowell,245,exact
+Loyal Heights,246,exact
+Madison,107,exact
+Madrona,249,exact
+Madrona K-8,249,exact
+Magnolia,250,exact
+Maple,252,exact
+Martin Luther King,207,manual
+Martin Luther King Jr.,207,exact
+McClure,118,exact
+McClure Other,118,manual
+McDonald,247,exact
+McDonald Int'l,247,exact
+McDonald Intl,247,exact
+McGilvra,248,exact
+Meany,109,exact
+Mercer,110,exact
+Mercer Int'l,110,exact
+Mercer Intl,110,exact
+Middle College,,non_school
+Montlake,255,exact
+Nathan Hale,22,exact
+Non Public Agencies,,non_school
+Non-Res,,non_school
+North Beach,259,exact
+Northgate,,non_school
+Nova,23,exact
+Nova*,23,exact
+Ocra,939,manual
+Olympic Hills,261,exact
+Olympic View,262,exact
+Orca,939,exact
+Orca K-8,939,exact
+Out of District/Unknow,,non_school
+Out of District/Unknown,,non_school
+Partnership,,non_school
+Partnership Program,,non_school
+Pathfinder,930,exact
+Pathfinder K-8,930,exact
+Pinehurst,292,manual
+Priv/Parach Sped,,non_school
+Priv/Paroch Sped,,non_school
+Private Sp. Ed. Srvcs.,,non_school
+Program,,non_school
+Queen Anne,974,exact
+Rainier Beach,21,exact
+Rainier View,264,exact
+Res Consortium,,non_school
+Rising Star,275,exact
+Robert Eagle Staff,113,exact
+Roosevelt,17,exact
+Roxhill,267,exact
+STEM K-8,972,manual
+Sacajawea,268,exact
+Salmon Bay,949,exact
+Salmon Bay K-8,949,exact
+Sand Point,269,exact
+Sandpoint,269,manual
+Sanislo,273,exact
+Schmitz Park,,non_school
+Sealth,18,manual
+Seattle World School,,non_school
+Secondary BOC,,non_school
+South Lake,,non_school
+South Shore,291,exact
+South Shore K-8,291,exact
+South Shore PK-8,291,manual
+Stevens,272,exact
+Sugiyama High School,,non_school
+T. Marshall,212,manual
+TOPS,935,exact
+TOPS K-8,935,exact
+The Center School,24,manual
+Thornton Creek,977,exact
+Thurgood Marshall,212,exact
+Van Asselt,,non_school
+View Ridge,277,exact
+Viewlands,276,exact
+Washington,117,exact
+Washington Other,117,manual
+Wedgwood,279,exact
+West Seattle,19,manual
+West Seattle ES,236,manual
+West Seattle Elem.,236,manual
+West Seattle Elementar,236,manual
+West Seattle Elementary,236,exact
+West Seattle HS,19,manual
+West Woodland,281,exact
+Whitman,115,exact
+Whitman Other,115,manual
+Whittier,282,exact
+Wing Luke,286,exact
+World School,,non_school

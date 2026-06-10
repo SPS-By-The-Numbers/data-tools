@@ -1,0 +1,5 @@
+section_code,section_title,description
+A,Calculation of Expected Allocation,"Formula inputs (Land Area, Average Distance, Destinations, Basic Program, Special Program, Non-High flags) plus summary lines A.1-A.6 ending in the calculated expected allocation."
+B,Alternate Funding System Adjustments,"Five line items that may pull the allocation off the formula value (Non-High, Low Ridership, Transportation Co-op, ESD, Other) plus a B.6 subtotal."
+C,Other Adjustments,"Alt-calendar modifier (C.1), car-mileage reimbursement (C.2), and a C.3 subtotal."
+D,Determination of Final STARS Allocation,"Adjusted allocation, prior-year expenditures, legislative add-ons, and the bottom-line ACTUAL ALLOCATION AMOUNT (D.8)."

@@ -1,0 +1,8 @@
+school_year,class_of,_source_id,_source_table,cohort_district,weight_pct,prior_year_expenditures,buses,basic_riders,special_riders,avg_distance,num_destinations,land_area,k_rte,road_miles_per_sq_mile,students_per_road_mile
+2017-2018,2018,298,stars_efficiency_cohort,Seattle Public Schools,100.0,31520907.55,348,20473,5406,2.42,102,85.4,0,23.86,12.69
+2018-2019,2019,2215,stars_efficiency_cohort,Seattle Public Schools,100.0,33630114.24,377,20577,5121,2.27,108,85.4,0,23.86,12.6
+2019-2020,2020,3938,stars_efficiency_cohort,Seattle Public Schools,100.0,37821486.68,355,17976,4898,2.26,104,85.4,0,23.86,11.21
+2022-2023,2023,8446,stars_efficiency_cohort,Seattle Public Schools,100.0,35074443.39,349,14189,3009,2.24,100,85.4,0,23.86,8.43
+2023-2024,2024,10434,stars_efficiency_cohort,Seattle Public Schools,100.0,61787631.6,314,9094,3285,2.16,102,85.4,0,23.86,6.07
+2024-2025,2025,12448,stars_efficiency_cohort,Seattle Public Schools,100.0,58879960.1,329,8556,3552,2.16,104,85.4,0,23.86,5.94
+2025-2026,2026,14122,stars_efficiency_cohort,Seattle Public Schools,100.0,59773326.13,339,9717,4099,2.16,106,85.4,0,23.86,6.77

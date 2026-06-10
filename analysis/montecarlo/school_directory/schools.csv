@@ -1,0 +1,99 @@
+school_id,school_code,name,level,classification,is_hcc_site_current,is_hcc_site_proposed,is_hcc_site_historical,has_gifted,has_bilingual,has_early_ed
+264,3380,Rainier View,ES,neighborhood,False,True,False,False,False,False
+203,2730,Arbor Heights,ES,neighborhood,False,False,False,True,False,True
+221,2118,Emerson,ES,neighborhood,False,False,False,False,False,True
+21,3327,Rainier Beach,HS,neighborhood,False,False,False,False,False,False
+215,2199,Concord,ES,neighborhood,False,False,False,False,False,True
+219,2321,Dunlap,ES,neighborhood,False,False,False,False,True,True
+235,2269,Highland Park,ES,neighborhood,False,False,False,False,False,False
+18,3096,Chief Sealth,HS,neighborhood,False,False,False,False,False,False
+286,3581,Wing Luke,ES,neighborhood,False,False,False,True,False,True
+103,2839,Denny,MS,neighborhood,False,False,False,False,False,False
+267,3157,Roxhill,ES,neighborhood,False,False,False,False,False,True
+110,3095,Mercer,MS,neighborhood,False,False,False,False,False,False
+273,3665,Sanislo,ES,neighborhood,False,False,False,False,False,False
+225,2139,Gatewood,ES,neighborhood,False,False,False,False,False,False
+207,2089,Martin Luther King Jr,ES,neighborhood,False,False,False,False,False,True
+236,2645,West Seattle Elementary,ES,neighborhood,False,False,False,False,False,True
+220,3378,Graham Hill,ES,neighborhood,False,False,False,False,False,False
+130,3774,Aki Kurose,MS,neighborhood,False,False,False,False,False,False
+251,3803,Dearborn Park,ES,neighborhood,False,False,False,False,False,False
+12,2392,Cleveland,HS,option,False,False,False,False,False,False
+222,3518,Fairmount Park,ES,neighborhood,False,False,True,True,False,True
+252,2353,Maple,ES,neighborhood,False,False,False,False,False,False
+930,1620,Pathfinder,ES,option,False,False,False,False,False,False
+233,4248,Hawthorne,ES,neighborhood,False,False,False,False,True,False
+256,2143,Muir,ES,neighborhood,False,False,False,True,False,True
+202,2181,Alki,ES,neighborhood,False,True,False,False,False,False
+288,3478,Kimball,ES,neighborhood,False,False,False,False,False,True
+107,2435,Madison,MS,neighborhood,False,False,False,True,False,False
+13,2182,Franklin,HS,neighborhood,False,False,False,False,False,False
+19,2234,West Seattle High,HS,neighborhood,False,False,False,False,False,False
+239,2733,Lafayette,ES,neighborhood,False,False,False,True,False,True
+205,2070,Beacon Hill,ES,neighborhood,False,False,False,False,False,False
+212,2141,Thurgood Marshall,ES,neighborhood,True,True,True,True,False,True
+117,4064,Washington,MS,neighborhood,False,False,False,True,False,False
+226,2307,Gatzert,ES,neighborhood,False,False,False,False,False,False
+244,2121,Leschi,ES,neighborhood,False,False,False,False,False,False
+14,2306,Garfield,HS,neighborhood,False,False,False,True,False,False
+249,2069,Madrona,ES,neighborhood,False,False,False,False,False,False
+24,1856,Center School,HS,option,False,False,False,False,False,False
+245,3714,Lowell,ES,neighborhood,False,False,False,False,False,True
+272,2080,Stevens,ES,neighborhood,False,False,False,False,False,False
+234,2063,Hay,ES,neighborhood,False,False,False,False,False,False
+248,2201,McGilvra,ES,neighborhood,False,False,False,False,False,False
+118,3517,McClure,MS,neighborhood,False,False,False,False,False,False
+211,2090,Coe,ES,neighborhood,False,False,False,False,False,False
+935,1579,TOPS,ES,option,False,False,False,False,False,False
+289,2838,Blaine,ES,neighborhood,False,False,False,False,False,False
+218,3717,B F Day,ES,neighborhood,False,False,False,False,False,True
+105,2371,Hamilton,MS,neighborhood,False,False,False,True,False,False
+241,2081,Stanford,ES,option,False,False,False,False,False,False
+243,2183,Lawton,ES,neighborhood,False,False,False,True,False,False
+242,2437,Laurelhurst,ES,neighborhood,False,False,False,False,False,False
+281,2142,West Woodland,ES,neighborhood,False,False,False,False,False,False
+209,2372,Bryant,ES,neighborhood,False,False,False,False,False,False
+201,2138,Adams,ES,neighborhood,False,False,False,False,False,False
+229,2061,Green Lake,ES,neighborhood,False,False,False,False,False,True
+949,1796,Salmon Bay,ES,option,False,False,False,False,False,False
+17,2285,Roosevelt,HS,neighborhood,False,False,False,False,False,False
+255,2322,Montlake,ES,neighborhood,False,False,False,False,False,False
+266,2975,Rogers,ES,neighborhood,False,False,False,False,False,False
+11,2220,Ballard,HS,neighborhood,False,False,False,False,False,False
+277,2667,View Ridge,ES,neighborhood,False,False,False,True,False,False
+104,2729,Eckstein,MS,neighborhood,False,False,False,False,False,False
+282,2092,Whittier,ES,neighborhood,False,False,False,True,False,False
+204,2450,Bagley,ES,neighborhood,False,False,False,False,False,False
+246,2462,Loyal Heights,ES,neighborhood,False,False,False,False,False,False
+230,2123,Greenwood,ES,neighborhood,False,False,False,False,False,True
+279,3026,Wedgwood,ES,neighborhood,False,False,False,True,False,False
+259,3218,North Beach,ES,neighborhood,False,False,False,False,False,True
+115,3277,Whitman,MS,neighborhood,False,False,False,False,False,False
+262,2256,Olympic View,ES,neighborhood,False,False,False,False,False,False
+268,3028,Sacajawea,ES,neighborhood,False,False,False,False,False,True
+276,2977,Viewlands,ES,neighborhood,False,False,False,False,False,True
+22,3479,Nathan Hale,HS,neighborhood,False,False,False,False,False,False
+257,3027,Baldwin,ES,neighborhood,False,False,False,False,False,True
+261,2976,Olympic Hills,ES,neighborhood,False,False,False,False,False,True
+208,2209,Broadview-Thomson,ES,neighborhood,False,False,False,True,False,True
+20,3276,Ingraham,HS,neighborhood,False,False,False,False,False,False
+109,5485,Meany,MS,neighborhood,False,False,False,False,False,False
+287,5488,Decatur,ES,hcc_pathway,True,True,True,True,False,False
+106,5351,Jane Addams,MS,neighborhood,False,False,False,True,False,False
+292,5175,Hazel Wolf,ES,option,False,False,False,False,False,False
+291,4218,South Shore,ES,option,False,False,False,False,False,True
+275,2120,Rising Star,ES,neighborhood,False,False,False,False,False,False
+939,4065,Orca,ES,option,False,False,False,False,False,False
+270,3429,Genesee Hill,ES,neighborhood,False,False,False,False,False,False
+23,3868,Nova,HS,service,False,False,False,False,False,False
+974,5204,Queen Anne,ES,option,False,False,False,False,False,False
+250,5565,Magnolia,ES,neighborhood,False,False,False,False,False,True
+15,5566,Lincoln,HS,neighborhood,False,False,False,False,False,False
+247,5203,McDonald,ES,option,False,False,False,False,False,False
+955,3874,Licton Springs,ES,option,False,False,False,True,False,True
+977,3974,Thornton Creek,ES,option,False,False,False,False,False,False
+269,5205,Sand Point,ES,neighborhood,False,False,False,False,False,True
+972,5276,Boren,ES,option,False,False,False,False,False,True
+113,5486,Robert Eagle Staff,MS,neighborhood,False,False,False,True,False,False
+971,5292,Cascadia,ES,hcc_pathway,True,True,True,True,False,True
+210,5487,Cedar Park,ES,option,False,False,False,False,False,False

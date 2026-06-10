@@ -1,0 +1,155 @@
+name,school_id,match_type
+415 BUILDING,,non_school
+Adams Elementary,201,exact
+Aki Kurose M.S.,130,exact
+Alderwood Early Childhood Center,,non_school
+Alki Elementary,202,exact
+Alki Elementary TEMP CONST,202,manual
+Arbor Heights Elementary,203,exact
+B.F. Day Elementary,218,fuzzy
+BRIDGES @ Providence Mount St.,,non_school
+Bailey Gatzert Elementary,226,manual
+Ballard H.S.,11,exact
+Beacon Hill Elementary,205,exact
+Bridges @ Magnuson Bldg,,non_school
+Brier Elementary,,non_school
+Brightmont Academy - Seattle,,non_school
+Broadview-Thompson K-8 School,208,manual
+Bryant Elementary,209,exact
+Cascade View Elementary,,non_school
+Cascadia Elementary,971,exact
+Catharine Blaine K-8 School,289,manual
+Cedar Park Elementary,210,exact
+Chief Sealth International H.S.,18,exact
+Clevland H.S.,12,manual
+Community Care Center - Contract Site,,non_school
+Concord Elementary,215,exact
+Daniel Bagley Elementary,204,manual
+Dearborn Park Elementary,251,exact
+Decatur Elementary,287,exact
+Denny International Middle School,103,manual
+Denny M.S.,103,manual
+Dunlap Elementary,219,exact
+Early Learning Center @ Old Van Asselt Bldg.,,non_school
+Eckstein M.S.,104,exact
+Edmonds Woodway H.S.,,non_school
+Emerson Elementary,221,exact
+Emerson Elementary TEMPORARY,221,manual
+Experimental Ed Unit,,non_school
+Experimental Education Unit,,non_school
+Fairmount Park Elementary,222,exact
+Franklin H.S.,13,exact
+Frantz Coe Elementary,211,manual
+Garfield High School,14,manual
+Gatewood Elementary,225,exact
+Genesse Hill Elementary,270,fuzzy
+Graham Hill Elementary,220,exact
+Green Lake Elementary,229,exact
+Greenwood Elementary,230,exact
+Hamilton International M.S.,105,exact
+Happy Zone Alternative Learning Center,,non_school
+Hawthorne Elementary,233,exact
+Hazel Wolf K-8 @ Pinehurst Site,292,manual
+Highland Park Elementary,235,exact
+Highland Terrace Elementary,,non_school
+Ingraham H.S.,20,exact
+James Baldwin Elementary School,257,manual
+Jane Addams K-8,106,exact
+John Hay Elementary,234,manual
+John Muir Elementary,256,manual
+John Rogers Elementary,266,manual
+John Rogers Elementary TEMP CONST,266,manual
+John Stanford Center - Shuttle,,non_school
+John Stanford International,241,manual
+John Stanford International Elementary (Latona),241,manual
+K-5 Stem @ Boren,972,manual
+Kenmore Elementary,,non_school
+Kimball Elementary,288,exact
+Kimball Elementary-temp loc (21-,288,manual
+"Kimball Elementary-temp loc (21-22, 22-23)",288,manual
+Lafayette Elementary,239,exact
+Lake Forest Park Elementary,,non_school
+Laurelhurst Elementary,242,exact
+Lawton Elementary,243,exact
+Leschi Elementary,244,exact
+Licton Springs K-8,955,exact
+Lincoln High School,15,exact
+Listen & Talk,,non_school
+Lowell Elementary,245,exact
+Loyal Heights Elememtary (Temp Location),246,manual
+Loyal Heights Elementary,246,exact
+Lynnwood H.S.,,non_school
+Madison M.S.,107,exact
+Madrona Elementary,249,manual
+Madrona K-8 School,249,exact
+Magnolia Elementary School,250,exact
+Maple Elementary,252,exact
+Martin Luther King Jr. Elementary,207,exact
+McClure M.S.,118,exact
+McDonald Elementary,247,exact
+McGilvra Elementary,248,exact
+Meany M.S.,109,exact
+Mercer M.S.,110,exact
+Mercer M.S. TEMP CONST,110,manual
+Middle College,,non_school
+Miller Community Center,,non_school
+Montlake Elementary,255,exact
+Montlake Elementary TEMP CONST,255,manual
+Mount St. Vincent,,non_school
+Nathan Hale H.S.,22,exact
+North Beach Elementary,259,exact
+North Seattle Food Bank,,non_school
+Northgate Elementary,,non_school
+Northwest School for the Hearing,,non_school
+Northwest School for the Hearing Impaired,,non_school
+Nova High School,23,exact
+Olympic Hills Elementary,261,exact
+Olympic View Elementary,262,exact
+Orca K-8 School,939,exact
+Pathfinder K-8 School,930,exact
+Playful Learning,,non_school
+Queen Anne Elementary,974,exact
+Queen Anne Elementary (Temp,974,manual
+Queen Anne Elementary (Temp Location),974,manual
+Rainier Beach H.S.,21,exact
+Rainier View Elementary,264,exact
+Ridgecrest Elementary,,non_school
+Rising Star Elementary School,275,exact
+Robert Eagle Staff M.S.,113,exact
+Roosevelt H.S.,17,exact
+Roxbury Lanes,,non_school
+Roxhill Building,267,manual
+Roxhill Elementary,267,exact
+Sacajawea Elementary,268,exact
+Salmon Bay K-8 School,949,exact
+Sandpoint Elementary,269,fuzzy
+Sanislo Elementary,273,exact
+"Seattle Hearing, Speech, &",,non_school
+"Seattle Hearing, Speech, & Deafness Center",,non_school
+Seattle World School,,non_school
+South Seattle Community College,,non_school
+South Shore K-8 School,291,exact
+Stevens Elementary,272,exact
+The Center School,24,manual
+Thorton Creek Elementary,977,manual
+Thurgood Marshall Elementary,212,exact
+Tops K-8 School,935,exact
+Tukwila Elementary,,non_school
+Van Asselt Elementary,,non_school
+View Ridge Elementary,277,exact
+Viewland Elementary,276,fuzzy
+Viewlands Elementary,276,exact
+Viewlands Elementary-temp loc (21-,276,manual
+"Viewlands Elementary-temp loc (21-22, 22-23)",276,manual
+Wallingford Boys & Girls Club,,non_school
+Washington M.S.,117,exact
+Wedgwood Elementary,279,exact
+West Seattle Elementary,236,exact
+West Seattle Elementary-temp loc,236,manual
+West Seattle Elementary-temp loc 2021-22,236,manual
+West Seattle H.S.,19,manual
+West Woodland Elementary,281,exact
+West Woodland Elementary-Temp,281,manual
+Whitman M.S.,115,exact
+Whittier Elementary,282,exact
+Wing Luke Elementary,286,exact

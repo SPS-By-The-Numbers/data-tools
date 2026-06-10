@@ -1,0 +1,29 @@
+metric_code,section,program,unit,description
+basic_students_on_buses,student_detail,basic,riders,Basic-program students transported on district buses.
+basic_students_in_walk_areas,student_detail,basic,riders,Basic-program students living in designated walk areas (not bused but counted).
+basic_students_transit_buses,student_detail,basic,riders,Basic-program students transported via public transit.
+basic_students_total,student_detail,basic,riders,Total basic-program ridership count.
+special_students_special_ed,student_detail,special_ed,riders,Special-education students transported.
+special_students_bilingual,student_detail,bilingual,riders,Bilingual-program students transported.
+special_students_gifted,student_detail,gifted,riders,Gifted-program students transported.
+special_students_homeless,student_detail,homeless,riders,Homeless students transported.
+special_students_early_ed,student_detail,early_ed,riders,Early-education-program students transported.
+special_students_total,student_detail,,riders,Total special-program ridership count across all subprograms.
+routes_basic,route_summary,basic,routes,Number of basic-program (A) routes operated.
+routes_special,route_summary,special_ed,routes,Number of special-education (S) routes operated.
+routes_bilingual,route_summary,bilingual,routes,Number of bilingual (B) routes operated.
+routes_gifted,route_summary,gifted,routes,Number of gifted (G) routes operated.
+routes_homeless,route_summary,homeless,routes,Number of homeless (H) routes operated.
+routes_early_ed,route_summary,early_ed,routes,Number of early-ed (E) routes operated.
+routes_total,route_summary,,routes,Total route count across all programs.
+route_summary_destinations,route_summary,,destinations,Distinct destinations served (from ROUTE SUMMARY rollup).
+route_summary_total_buses,route_summary,,buses,Total buses used across all routes (route-summary rollup).
+route_summary_average_distance,route_summary,,miles,"Average route distance, miles."
+buses_basic,bus_summary,basic,buses,Basic-program (A) buses operated.
+buses_special,bus_summary,special_ed,buses,Special-education (S) buses operated.
+buses_bilingual,bus_summary,bilingual,buses,Bilingual (B) buses operated.
+buses_gifted,bus_summary,gifted,buses,Gifted (G) buses operated.
+buses_homeless,bus_summary,homeless,buses,Homeless (H) buses operated.
+buses_early_ed,bus_summary,early_ed,buses,Early-ed (E) buses operated.
+bus_summary_destinations,bus_summary,,destinations,Distinct destinations served (from BUS SUMMARY rollup).
+bus_summary_total_buses,bus_summary,,buses,Total buses across all programs (bus-summary rollup).

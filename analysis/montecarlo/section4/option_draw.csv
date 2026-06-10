@@ -1,0 +1,409 @@
+level,school,grade_band,residence_area,n
+ES,Orca K-8,K-5,Hawthorne,81
+ES,Orca K-8,K-5,Graham Hill,19
+ES,Orca K-8,K-5,Martin Luther King,17
+ES,Orca K-8,K-5,Dunlap,14
+ES,Orca K-8,K-5,Rising Star,12
+ES,Orca K-8,K-5,Out of District/Unknown,11
+ES,Orca K-8,K-5,Emerson,11
+ES,Orca K-8,K-5,John Muir,10
+ES,Orca K-8,K-5,Rainier View,10
+ES,Orca K-8,K-5,Kimball,7
+ES,Orca K-8,K-5,Dearborn Park Intl,6
+ES,Orca K-8,K-5,Thurgood Marshall,5
+ES,Orca K-8,K-5,Beacon Hill Intl,2
+ES,Orca K-8,K-5,Lowell,2
+ES,Orca K-8,K-5,Arbor Heights,1
+ES,Orca K-8,K-5,Maple,1
+ES,Orca K-8,K-5,Wing Luke,1
+ES,Orca K-8,6-8,Aki Kurose,33
+ES,Orca K-8,6-8,Washington,26
+ES,Orca K-8,6-8,Mercer Intl,5
+ES,Orca K-8,6-8,Out of District/Unknown,3
+ES,Orca K-8,6-8,Meany,2
+ES,Orca K-8,6-8,David T. Denny Intl,1
+ES,South Shore K-8,K-5,Emerson,107
+ES,South Shore K-8,K-5,Dunlap,65
+ES,South Shore K-8,K-5,Rainier View,38
+ES,South Shore K-8,K-5,Martin Luther King,21
+ES,South Shore K-8,K-5,Wing Luke,19
+ES,South Shore K-8,K-5,Graham Hill,14
+ES,South Shore K-8,K-5,Out of District/Unknown,10
+ES,South Shore K-8,K-5,Rising Star,10
+ES,South Shore K-8,K-5,Dearborn Park Intl,8
+ES,South Shore K-8,K-5,Hawthorne,7
+ES,South Shore K-8,K-5,John Muir,6
+ES,South Shore K-8,K-5,Kimball,3
+ES,South Shore K-8,K-5,Sanislo,3
+ES,South Shore K-8,K-5,Concord Intl,2
+ES,South Shore K-8,K-5,John Rogers,2
+ES,South Shore K-8,K-5,Bailey Gatzert,1
+ES,South Shore K-8,K-5,Beacon Hill Intl,1
+ES,South Shore K-8,K-5,Coe,1
+ES,South Shore K-8,K-5,Gatewood,1
+ES,South Shore K-8,K-5,Green Lake,1
+ES,South Shore K-8,K-5,Greenwood,1
+ES,South Shore K-8,K-5,Leschi,1
+ES,South Shore K-8,K-5,Lowell,1
+ES,South Shore K-8,K-5,Madrona,1
+ES,South Shore K-8,K-5,Olympic Hills,1
+ES,South Shore K-8,K-5,West Seattle ES,1
+ES,South Shore K-8,6-8,Aki Kurose,143
+ES,South Shore K-8,6-8,Out of District/Unknown,11
+ES,South Shore K-8,6-8,Mercer Intl,9
+ES,South Shore K-8,6-8,David T. Denny Intl,4
+ES,South Shore K-8,6-8,Washington,3
+ES,South Shore K-8,6-8,Hamilton Intl,1
+ES,South Shore K-8,6-8,Meany,1
+ES,STEM K-8,K-5,West Seattle ES,76
+ES,STEM K-8,K-5,Sanislo,60
+ES,STEM K-8,K-5,Roxhill,38
+ES,STEM K-8,K-5,Fairmount Park,30
+ES,STEM K-8,K-5,Highland Park,24
+ES,STEM K-8,K-5,Concord Intl,15
+ES,STEM K-8,K-5,Arbor Heights,12
+ES,STEM K-8,K-5,Gatewood,8
+ES,STEM K-8,K-5,Lafayette,7
+ES,STEM K-8,K-5,Genesee Hill,4
+ES,STEM K-8,K-5,Dunlap,2
+ES,STEM K-8,K-5,Emerson,2
+ES,STEM K-8,K-5,Alki,1
+ES,STEM K-8,K-5,Green Lake,1
+ES,STEM K-8,K-5,Hawthorne,1
+ES,STEM K-8,K-5,Lowell,1
+ES,STEM K-8,K-5,Maple,1
+ES,STEM K-8,6-8,David T. Denny Intl,111
+ES,STEM K-8,6-8,Madison,21
+ES,STEM K-8,6-8,Aki Kurose,3
+ES,STEM K-8,6-8,Washington,2
+ES,STEM K-8,6-8,Out of District/Unknown,1
+ES,STEM K-8,6-8,Meany,1
+ES,Decatur,all,Bryant,55
+ES,Decatur,all,View Ridge,53
+ES,Decatur,all,Wedgwood,41
+ES,Decatur,all,Sand Point,19
+ES,Decatur,all,Laurelhurst,16
+ES,Decatur,all,John Rogers,2
+ES,Decatur,all,Montlake,2
+ES,Decatur,all,Lowell,1
+ES,Decatur,all,Olympic Hills,1
+ES,Thornton Creek,all,View Ridge,142
+ES,Thornton Creek,all,Wedgwood,65
+ES,Thornton Creek,all,John Rogers,48
+ES,Thornton Creek,all,Sand Point,32
+ES,Thornton Creek,all,Bryant,21
+ES,Thornton Creek,all,Green Lake,19
+ES,Thornton Creek,all,Laurelhurst,19
+ES,Thornton Creek,all,Olympic View,6
+ES,Thornton Creek,all,Sacajawea,6
+ES,Thornton Creek,all,Olympic Hills,4
+ES,Thornton Creek,all,James Baldwin,3
+ES,Thornton Creek,all,Viewlands,3
+ES,Thornton Creek,all,Bailey Gatzert,1
+ES,Thornton Creek,all,Daniel Bagley,1
+ES,John Stanford Intl,K-5,Green Lake,156
+ES,John Stanford Intl,K-5,B.F. Day,66
+ES,John Stanford Intl,K-5,Daniel Bagley,16
+ES,John Stanford Intl,K-5,John Rogers,14
+ES,John Stanford Intl,K-5,Viewlands,14
+ES,John Stanford Intl,K-5,Adams,12
+ES,John Stanford Intl,K-5,Bryant,10
+ES,John Stanford Intl,K-5,Olympic View,10
+ES,John Stanford Intl,K-5,Whittier,9
+ES,John Stanford Intl,K-5,Loyal Heights,8
+ES,John Stanford Intl,K-5,Magnolia,8
+ES,John Stanford Intl,K-5,Montlake,8
+ES,John Stanford Intl,K-5,Lawton,7
+ES,John Stanford Intl,K-5,Lowell,7
+ES,John Stanford Intl,K-5,View Ridge,7
+ES,John Stanford Intl,K-5,Bailey Gatzert,6
+ES,John Stanford Intl,K-5,John Hay,6
+ES,John Stanford Intl,K-5,Olympic Hills,5
+ES,John Stanford Intl,K-5,Wedgwood,5
+ES,John Stanford Intl,K-5,Broadview-Thomson K-8,4
+ES,John Stanford Intl,K-5,Greenwood,4
+ES,John Stanford Intl,K-5,Laurelhurst,4
+ES,John Stanford Intl,K-5,Stevens,4
+ES,John Stanford Intl,K-5,West Woodland,4
+ES,John Stanford Intl,K-5,Coe,3
+ES,John Stanford Intl,K-5,James Baldwin,3
+ES,John Stanford Intl,K-5,Lafayette,3
+ES,John Stanford Intl,K-5,North Beach,3
+ES,John Stanford Intl,K-5,Hawthorne,2
+ES,John Stanford Intl,6-8,Kimball,2
+ES,John Stanford Intl,6-8,Madrona,2
+ES,John Stanford Intl,6-8,Maple,2
+ES,John Stanford Intl,6-8,McGilvra,2
+ES,John Stanford Intl,6-8,Sacajawea,2
+ES,John Stanford Intl,6-8,Out of District/Unknown,1
+ES,John Stanford Intl,6-8,Alki,1
+ES,John Stanford Intl,6-8,Beacon Hill Intl,1
+ES,John Stanford Intl,6-8,Genesee Hill,1
+ES,John Stanford Intl,6-8,John Muir,1
+ES,John Stanford Intl,6-8,Sand Point,1
+ES,McDonald Intl,all,Green Lake,251
+ES,McDonald Intl,all,Daniel Bagley,17
+ES,McDonald Intl,all,Olympic View,17
+ES,McDonald Intl,all,B.F. Day,15
+ES,McDonald Intl,all,West Woodland,15
+ES,McDonald Intl,all,Broadview-Thomson K-8,14
+ES,McDonald Intl,all,Loyal Heights,14
+ES,McDonald Intl,all,Viewlands,13
+ES,McDonald Intl,all,Sacajawea,12
+ES,McDonald Intl,all,North Beach,10
+ES,McDonald Intl,all,Greenwood,6
+ES,McDonald Intl,all,James Baldwin,6
+ES,McDonald Intl,all,Adams,5
+ES,McDonald Intl,all,Bryant,5
+ES,McDonald Intl,all,John Rogers,5
+ES,McDonald Intl,all,Laurelhurst,5
+ES,McDonald Intl,all,Montlake,5
+ES,McDonald Intl,all,Whittier,5
+ES,McDonald Intl,all,John Hay,4
+ES,McDonald Intl,all,Lowell,3
+ES,McDonald Intl,all,Olympic Hills,3
+ES,McDonald Intl,all,View Ridge,3
+ES,McDonald Intl,all,Coe,2
+ES,McDonald Intl,all,Gatewood,2
+ES,McDonald Intl,all,Magnolia,2
+ES,McDonald Intl,all,Roxhill,2
+ES,McDonald Intl,all,Beacon Hill Intl,1
+ES,McDonald Intl,all,Wing Luke,1
+ES,Cedar Park,all,John Rogers,117
+ES,Cedar Park,all,Olympic Hills,60
+ES,Cedar Park,all,Sacajawea,17
+ES,Cedar Park,all,Olympic View,8
+ES,Cedar Park,all,Out of District/Unknown,5
+ES,Cedar Park,all,James Baldwin,5
+ES,Cedar Park,all,Sand Point,3
+ES,Cedar Park,all,View Ridge,3
+ES,Cedar Park,all,Broadview-Thomson K-8,2
+ES,Cedar Park,all,Viewlands,2
+ES,Cedar Park,all,B.F. Day,1
+ES,Cedar Park,all,Green Lake,1
+ES,Cedar Park,all,Loyal Heights,1
+ES,Cedar Park,all,Wedgwood,1
+ES,Hazel Wolf K-8,K-5,Olympic View,114
+ES,Hazel Wolf K-8,K-5,Sacajawea,110
+ES,Hazel Wolf K-8,K-5,John Rogers,48
+ES,Hazel Wolf K-8,K-5,Olympic Hills,39
+ES,Hazel Wolf K-8,K-5,James Baldwin,31
+ES,Hazel Wolf K-8,K-5,Broadview-Thomson K-8,23
+ES,Hazel Wolf K-8,K-5,Green Lake,20
+ES,Hazel Wolf K-8,K-5,Wedgwood,14
+ES,Hazel Wolf K-8,K-5,View Ridge,7
+ES,Hazel Wolf K-8,K-5,Out of District/Unknown,5
+ES,Hazel Wolf K-8,K-5,Viewlands,5
+ES,Hazel Wolf K-8,K-5,Daniel Bagley,3
+ES,Hazel Wolf K-8,K-5,Roxhill,3
+ES,Hazel Wolf K-8,K-5,Sand Point,3
+ES,Hazel Wolf K-8,K-5,Bryant,2
+ES,Hazel Wolf K-8,K-5,Laurelhurst,2
+ES,Hazel Wolf K-8,K-5,B.F. Day,1
+ES,Hazel Wolf K-8,K-5,Gatewood,1
+ES,Hazel Wolf K-8,K-5,Greenwood,1
+ES,Hazel Wolf K-8,K-5,Loyal Heights,1
+ES,Hazel Wolf K-8,K-5,West Seattle ES,1
+ES,Hazel Wolf K-8,K-5,Whittier,1
+ES,Hazel Wolf K-8,6-8,Jane Addams MS,173
+ES,Hazel Wolf K-8,6-8,Robert Eagle Staff,30
+ES,Hazel Wolf K-8,6-8,Eckstein,20
+ES,Hazel Wolf K-8,6-8,Out of District/Unknown,4
+ES,Hazel Wolf K-8,6-8,Hamilton Intl,4
+ES,Hazel Wolf K-8,6-8,Whitman,3
+ES,Hazel Wolf K-8,6-8,Meany,2
+ES,Hazel Wolf K-8,6-8,McClure,1
+ES,Pathfinder K-8,K-5,Lafayette,86
+ES,Pathfinder K-8,K-5,Fairmount Park,30
+ES,Pathfinder K-8,K-5,Sanislo,27
+ES,Pathfinder K-8,K-5,Arbor Heights,20
+ES,Pathfinder K-8,K-5,Gatewood,16
+ES,Pathfinder K-8,K-5,Roxhill,16
+ES,Pathfinder K-8,K-5,Genesee Hill,13
+ES,Pathfinder K-8,K-5,Concord Intl,12
+ES,Pathfinder K-8,K-5,Highland Park,12
+ES,Pathfinder K-8,K-5,Alki,9
+ES,Pathfinder K-8,K-5,West Seattle ES,7
+ES,Pathfinder K-8,K-5,Out of District/Unknown,3
+ES,Pathfinder K-8,K-5,Bailey Gatzert,2
+ES,Pathfinder K-8,K-5,Beacon Hill Intl,2
+ES,Pathfinder K-8,K-5,Rising Star,2
+ES,Pathfinder K-8,K-5,Dearborn Park Intl,1
+ES,Pathfinder K-8,K-5,Emerson,1
+ES,Pathfinder K-8,K-5,Green Lake,1
+ES,Pathfinder K-8,K-5,Kimball,1
+ES,Pathfinder K-8,K-5,Maple,1
+ES,Pathfinder K-8,6-8,Madison,68
+ES,Pathfinder K-8,6-8,David T. Denny Intl,65
+ES,Pathfinder K-8,6-8,Washington,4
+ES,Pathfinder K-8,6-8,Out of District/Unknown,2
+ES,Pathfinder K-8,6-8,Aki Kurose,1
+ES,Pathfinder K-8,6-8,Mercer Intl,1
+ES,Queen Anne,all,John Hay,97
+ES,Queen Anne,all,Lowell,26
+ES,Queen Anne,all,Coe,12
+ES,Queen Anne,all,B.F. Day,7
+ES,Queen Anne,all,Broadview-Thomson K-8,4
+ES,Queen Anne,all,Magnolia,4
+ES,Queen Anne,all,Out of District/Unknown,3
+ES,Queen Anne,all,Emerson,2
+ES,Queen Anne,all,Daniel Bagley,1
+ES,Queen Anne,all,Green Lake,1
+ES,Queen Anne,all,North Beach,1
+ES,Queen Anne,all,Thurgood Marshall,1
+ES,TOPS K-8,K-5,Montlake,58
+ES,TOPS K-8,K-5,Lowell,49
+ES,TOPS K-8,K-5,Madrona,42
+ES,TOPS K-8,K-5,Bailey Gatzert,13
+ES,TOPS K-8,K-5,Leschi,12
+ES,TOPS K-8,K-5,McGilvra,9
+ES,TOPS K-8,K-5,Stevens,8
+ES,TOPS K-8,K-5,Broadview-Thomson K-8,6
+ES,TOPS K-8,K-5,Hawthorne,6
+ES,TOPS K-8,K-5,Green Lake,5
+ES,TOPS K-8,K-5,John Rogers,4
+ES,TOPS K-8,K-5,Maple,4
+ES,TOPS K-8,K-5,Rising Star,4
+ES,TOPS K-8,K-5,Out of District/Unknown,3
+ES,TOPS K-8,K-5,B.F. Day,3
+ES,TOPS K-8,K-5,Beacon Hill Intl,2
+ES,TOPS K-8,K-5,Dearborn Park Intl,2
+ES,TOPS K-8,K-5,Emerson,2
+ES,TOPS K-8,K-5,Graham Hill,2
+ES,TOPS K-8,K-5,John Muir,2
+ES,TOPS K-8,K-5,Olympic View,2
+ES,TOPS K-8,K-5,Sacajawea,2
+ES,TOPS K-8,K-5,Thurgood Marshall,2
+ES,TOPS K-8,K-5,View Ridge,2
+ES,TOPS K-8,K-5,Viewlands,2
+ES,TOPS K-8,K-5,Whittier,2
+ES,TOPS K-8,K-5,Bryant,1
+ES,TOPS K-8,K-5,Coe,1
+ES,TOPS K-8,K-5,Daniel Bagley,1
+ES,TOPS K-8,K-5,Dunlap,1
+ES,TOPS K-8,K-5,Greenwood,1
+ES,TOPS K-8,K-5,John Hay,1
+ES,TOPS K-8,K-5,Laurelhurst,1
+ES,TOPS K-8,K-5,Loyal Heights,1
+ES,TOPS K-8,K-5,Martin Luther King,1
+ES,TOPS K-8,K-5,Olympic Hills,1
+ES,TOPS K-8,K-5,Rainier View,1
+ES,TOPS K-8,K-5,Roxhill,1
+ES,TOPS K-8,K-5,Sand Point,1
+ES,TOPS K-8,K-5,Sanislo,1
+ES,TOPS K-8,K-5,West Woodland,1
+ES,TOPS K-8,K-5,Wing Luke,1
+ES,TOPS K-8,6-8,Meany,111
+ES,TOPS K-8,6-8,Washington,23
+ES,TOPS K-8,6-8,Aki Kurose,17
+ES,TOPS K-8,6-8,Mercer Intl,9
+ES,TOPS K-8,6-8,Out of District/Unknown,6
+ES,TOPS K-8,6-8,Robert Eagle Staff,5
+ES,TOPS K-8,6-8,Eckstein,4
+ES,TOPS K-8,6-8,Jane Addams MS,4
+ES,TOPS K-8,6-8,Hamilton Intl,3
+ES,TOPS K-8,6-8,David T. Denny Intl,1
+ES,TOPS K-8,6-8,Madison,1
+ES,TOPS K-8,6-8,Whitman,1
+ES,Cascadia,all,Green Lake,49
+ES,Cascadia,all,B.F. Day,39
+ES,Cascadia,all,Loyal Heights,38
+ES,Cascadia,all,Daniel Bagley,34
+ES,Cascadia,all,Greenwood,34
+ES,Cascadia,all,Adams,31
+ES,Cascadia,all,West Woodland,30
+ES,Cascadia,all,John Hay,27
+ES,Cascadia,all,Lawton,27
+ES,Cascadia,all,North Beach,27
+ES,Cascadia,all,Coe,22
+ES,Cascadia,all,John Rogers,22
+ES,Cascadia,all,Olympic Hills,20
+ES,Cascadia,all,Sacajawea,20
+ES,Cascadia,all,Broadview-Thomson K-8,19
+ES,Cascadia,all,Olympic View,18
+ES,Cascadia,all,Viewlands,17
+ES,Cascadia,all,Magnolia,15
+ES,Cascadia,all,Whittier,15
+ES,Cascadia,all,Catharine Blaine K-8,13
+ES,Cascadia,all,James Baldwin,12
+ES,Cascadia,all,Montlake,2
+ES,Cascadia,all,Wedgwood,2
+ES,Cascadia,all,Bryant,1
+ES,Cascadia,all,Genesee Hill,1
+ES,Licton Springs K-8,K-5,Adams,17
+ES,Licton Springs K-8,K-5,Loyal Heights,12
+ES,Licton Springs K-8,K-5,Viewlands,8
+ES,Licton Springs K-8,K-5,Broadview-Thomson K-8,5
+ES,Licton Springs K-8,K-5,Lawton,3
+ES,Licton Springs K-8,K-5,Whittier,3
+ES,Licton Springs K-8,K-5,Bailey Gatzert,2
+ES,Licton Springs K-8,K-5,Greenwood,2
+ES,Licton Springs K-8,K-5,North Beach,2
+ES,Licton Springs K-8,K-5,West Woodland,2
+ES,Licton Springs K-8,K-5,Out of District/Unknown,1
+ES,Licton Springs K-8,K-5,Catharine Blaine K-8,1
+ES,Licton Springs K-8,K-5,James Baldwin,1
+ES,Licton Springs K-8,K-5,Lowell,1
+ES,Licton Springs K-8,6-8,Whitman,10
+ES,Licton Springs K-8,6-8,Robert Eagle Staff,4
+ES,Licton Springs K-8,6-8,McClure,3
+ES,Licton Springs K-8,6-8,Out of District/Unknown,1
+ES,Licton Springs K-8,6-8,Eckstein,1
+ES,Licton Springs K-8,6-8,Jane Addams MS,1
+ES,Licton Springs K-8,6-8,Meany,1
+ES,Salmon Bay K-8,K-5,Adams,115
+ES,Salmon Bay K-8,K-5,Loyal Heights,60
+ES,Salmon Bay K-8,K-5,Whittier,30
+ES,Salmon Bay K-8,K-5,West Woodland,28
+ES,Salmon Bay K-8,K-5,North Beach,11
+ES,Salmon Bay K-8,K-5,B.F. Day,10
+ES,Salmon Bay K-8,K-5,Broadview-Thomson K-8,10
+ES,Salmon Bay K-8,K-5,Greenwood,7
+ES,Salmon Bay K-8,K-5,Out of District/Unknown,3
+ES,Salmon Bay K-8,K-5,Daniel Bagley,3
+ES,Salmon Bay K-8,K-5,Green Lake,3
+ES,Salmon Bay K-8,K-5,Viewlands,3
+ES,Salmon Bay K-8,K-5,Coe,2
+ES,Salmon Bay K-8,K-5,James Baldwin,1
+ES,Salmon Bay K-8,K-5,John Rogers,1
+ES,Salmon Bay K-8,K-5,Lawton,1
+ES,Salmon Bay K-8,6-8,Whitman,220
+ES,Salmon Bay K-8,6-8,Hamilton Intl,29
+ES,Salmon Bay K-8,6-8,McClure,24
+ES,Salmon Bay K-8,6-8,Robert Eagle Staff,23
+ES,Salmon Bay K-8,6-8,Eckstein,5
+ES,Salmon Bay K-8,6-8,Meany,4
+ES,Salmon Bay K-8,6-8,Out of District/Unknown,3
+ES,Salmon Bay K-8,6-8,Jane Addams MS,2
+ES,Salmon Bay K-8,6-8,Aki Kurose,1
+ES,Salmon Bay K-8,6-8,Madison,1
+HS,Cleveland STEM,all,Franklin,464
+HS,Cleveland STEM,all,Rainier Beach,241
+HS,Cleveland STEM,all,Chief Sealth Intl,24
+HS,Cleveland STEM,all,Garfield,17
+HS,Cleveland STEM,all,Out of District/Unknown,17
+HS,Cleveland STEM,all,West Seattle HS,13
+HS,Cleveland STEM,all,Ingraham,1
+HS,Cleveland STEM,all,Lincoln,1
+HS,Nova,all,Garfield,57
+HS,Nova,all,Franklin,38
+HS,Nova,all,Rainier Beach,27
+HS,Nova,all,Chief Sealth Intl,26
+HS,Nova,all,West Seattle HS,24
+HS,Nova,all,Roosevelt,23
+HS,Nova,all,Ballard,19
+HS,Nova,all,Ingraham,16
+HS,Nova,all,Nathan Hale,12
+HS,Nova,all,Out of District/Unknown,11
+HS,Nova,all,Lincoln,8
+HS,The Center School,all,Ballard,27
+HS,The Center School,all,Ingraham,22
+HS,The Center School,all,Chief Sealth Intl,19
+HS,The Center School,all,Lincoln,19
+HS,The Center School,all,Nathan Hale,13
+HS,The Center School,all,West Seattle HS,13
+HS,The Center School,all,Garfield,11
+HS,The Center School,all,Franklin,9
+HS,The Center School,all,Rainier Beach,6
+HS,The Center School,all,Roosevelt,6
+HS,The Center School,all,Out of District/Unknown,5

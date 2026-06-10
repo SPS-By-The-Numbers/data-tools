@@ -1,0 +1,4 @@
+quarter,sort_order,description
+FALL,1,Fall quarter (typically September-November of the school year).
+WINTER,2,Winter quarter (typically December-February).
+SPRING,3,Spring quarter (typically March-May).
