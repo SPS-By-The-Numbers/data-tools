@@ -1231,5 +1231,8 @@ Still genuinely open for the user:
 - **Option / choice school** — no attendance area; enrolls by application from
   an eligibility **geozone**.
 - **STARS** — OSPI Student Transportation Allocation Reporting System.
+- **EXAL** — *Expected Allocation*: the STARS pupil-transportation funding
+  formula / reimbursement amount (USER-provided, s10; implemented in
+  report.py).
 - **P223** — monthly SPS enrollment count report.
 - **SAFS** — the main ETL pipeline in this repo (enrollment, s275, etc.).

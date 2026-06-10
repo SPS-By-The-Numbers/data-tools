@@ -1,4 +1,4 @@
-# SPS Yellow-Bus Ridership Monte Carlo — Technical Overview
+# SPS Yellow-Bus Ridership Monte Carlo — Technical Overview <a id="top"></a>
 
 This document explains how the simulation is constructed: the pipeline
 stages, the variables and the distributions they are drawn from, the
@@ -12,11 +12,15 @@ closures, option→neighborhood conversions, school moves, adding bus service
 — the model produces district and per-school deltas, with confidence
 intervals, for:
 
-- **basic & gifted ridership** (STARS *rides per day*: AM and PM boardings
-  each count once, so a both-ways student counts as 2);
+- **basic & gifted ridership** in *rides per day* as counted by STARS —
+  the Student Transportation Allocation Reporting System of OSPI
+  (Washington's Office of Superintendent of Public Instruction), the
+  state's per-district transportation reporting/funding dataset (AM and PM
+  boardings each count once, so a both-ways student counts as 2);
 - **route count** (rides ÷ district rides-per-route);
 - **bus fleet** (2-bell-shift rule, below) and **annual bus cost**;
-- **state reimbursement** (the STARS EXAL funding formula, below) and the
+- **state reimbursement** (EXAL — the STARS *Expected Allocation* funding
+  formula, below) and the
   **net fiscal delta**;
 - rider-weighted stop→school distance, and equity cuts by school
   low-income share and ES attendance-area poverty.
@@ -26,7 +30,7 @@ STARS + OSPI Report Card overlap.
 
 ---
 
-## Pipeline at a glance
+## Pipeline at a glance <a id="pipeline"></a>
 
 Eleven stages, one module per stage, each writing tracked intermediate CSVs
 so a fresh checkout can run without the gitignored raw sources:
@@ -36,9 +40,9 @@ so a fresh checkout can run without the gitignored raw sources:
 | 1 | Geography | [`parse_shapes.py`](parse_shapes.py) | 7 SPS transportation shapefile layers, normalized |
 | 2 | School directory | [`school_directory.py`](school_directory.py) | [`school_directory/`](school_directory/) — 98 schools, classification, name maps |
 | 3 | Baseline ridership | [`baseline_ridership.py`](baseline_ridership.py) | [`baseline_ridership/`](baseline_ridership/) — STARS routes/targets × enrollment |
-| 4 | ACS population | [`acs_population.py`](acs_population.py) | [`census_seattle/`](census_seattle/) — block groups, age, public-school share |
+| 4 | ACS population | [`acs_population.py`](acs_population.py) | [`census_seattle/`](census_seattle/) — Census block groups (BG), age, public-school share (ACS = American Community Survey) |
 | 5 | Synthetic population | [`synth_population.py`](synth_population.py) | `census_seattle/synth_pop.csv` — kids per BG × grade band + Dirichlet α |
-| 6 | Assignment | [`assignment.py`](assignment.py) | [`assignment/`](assignment/) — P(school \| BG, band) via OD-anchored IPF |
+| 6 | Assignment | [`assignment.py`](assignment.py) | [`assignment/`](assignment/) — P(school \| BG, band): iterative proportional fitting (IPF) anchored to observed origin–destination (OD) flows; both defined below |
 | 7 | Eligibility | [`eligibility.py`](eligibility.py) | [`eligibility/`](eligibility/) — walk-zone membership fractions |
 | 8 | Ridership | [`ridership.py`](ridership.py) | [`ridership/`](ridership/) — propensity model θ, expected rides |
 | 9 | Scenario engine | [`scenarios.py`](scenarios.py) | applies [`scenarios/*.json`](scenarios/) specs to a `World` copy |
@@ -49,8 +53,9 @@ Supporting ingests: [`stars_seattle.py`](stars_seattle.py) (STARS Seattle
 slice → [`stars_seattle/`](stars_seattle/)), [`rc_seattle.py`](rc_seattle.py)
 (Report Card enrollment + chronic absenteeism → [`rc_seattle/`](rc_seattle/)),
 [`section4_seattle.py`](section4_seattle.py) (the 2024-25 enrollment-report
-origin–destination tables → [`section4/`](section4/)), and the HCC pathway
-maps [`hcc_pathways_es.csv`](hcc_pathways_es.csv) /
+origin–destination tables → [`section4/`](section4/)), and the HCC
+(Highly Capable Cohort, the district's gifted program) pathway maps
+[`hcc_pathways_es.csv`](hcc_pathways_es.csv) /
 [`hcc_pathways_ms.csv`](hcc_pathways_ms.csv).
 
 ```
@@ -61,7 +66,7 @@ RC enrollment (column marginals) ──┘                        ▲
 STARS (district targets, routes) ───────────────────────────┘  ← calibration
 ```
 
-## Geography and units
+## Geography and units <a id="geography"></a>
 
 - Analysis CRS is **EPSG:2926** (NAD83(HARN) / Washington North, US feet) —
   the native CRS of the SPS zone polygons; walk thresholds are in miles
@@ -78,12 +83,13 @@ STARS (district targets, routes) ───────────────�
   students are between half and all of any figure; long-route students
   disproportionately ride mornings only.
 
-## Baseline construction
+## Baseline construction <a id="baseline"></a>
 
-### Synthetic population (stages 4–5)
+### Synthetic population (stages 4–5) <a id="synthetic-population"></a>
 
-ACS 5-year 2023 block-group age counts (B01001) × tract-level public-school
-fractions (B14003, suppressed at BG level) × TIGER 2023 geometries, clipped
+ACS 5-year 2023 block-group age counts (table B01001) × tract-level
+public-school fractions (B14003, suppressed at BG level) × Census
+TIGER/Line 2023 boundary geometries, clipped
 to SPS territory: 558 block groups, 76,474 school-age children, 75.7%
 public ⇒ 52,904 expected public-school kids. Age→grade-band split is fixed
 integer-grade algebra (5-9 → ES; 10-14 → 20/60/20 ES/MS/HS; 15-17 → HS).
@@ -91,14 +97,21 @@ The 1.06× over-count vs actual SPS enrollment is absorbed by the IPF column
 constraints, not corrected ad hoc. See
 [`synth_population.py`](synth_population.py).
 
-### Assignment (stage 6)
+### Assignment (stage 6) <a id="assignment"></a>
 
 `P(school | block group, grade band)` is **anchored to observed flows**,
 not a fitted gravity model: the 2024-25 Annual Enrollment Report Section 4
-gives, per attendance area, where resident students actually enrolled
-(stay-rates ES 68.2% / MS 56.6% / HS 69.8%). The prior for IPF is
+is an **origin–destination (OD) matrix** — for each attendance area
+(origin), the count of resident students enrolled at each school
+(destination), per grade level — so it pins down empirically where kids
+from each area actually go (stay-rates ES 68.2% / MS 56.6% / HS 69.8%). The (BG × school) matrix is
+then balanced by **IPF — iterative proportional fitting** (a.k.a. raking /
+RAS): starting from a prior matrix, alternately rescale every row to its
+row target and every column to its column target until both sets of
+marginals converge; the result is the assignment closest to the prior (in
+Kullback–Leibler divergence) that satisfies both totals exactly. The prior is
 (block-group → attendance-area area-overlay weights) × (observed
-P(school | area, band)); `ipf()` in [`assignment.py`](assignment.py) then
+P(school | area, band)); `ipf()` in [`assignment.py`](assignment.py)
 matches **row marginals** (synthetic kids per BG, scaled per band to
 enrollment totals) and **column marginals** (Report Card per-grade 2024-25
 enrollment, 98 schools, PK excluded). Result: 19,094 cells. Option-school
@@ -107,7 +120,7 @@ against the observed option draws: ES/MS 0.50 mi, HS 1.50 mi) are used only
 to *generalize* flows under scenarios (e.g. a moved option school), not for
 the baseline.
 
-### Eligibility (stage 7)
+### Eligibility (stage 7) <a id="eligibility"></a>
 
 Pure geometry, no fitting: `walk_fractions()` in
 [`eligibility.py`](eligibility.py) computes, per (block group, school), the
@@ -118,7 +131,7 @@ K-8 zones are 1 mile and MS/HS 2 miles, and the K-8 layers' spurious 2-mile
 union pieces are dropped in `parse_shapes.load_walkzones` (Licton Springs
 has no 1-mile piece and keeps its smallest, 1.88 mi).
 
-### Ridership (stage 8)
+### Ridership (stage 8) <a id="ridership"></a>
 
 Per assignment cell (ES+MS bands at the 77 schools that ran basic routes in
 2024-25), expected rides/day are `n_eligible · p(cell)` with
@@ -160,7 +173,7 @@ attendance areas from the district's pathway maps — see
 Rides → routes via district rides-per-route (2024-25: basic 49.5, gifted
 32.9 — ≈ 25 students on a one-way run).
 
-## Scenario engine (stage 9)
+## Scenario engine (stage 9) <a id="scenario-engine"></a>
 
 A scenario is an ordered list of ops in a JSON spec
 ([`scenarios/README.md`](scenarios/README.md)) applied by
@@ -200,7 +213,7 @@ Static validation (`validate_scenario`) checks op names, required params,
 school ids against the directory, sequential closure consistency, and
 conversion targets.
 
-## Monte Carlo design (stage 10)
+## Monte Carlo design (stage 10) <a id="monte-carlo"></a>
 
 [`simulate.py`](simulate.py) runs a **paired design**: each draw samples
 (θᵢ, populationᵢ) once and evaluates baseline and scenario with the *same*
@@ -235,7 +248,7 @@ and flow edits don't depend on the draw); per-world walk fractions are
 hoisted out of the loop. Reported CIs are 95% percentile intervals over
 draws. All reported runs use `--n-draws 200 --seed 20260610`.
 
-## Fiscal models (stage 11)
+## Fiscal models (stage 11) <a id="fiscal-models"></a>
 
 Both live in [`report.py`](report.py) with sources in comments at the top.
 
@@ -250,8 +263,8 @@ route additions are fleet-free while the ES shift stays the binding max;
 the $0 rows are a *lower bound* on marginal cost (a second route on an
 existing bus still adds driver-hours).
 
-**State reimbursement (EXAL).** The STARS funding formula
-(`funding_summary`, constants `EXAL_COEF` / `EXAL_BASE`):
+**State reimbursement (EXAL = Expected Allocation).** The STARS funding
+formula (`funding_summary`, constants `EXAL_COEF` / `EXAL_BASE`):
 
 ```
 EXAL = exp( 0.66498·ln(BasicRiders+1) + 0.11·ln(SpecialRiders+1)
@@ -270,7 +283,7 @@ AvgDistance. Implementation reproduces the official worked example
 modeled per instruction; one scenario (`hs_bussing_1mi`) would cross the
 cap — flagged in NOTES.
 
-## Calibration & validation summary
+## Calibration & validation summary <a id="validation"></a>
 
 | check | result |
 |---|---|
@@ -284,7 +297,7 @@ cap — flagged in NOTES.
 | EXAL implementation | matches the official worked numbers ($36.68M, $2,653/boarding) |
 | kernel hypothesis (gifted draws are longer) | 88.3% of non-COVID school×year rows have gifted > basic route distance |
 
-## Modeling assumptions & limitations
+## Modeling assumptions & limitations <a id="assumptions"></a>
 
 Roughly ordered by how much they could move a result.
 
@@ -339,7 +352,7 @@ Roughly ordered by how much they could move a result.
     (10,008.5) — deltas are applied to the official input rather than
     re-deriving the level.
 
-## Reproducing
+## Reproducing <a id="reproducing"></a>
 
 ```console
 $ venv/bin/python3 -m analysis.montecarlo.scenarios                  # list + validate specs

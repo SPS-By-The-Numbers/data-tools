@@ -75,7 +75,8 @@ COST_PER_BUS_YEAR = 148_900  # all-in vendor cost, SY2024-25
 # max(144+27, 47+13) = 171 buses vs the actual basic+gifted 162 (+5.6%).
 _SHIFT = {"ES": "es", "MS": "ms_hs", "HS": "ms_hs"}
 
-# --- STARS pupil-transportation reimbursement (EXAL), user-ingested s10 -----
+# --- STARS pupil-transportation reimbursement (EXAL = Expected Allocation),
+# user-ingested s10 -----------------------------------------------------------
 # 2025-26 formula. Allocation = min(EXAL, D2 prior-year cap $59.8M) +
 # LegSalaryAdj ($1,048,782). Per user instruction we assume the cap is never
 # hit and coefficients are stable year-to-year, so the salary adj and cap
