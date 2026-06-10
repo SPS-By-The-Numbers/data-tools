@@ -117,7 +117,8 @@ def _eval_arm(world: scn.World, walk: pd.DataFrame, pop: pd.DataFrame,
     assignment = build_matrix(pop=pop, weights=world.weights, flows=world.flows,
                               col_marg=world.col_marg)
     cells = rid.basic_cells(assignment, walk, points=world.points,
-                            basic_ids=world.basic_ids, covar_means=covar_means)
+                            basic_ids=world.basic_ids, covar_means=covar_means,
+                            bands=tuple(sorted(world.bus_bands)))
     gifted = scn.scenario_gifted_pool(world, assignment, walk, pop)
     riders, info = rid.expected_riders(params=params, cells=cells, gifted=gifted,
                                        fixed_scale=fixed_scale, return_info=True)

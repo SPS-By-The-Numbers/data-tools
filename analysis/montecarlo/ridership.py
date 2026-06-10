@@ -6,6 +6,13 @@ district target by construction; this stage models the SHAPE — how propensity
 varies with distance to school, grade band, and school demographics — while
 still hitting the district totals exactly (hard re-normalization).
 
+UNITS (USER CORRECTION, s10): the STARS targets are **rides per day**, not
+unique students — AM and PM boardings each count, so a both-ways student is
+2. 'riders' throughout this pipeline therefore means rides/day, and the
+solved 'propensity' is expected rides/day per eligible student (theoretical
+max 2, not 1). The fitted distance decay partly reflects the real pattern
+that long-route students disproportionately ride mornings only.
+
 Model (per assignment-matrix cell, ES+MS bands at basic-route schools):
 
     p(cell) = clip( s · f(d) · exp(β·x), 0, p_max )
@@ -145,7 +152,8 @@ def basic_cells(assignment: pd.DataFrame | None = None,
                 year: int = BASE_YEAR,
                 points: pd.Series | None = None,
                 basic_ids: set[int] | None = None,
-                covar_means: dict[str, float] | None = None) -> pd.DataFrame:
+                covar_means: dict[str, float] | None = None,
+                bands: tuple[str, ...] | None = None) -> pd.DataFrame:
     """Per-cell bus-eligible pool for the basic program.
 
     One row per (GEOID, school, band) cell of the assignment matrix, ES+MS
@@ -159,8 +167,11 @@ def basic_cells(assignment: pd.DataFrame | None = None,
     conversions), and ``covar_means`` pins the covariate centering to the
     baseline pool so a fixed-scale scenario evaluation doesn't shift the tilt
     of untouched cells. The means actually used are returned in
-    ``df.attrs['covar_means']``.
+    ``df.attrs['covar_means']``. ``bands`` replaces the bus-served grade
+    bands (default es+ms; an add-HS-bussing scenario passes hs too).
     """
+    if bands is None:
+        bands = _BUS_BANDS
     if assignment is None:
         assignment = load_assignment()
     if walk is None:
@@ -170,7 +181,7 @@ def basic_cells(assignment: pd.DataFrame | None = None,
         basic_ids = set(routes[(routes.year == year) & (routes.program == "basic")].school_id)
 
     df = assignment[
-        assignment.grade_band.isin(_BUS_BANDS) & assignment.school_id.isin(basic_ids)
+        assignment.grade_band.isin(bands) & assignment.school_id.isin(basic_ids)
     ].merge(walk, on=["GEOID", "school_id"], how="left")
     df["walk_frac"] = df["walk_frac"].fillna(0.0)
     df["n_eligible"] = df["n_expected"] * (1.0 - df["walk_frac"])

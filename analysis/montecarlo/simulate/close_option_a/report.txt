@@ -1,0 +1,57 @@
+=== MC report: close_option_a (200 draws, seed 20260610) ===
+  SPS 'well-resourced schools' plan (Option A, KUOW): close 21 schools incl. most option/K-8 sites ($31.5M claimed savings). Displaced students relocate by the engine defaults: neighborhood kids to the 3 nearest open neighborhood elementaries (split by existing draw), option kids to the nearest open option site, HCC pathways (Decatur) relocate intact to the nearest gifted site. Ops run in the article's NW-to-SW order; receivers resolve sequentially against schools still open.
+
+District (means over draws; deltas show 95% CI). NOTE: 'riders' = STARS rides/day —
+  AM and PM boardings each count, so a both-ways student counts as 2; unique
+  students are between half and all of the figure (long-route kids often ride AM only):
+  basic : riders  10,008.5 →  10,858.8   Δ  +850.3 [+757.9, +936.8]   est routes Δ +17.16 [+15.30, +18.91]
+  gifted: riders   1,315.5 →   1,313.8   Δ    -1.7 [-1.9, -1.6]   est routes Δ -0.05 [-0.06, -0.05]
+
+Bus fleet + annual cost (2 bell shifts: fleet = busier of ES vs MS/HS shift;
+  $148.9k per bus-year, SY2024-25 all-in vendor cost — see report.py constants):
+  buses:  179.7 →  196.9   Δ +17.1 [+15.2, +18.9]
+  annual cost Δ: +2.55 [+2.27, +2.81] $M/yr
+
+State funding (STARS EXAL reimbursement, 2025-26 formula; baseline $36.68M,
+  assumed below cap; Δinputs: basic/gifted ride deltas, served-school count, avg distance):
+  Δ inputs (means): BasicRiders +850, SpecialRiders -2, Destinations -18.0, AvgDistance +0.057 mi
+  revenue Δ: -7.03 [-7.22, -6.86] $M/yr
+  NET fiscal Δ (revenue − bus cost): -9.58 [-9.67, -9.49] $M/yr
+
+Avg stop→school distance, rider-weighted (basic, miles; STARS calls this 'average_distance'):
+   mean:  1.56 →  1.62   Δ +0.057 [+0.053, +0.062]
+    p50:  1.26 →  1.37   Δ +0.108 [+0.085, +0.132]
+    p90:  2.80 →  2.84   Δ +0.043 [+0.012, +0.087]
+
+Per-school movers (|mean Δriders| > 0.5): 63
+  Salmon Bay               basic    313.3 →     0.0   Δ  -313.3 [-342.1, -286.0]   routes Δ -6.32
+  TOPS                     basic    305.1 →     0.0   Δ  -305.1 [-325.9, -287.0]   routes Δ -6.16
+  Green Lake               basic    205.7 →     0.0   Δ  -205.7 [-224.5, -190.2]   routes Δ -4.15
+  Boren                    basic    191.4 →     0.0   Δ  -191.4 [-205.0, -179.1]   routes Δ -3.86
+  Decatur                  gifted   174.4 →     0.0   Δ  -174.4 [-175.3, -173.7]   routes Δ -5.30
+  Broadview-Thomson        basic    168.6 →     0.0   Δ  -168.6 [-179.4, -158.6]   routes Δ -3.40
+  Lafayette                basic    159.8 →     0.0   Δ  -159.8 [-171.3, -150.1]   routes Δ -3.22
+  Blaine                   basic    134.6 →     0.0   Δ  -134.6 [-146.3, -121.7]   routes Δ -2.72
+  North Beach              basic    118.5 →     0.0   Δ  -118.5 [-131.0, -107.2]   routes Δ -2.39
+  Laurelhurst              basic    109.1 →     0.0   Δ  -109.1 [-117.5, -102.2]   routes Δ -2.20
+  Hazel Wolf               basic    325.9 →   443.7   Δ  +117.8 [+111.7, +123.5]   routes Δ +2.38   dist 1.50→1.45mi
+  Montlake                 basic     57.7 →   180.6   Δ  +122.9 [+116.3, +129.8]   routes Δ +2.48   dist 0.85→1.05mi
+  Bagley                   basic    125.6 →   266.2   Δ  +140.7 [+131.8, +150.7]   routes Δ +2.84   dist 1.43→1.48mi
+  Stanford                 basic    131.3 →   273.6   Δ  +142.3 [+120.5, +169.3]   routes Δ +2.87   dist 1.91→2.21mi
+  South Shore              basic    259.5 →   429.8   Δ  +170.3 [+156.4, +183.4]   routes Δ +3.44   dist 2.32→2.37mi
+  Cascadia                 gifted   473.6 →   646.3   Δ  +172.7 [+171.8, +173.5]   routes Δ +5.25
+  McDonald                 basic    125.2 →   325.5   Δ  +200.4 [+165.4, +246.1]   routes Δ +4.04   dist 1.60→2.27mi
+  Baldwin                  basic    104.5 →   343.6   Δ  +239.1 [+221.4, +258.3]   routes Δ +4.83   dist 1.08→1.32mi
+  Genesee Hill             basic    107.9 →   363.0   Δ  +255.0 [+236.2, +276.8]   routes Δ +5.15   dist 1.50→1.47mi
+  Pathfinder               basic    351.9 →   735.2   Δ  +383.3 [+341.3, +402.0]   routes Δ +7.74   dist 2.36→2.26mi
+
+Equity cuts (basic program; Δriders summed per group per draw):
+  by school low-income share (RC 2024-25 terciles):
+    low (≤18%)             ( 28 schools,   3,295 base riders)  Δ  +750.8 [+681.6, +835.0]
+    mid (18%–48%)          ( 25 schools,   3,292 base riders)  Δ  -815.2 [-856.1, -779.5]
+    high (>48%)            ( 25 schools,   3,421 base riders)  Δ  +914.8 [+855.8, +970.1]
+  by ES attendance-area poverty % (terciles; neighborhood ES only):
+    low (≤18)              ( 20 schools,   1,783 base riders)  Δ  +362.1 [+334.1, +391.6]
+    mid (18–46)            ( 18 schools,   1,767 base riders)  Δ  -191.3 [-218.2, -162.4]
+    high (>46)             ( 15 schools,   1,601 base riders)  Δ  +704.6 [+658.6, +749.3]
+    (no ES area)           ( 25 schools,   4,857 base riders)  Δ   -25.1 [-93.8, +33.7]

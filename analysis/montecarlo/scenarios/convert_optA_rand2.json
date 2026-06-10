@@ -1,0 +1,11 @@
+{
+  "name": "convert_optA_rand2",
+  "description": "Convert 5 of the 6 option schools on the Option A closure list to neighborhood schools (random combo 2 of 2, seed 20260610): Cedar Park, TOPS, Orca, Licton Springs, Boren (Salmon Bay stays option). Same steady-state conversion semantics as convert_optA_rand1.",
+  "ops": [
+    {"op": "convert_option_to_neighborhood", "school_id": 210, "comment": "Cedar Park"},
+    {"op": "convert_option_to_neighborhood", "school_id": 935, "comment": "TOPS K-8"},
+    {"op": "convert_option_to_neighborhood", "school_id": 939, "comment": "Orca K-8"},
+    {"op": "convert_option_to_neighborhood", "school_id": 955, "comment": "Licton Springs K-8"},
+    {"op": "convert_option_to_neighborhood", "school_id": 972, "comment": "Boren STEM K-8"}
+  ]
+}

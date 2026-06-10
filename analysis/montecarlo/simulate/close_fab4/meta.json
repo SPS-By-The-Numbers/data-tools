@@ -1,0 +1,43 @@
+{
+  "scenario": "close_fab4",
+  "description": "The 'fab-4' closure plan: close 4 elementaries, each consolidating into one named receiver (kids move to the designated school rather than the engine's 3-nearest default): North Beach -> Viewlands, Sacajawea -> John Rogers, Stevens -> Montlake, Sanislo -> Highland Park.",
+  "ops": [
+    {
+      "op": "close_school",
+      "school_id": 259,
+      "receivers": [
+        276
+      ],
+      "comment": "North Beach ES -> Viewlands"
+    },
+    {
+      "op": "close_school",
+      "school_id": 268,
+      "receivers": [
+        266
+      ],
+      "comment": "Sacajawea ES -> John Rogers"
+    },
+    {
+      "op": "close_school",
+      "school_id": 272,
+      "receivers": [
+        255
+      ],
+      "comment": "Stevens ES -> Montlake"
+    },
+    {
+      "op": "close_school",
+      "school_id": 273,
+      "receivers": [
+        235
+      ],
+      "comment": "Sanislo ES -> Highland Park"
+    }
+  ],
+  "n_draws": 200,
+  "seed": 20260610,
+  "sample_theta": true,
+  "sample_pop": true,
+  "runtime_s": 41.3
+}

@@ -1,5 +1,13 @@
 """Stage 11: report — summarize a saved MC run into deltas with CIs + equity cuts.
 
+UNITS (USER CORRECTION, s10): every 'riders' figure here and throughout the
+pipeline is STARS **rides per day** — AM and PM boardings each count once, so
+a student riding both ways counts as 2. Unique students are between rides/2
+and rides (long-route students disproportionately ride mornings only). The
+calibration targets (10,008.5 basic / 1,315.5 gifted) and all deltas share
+this unit; riders-per-route (49.5) is rides/day per route, ≈ 25 students on
+a one-way run.
+
 Consumes the tables Stage 10 (simulate.py) saves under simulate/<scenario>/ and
 produces the human-facing summary:
 
@@ -16,7 +24,10 @@ produces the human-facing summary:
         only (option/K-8 sites have no attendance area → "no ES area" group).
 
 Routes are derived from riders via the district riders-per-route by program
-(Stage 8 convention), so route deltas inherit the rider CIs.
+(Stage 8 convention), so route deltas inherit the rider CIs. Buses + annual
+cost (s10): fleet = the busier of the two bell shifts (ES vs MS/HS) since a
+bus serves one route per shift; cost = Δbuses × $148.9k/bus-year (SY2024-25
+all-in vendor cost — constants + sources at the top of this module).
 
 Run:   python3 -m analysis.montecarlo.report <scenario> [--save] [--top N]
        python3 -m analysis.montecarlo.report              # list saved runs
@@ -43,6 +54,64 @@ from analysis.montecarlo import simulate as sim
 from analysis.montecarlo.school_directory import load_schools
 
 CI_LO, CI_HI = 0.025, 0.975
+
+# --- Bus fleet + cost model (user-ingested facts, s10) -----------------------
+# SPS fully outsources transportation. SY2024-25 purchased-transportation
+# spend: $56.89M / 382 buses ≈ $148.9k per bus-year — the ALL-IN vendor cost
+# (contracted base daily rate ~$580-650/bus/day plus excess hours,
+# attendants, field trips, McKinney-Vento, KPI adjustments; ≈ $820/bus/day
+# over ~181 service days). SY2023-24 nearly identical ($56.56M/381 ≈
+# $148.4k). Adding district-side supervision/crossing guards (~$4.7M/yr)
+# ≈ +$12k → ~$161k total. Pre-COVID ≈ $106k (SY2018-19: $37.5M/355);
+# SY2022-23 (~$169k) was the one-time Zūm-failure outlier — excluded.
+COST_PER_BUS_YEAR = 148_900  # all-in vendor cost, SY2024-25
+
+# A bus serves one route per bell shift; SPS runs 2 shifts (ES at a
+# different bell time from MS/HS), so the fleet size is the MAX of
+# simultaneously active routes: max(ES-shift routes, MS/HS-shift routes),
+# pooled across the modeled programs (basic + gifted — a bus can pair an
+# ES gifted run with an MS basic run). K-8s ride the ES shift (one bell
+# time, level "ES"). Validation vs STARS 2024-25: the rule gives
+# max(144+27, 47+13) = 171 buses vs the actual basic+gifted 162 (+5.6%).
+_SHIFT = {"ES": "es", "MS": "ms_hs", "HS": "ms_hs"}
+
+# --- STARS pupil-transportation reimbursement (EXAL), user-ingested s10 -----
+# 2025-26 formula. Allocation = min(EXAL, D2 prior-year cap $59.8M) +
+# LegSalaryAdj ($1,048,782). Per user instruction we assume the cap is never
+# hit and coefficients are stable year-to-year, so the salary adj and cap
+# drop out of every delta. Rider inputs are AM+PM boarding counts (rides/day,
+# same unit as this pipeline). At the SY2024-25 inputs EXAL = exp(17.41780)
+# ≈ $36.68M, and the marginal value of one basic boarding is
+# 0.66498·EXAL/(BasicRiders+1) ≈ $2,653.
+EXAL_COEF = {
+    "b_basic": 0.66498,     # · ln(BasicRiders + 1)
+    "b_special": 0.11000,   # · ln(SpecialRiders + 1)
+    "b_dest": 0.01523,      # · Destinations (linear)
+    "b_avgdist": 0.04231,   # · AvgDistance (linear, miles)
+    "b_landarea": 0.02839,  # · ln(LandArea sq mi)
+    "b_nonhigh": -0.29176,  # · NonHighDist (0 for SPS)
+    "constant": 8.60130,
+}
+EXAL_BASE = {               # official SY2024-25 SPS inputs
+    "basic": 9194.75,       # NOTE: a different STARS count than the model's
+    "special": 4256.25,     # 10,008.5 quarterly-metrics baseline — scenario
+    "dest": 105.75,         # DELTAS are applied on top of these inputs.
+    "avgdist": 2.16,        # Gifted deltas feed SpecialRiders (gifted is a
+    "landarea": 85.50,      # "special" program in STARS; 4,256 ≈ gifted
+    "nonhigh": 0.0,         # 1,316 + special_ed 2,506 + early_ed/etc.)
+}
+
+
+def _exal(basic: np.ndarray, special: np.ndarray, dest: np.ndarray,
+          avgdist: np.ndarray) -> np.ndarray:
+    c = EXAL_COEF
+    return np.exp(c["b_basic"] * np.log(basic + 1)
+                  + c["b_special"] * np.log(special + 1)
+                  + c["b_dest"] * dest
+                  + c["b_avgdist"] * avgdist
+                  + c["b_landarea"] * np.log(EXAL_BASE["landarea"])
+                  + c["b_nonhigh"] * EXAL_BASE["nonhigh"]
+                  + c["constant"])
 
 
 def _ci(s: pd.Series) -> tuple[float, float]:
@@ -76,6 +145,66 @@ def district_summary(run: dict) -> pd.DataFrame:
             "d_routes_lo": lo / rpr[prog], "d_routes_hi": hi / rpr[prog],
         })
     return pd.DataFrame(rows)
+
+
+def bus_cost_summary(run: dict) -> pd.DataFrame:
+    """Per draw: bell-shift fleet size baseline vs scenario + annual cost delta.
+
+    Routes per school from riders via riders-per-route; buses per draw =
+    max over the 2 bell shifts of the shift's route total (see _SHIFT note);
+    cost delta = Δbuses × COST_PER_BUS_YEAR.
+    """
+    tgt = rid.district_targets()
+    rpr = {"basic": tgt["on_bus"] / tgt["routes_basic"],
+           "gifted": tgt["gifted"] / tgt["routes_gifted"]}
+    sc = run["school"].copy()
+    levels = load_schools().set_index("school_id")["level"]
+    sc["shift"] = sc["school_id"].map(levels).map(_SHIFT)
+    for arm in ("base", "scen"):
+        sc[f"{arm}_routes"] = sc[f"{arm}_riders"] / sc["program"].map(rpr)
+    per_shift = sc.groupby(["draw", "shift"])[["base_routes", "scen_routes"]].sum()
+    out = per_shift.groupby(level="draw").max()  # fleet = the busier shift
+    out = out.rename(columns={"base_routes": "base_buses", "scen_routes": "scen_buses"})
+    out["d_buses"] = out["scen_buses"] - out["base_buses"]
+    out["d_cost"] = out["d_buses"] * COST_PER_BUS_YEAR
+    return out.reset_index()
+
+
+def funding_summary(run: dict) -> pd.DataFrame:
+    """Per draw: EXAL reimbursement delta from the scenario's input changes.
+
+    Scenario deltas (basic rides → BasicRiders, gifted rides → SpecialRiders,
+    served-school count → Destinations, rider-weighted basic avg distance →
+    AvgDistance) are applied on top of the official EXAL_BASE inputs;
+    d_revenue = EXAL(scen inputs) − EXAL(base inputs) per draw.
+    """
+    d = run["district"]
+    db = d[d.program == "basic"].set_index("draw")
+    dg = d[d.program == "gifted"].set_index("draw")
+    d_basic = db["d_riders"]
+    d_gift = dg["d_riders"].reindex(d_basic.index).fillna(0.0)
+    if "base_dist_mean" in db.columns and db["base_dist_mean"].notna().any():
+        d_dist = (db["scen_dist_mean"] - db["base_dist_mean"]).fillna(0.0)
+    else:
+        d_dist = pd.Series(0.0, index=d_basic.index)
+
+    sc = run["school"]
+    served = sc.groupby(["draw", "school_id"])[["base_riders", "scen_riders"]].sum()
+    n_base = served.groupby(level="draw").agg(n=("base_riders", lambda s: (s > 0.5).sum()))["n"]
+    n_scen = served.groupby(level="draw").agg(n=("scen_riders", lambda s: (s > 0.5).sum()))["n"]
+    d_dest = (n_scen - n_base).reindex(d_basic.index).fillna(0.0)
+
+    B = EXAL_BASE
+    base_rev = _exal(np.full(len(d_basic), B["basic"]), np.full(len(d_basic), B["special"]),
+                     np.full(len(d_basic), B["dest"]), np.full(len(d_basic), B["avgdist"]))
+    scen_rev = _exal(B["basic"] + d_basic.to_numpy(), B["special"] + d_gift.to_numpy(),
+                     B["dest"] + d_dest.to_numpy(), B["avgdist"] + d_dist.to_numpy())
+    return pd.DataFrame({
+        "draw": d_basic.index, "d_basic": d_basic.to_numpy(),
+        "d_special": d_gift.to_numpy(), "d_dest": d_dest.to_numpy(),
+        "d_avgdist": d_dist.to_numpy(), "base_revenue": base_rev,
+        "scen_revenue": scen_rev, "d_revenue": scen_rev - base_rev,
+    })
 
 
 def school_summary(run: dict) -> pd.DataFrame:
@@ -176,13 +305,38 @@ def report(name: str, top: int = 10, save: bool = False) -> str:
     if flags:
         w(f"  [{', '.join(flags)}]\n")
 
-    w("\nDistrict (riders are means over draws; deltas show 95% CI):\n")
+    w("\nDistrict (means over draws; deltas show 95% CI). NOTE: 'riders' = "
+      "STARS rides/day —\n  AM and PM boardings each count, so a both-ways "
+      "student counts as 2; unique\n  students are between half and all of "
+      "the figure (long-route kids often ride AM only):\n")
     for _, r in district_summary(run).iterrows():
         w(f"  {r['program']:6s}: riders {r['base_riders']:9,.1f} → "
           f"{r['scen_riders']:9,.1f}   Δ {r['d_riders_mean']:+7.1f} "
           f"[{r['d_riders_lo']:+.1f}, {r['d_riders_hi']:+.1f}]"
           f"   est routes Δ {r['d_routes_mean']:+5.2f} "
           f"[{r['d_routes_lo']:+.2f}, {r['d_routes_hi']:+.2f}]\n")
+
+    bc = bus_cost_summary(run)
+    w("\nBus fleet + annual cost (2 bell shifts: fleet = busier of ES vs "
+      "MS/HS shift;\n"
+      f"  ${COST_PER_BUS_YEAR/1000:.1f}k per bus-year, SY2024-25 all-in "
+      "vendor cost — see report.py constants):\n")
+    w(f"  buses: {bc['base_buses'].mean():6.1f} → {bc['scen_buses'].mean():6.1f}"
+      f"   Δ {_fmt_ci(bc['d_buses'], '+.1f')}\n")
+    w(f"  annual cost Δ: {_fmt_ci(bc['d_cost'] / 1e6, '+,.2f')} $M/yr\n")
+
+    fs = funding_summary(run)
+    w("\nState funding (STARS EXAL reimbursement, 2025-26 formula; baseline "
+      f"${fs['base_revenue'].mean()/1e6:.2f}M,\n"
+      "  assumed below cap; Δinputs: basic/gifted ride deltas, served-school "
+      "count, avg distance):\n")
+    w(f"  Δ inputs (means): BasicRiders {fs['d_basic'].mean():+,.0f}, "
+      f"SpecialRiders {fs['d_special'].mean():+,.0f}, "
+      f"Destinations {fs['d_dest'].mean():+,.1f}, "
+      f"AvgDistance {fs['d_avgdist'].mean():+.3f} mi\n")
+    w(f"  revenue Δ: {_fmt_ci(fs['d_revenue'] / 1e6, '+,.2f')} $M/yr\n")
+    net = (fs.set_index("draw")["d_revenue"] - bc.set_index("draw")["d_cost"]) / 1e6
+    w(f"  NET fiscal Δ (revenue − bus cost): {_fmt_ci(net, '+,.2f')} $M/yr\n")
 
     d = run["district"]
     db = d[d.program == "basic"]

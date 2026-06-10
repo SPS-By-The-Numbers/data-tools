@@ -1,4 +1,4 @@
-"""Stage 9: scenarios — machine-readable scenario spec + the 5 ops → mutated world.
+"""Stage 9: scenarios — machine-readable scenario spec + the 6 ops → mutated world.
 
 A *scenario* is an ordered list of composable operations applied to a copy of
 the baseline world (geography + school directory + draw kernels). ``apply``
@@ -19,6 +19,7 @@ Operations (see NOTES.md "Architecture (LOCKED)"):
   convert_option_to_neighborhood {school_id, stay_rate?: float}
   move_school                    {school_id, new_location: [x_ft, y_ft] (EPSG:2926)
                                   | {lat, lon}, move_geozone?: bool}
+  add_basic_service              {level: ES|MS|HS | school_ids: [ids]}
 
 Key modeling choices:
 
@@ -127,7 +128,7 @@ WALK_THRESHOLD_MI = {"ES": 1.0, "MS": 2.0, "HS": 2.0}
 HCC_ERA = "pathway_2023_2025"
 
 _OPS = ("set_walk_threshold", "scale_walkzone", "close_school",
-        "convert_option_to_neighborhood", "move_school")
+        "convert_option_to_neighborhood", "move_school", "add_basic_service")
 
 
 # ---------------------------------------------------------------------------
@@ -151,6 +152,7 @@ class World:
     att_layers: dict               # band → attendance-area GeoDataFrame (FIXED)
     geozones: gpd.GeoDataFrame     # option geozones: school_id, level, geometry
     basic_ids: set                 # schools with basic yellow-bus service
+    bus_bands: set                 # grade bands with basic service (baseline {es, ms})
     gifted: pd.DataFrame           # school_id, grade_band, kernel, n_hc, member_area_ids
     walk_mult: pd.Series           # school_id → calibrated buffer multiplier
     stay_rates: dict               # band → observed stay-rate
@@ -169,6 +171,7 @@ class World:
             att_layers=self.att_layers,      # shared, never mutated
             geozones=self.geozones.copy(),
             basic_ids=set(self.basic_ids),
+            bus_bands=set(self.bus_bands),
             gifted=self.gifted.copy(deep=True),
             walk_mult=self.walk_mult.copy(),
             stay_rates=dict(self.stay_rates),
@@ -271,6 +274,7 @@ def baseline_world(rebuild: bool = False) -> World:
         points=points, walkzones=walkzones, schools=schools, flows=flows,
         col_marg=col_marg, weights=weights, att_layers=att_layers,
         geozones=geozones, basic_ids=basic_ids,
+        bus_bands={"es", "ms"},
         gifted=_baseline_gifted(schools),
         walk_mult=_baseline_walk_mult(walkzones, points, schools),
         stay_rates=stay, band_targets=band_targets,
@@ -351,13 +355,36 @@ def _open_ids(world: World, classification: str | None = None,
 
 
 # ---------------------------------------------------------------------------
-# The 5 ops
+# The ops
 # ---------------------------------------------------------------------------
 
 def op_set_walk_threshold(world: World, level: str, miles: float) -> None:
     """Regenerate every open school's walk zone at a new threshold (one level)."""
     for sid in _open_ids(world, level=level):
         _buffer_zone(world, sid, world.walk_mult.loc[sid] * miles * FEET_PER_MILE)
+
+
+def op_add_basic_service(world: World, level: str | None = None,
+                         school_ids: list[int] | None = None) -> None:
+    """Grant basic yellow-bus service to schools that lack it.
+
+    Give exactly one of ``level`` (every open school of that level, e.g. HS —
+    "re-add high-school bussing") or ``school_ids``. Walk zones are NOT
+    touched — compose with ``set_walk_threshold`` / ``scale_walkzone`` to
+    change them. The schools' grade bands join the bus-served band set, so
+    HS assignment cells start flowing through ridership. Riders get the
+    baseline-calibrated propensity (distance decay + demographic tilt;
+    ``is_ms`` is 0 for HS) and basic riders-per-route for route estimates —
+    there is no HS yellow-bus history to calibrate against.
+    """
+    if (level is None) == (school_ids is None):
+        raise ValueError("add_basic_service: give exactly one of level / school_ids")
+    ids = _open_ids(world, level=level) if level else [int(s) for s in school_ids]
+    world.basic_ids |= set(ids)
+    sn = world.schools.set_index("school_id")
+    band_of = {"ES": ("es", "ms"), "MS": ("ms",), "HS": ("hs",)}  # K-8s are level ES
+    for sid in ids:
+        world.bus_bands |= set(band_of[sn.loc[sid, "level"]])
 
 
 def op_scale_walkzone(world: World, school_id: int,
@@ -567,6 +594,7 @@ _OP_FNS = {
     "close_school": op_close_school,
     "convert_option_to_neighborhood": op_convert_option_to_neighborhood,
     "move_school": op_move_school,
+    "add_basic_service": op_add_basic_service,
 }
 
 
@@ -602,6 +630,7 @@ _REQUIRED = {
     "close_school": {"school_id"},
     "convert_option_to_neighborhood": {"school_id"},
     "move_school": {"school_id", "new_location"},
+    "add_basic_service": set(),
 }
 
 
@@ -658,6 +687,15 @@ def validate_scenario(scenario: Scenario, world: World | None = None) -> list[st
                 probs.append(f"{tag}: school {sid} is not an option school")
             elif sid not in geozone_ids:
                 probs.append(f"{tag}: option school {sid} has no geozone")
+        elif kind == "add_basic_service":
+            if ("level" in op) == ("school_ids" in op):
+                probs.append(f"{tag}: give exactly one of level / school_ids")
+            elif "level" in op and op["level"] not in WALK_THRESHOLD_MI:
+                probs.append(f"{tag}: level must be one of {sorted(WALK_THRESHOLD_MI)}")
+            else:
+                for s in (op.get("school_ids") or []):
+                    if s not in known or s in closed:
+                        probs.append(f"{tag}: bad school_id {s}")
         elif kind == "move_school":
             loc = op["new_location"]
             ok = (isinstance(loc, dict) and {"lat", "lon"} <= set(loc)) or \
@@ -736,7 +774,8 @@ def _baseline_calibration(params: rid.RidershipParams) -> dict:
                               col_marg=world.col_marg)
     walk = walk_fractions(walkzones=world.walkzones)
     cells = rid.basic_cells(assignment, walk, points=world.points,
-                            basic_ids=world.basic_ids)
+                            basic_ids=world.basic_ids,
+                            bands=tuple(sorted(world.bus_bands)))
     gifted = scenario_gifted_pool(world, assignment, walk, pop)
     _, info = rid.expected_riders(params=params, cells=cells, gifted=gifted,
                                   return_info=True)
@@ -765,7 +804,8 @@ def evaluate(world: World, params: rid.RidershipParams | None = None,
     walk = walk_fractions(walkzones=world.walkzones)
     cells = rid.basic_cells(assignment, walk, points=world.points,
                             basic_ids=world.basic_ids,
-                            covar_means=cal["covar_means"])
+                            covar_means=cal["covar_means"],
+                            bands=tuple(sorted(world.bus_bands)))
     gifted = scenario_gifted_pool(world, assignment, walk, pop)
     riders, info = rid.expected_riders(params=params, cells=cells, gifted=gifted,
                                        fixed_scale=cal["scale"], return_info=True)

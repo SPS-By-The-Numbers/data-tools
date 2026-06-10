@@ -12,14 +12,22 @@ rates) are uncertain and we want distributions, not point estimates.
 > top-to-bottom and continue without re-deriving anything. Keep it honest —
 > record what is *assumed/unverified* as well as what is *done*.
 
-Last updated: **2026-06-10** (session 9 — M7 `simulate.py` + `report.py`
-DONE; **all milestones M1-M7 complete — the pipeline is fully built**).
-**Next session:** real scenario definitions from the user (Prompt D) — the
-machinery runs any spec end-to-end in ~40 s for 200 draws:
+Last updated: **2026-06-10** (session 10 — 11 user scenarios specified +
+run end-to-end: walk-zone changes, HS bussing, KUOW Option A/B closures,
+option→neighborhood conversions, fab-4 closure. New 6th op
+`add_basic_service`; bus-fleet cost model ($148.9k/bus-yr, 2-bell-shift
+fleet rule) and the STARS EXAL funding formula wired into report.py →
+every report now ends in a NET fiscal Δ ($M/yr). UNITS CORRECTION: all
+"riders" figures are STARS rides/day (AM+PM boardings; both-ways student
+= 2). Results: scenario + fiscal tables in "User scenarios" below; full
+text in `simulate/<name>/report.txt`). The machinery runs any spec
+end-to-end in ~40 s for 200 draws:
 `python3 -m analysis.montecarlo.simulate --scenario <name>` then
-`python3 -m analysis.montecarlo.report <name> --save`. Remaining model-quality
-work lives in the open questions (4 walk-rule verification, 4b MS HC
-pathways, 6 requirements pinning).
+`python3 -m analysis.montecarlo.report <name> --save`. Remaining
+model-quality work: the Madison+Denny→Washington 2023-2025 MS-pathway
+assumption (4b note) is still unverified; known per-school basic/gifted
+double-count at the 4 mixed MS pathway sites (see the HCC-verification
+decision-log entry).
 
 Scenario scope EXPANDED in session 2: besides walk-zone changes and closures,
 we also model **converting option schools to neighborhood schools** and
@@ -28,6 +36,13 @@ we also model **converting option schools to neighborhood schools** and
 ---
 
 ## Current state (what exists today)
+
+- **`OVERVIEW.md`** — NEW (s10): technical documentation of the simulation
+  (pipeline construction, variables + sampling distributions, fitted θ,
+  fiscal models, calibration/validation table, enumerated assumptions and
+  limitations) with GitHub links into the code. Audience: technical
+  reviewers. KEEP IN SYNC when the model changes — especially the fitted-θ
+  table, the validation table, and the assumptions list.
 
 - **`parse_shapes.py`** — DONE. Loads + normalizes the 7 SPS transportation
   shapefiles into a `Shapes` dataclass. Run `python3 -m
@@ -157,9 +172,12 @@ we also model **converting option schools to neighborhood schools** and
   `expected_riders(assignment, walk, params)` pure core,
   `sample_riders(rng, ...)` Poisson MC wrapper. Stage 10 samples θ via
   `dataclasses.replace(load_params(), ...)`.
-- **`scenarios.py`** — DONE (session 8). Stage 9: scenario engine — the 5 ops
-  (`set_walk_threshold`, `scale_walkzone`, `close_school`,
-  `convert_option_to_neighborhood`, `move_school`) over a `World` dataclass
+- **`scenarios.py`** — DONE (session 8; 6th op s10). Stage 9: scenario
+  engine — the 6 ops (`set_walk_threshold`, `scale_walkzone`, `close_school`,
+  `convert_option_to_neighborhood`, `move_school`, `add_basic_service`
+  (s10 — grants basic service by level or ids, e.g. re-add HS bussing;
+  `World.bus_bands` + `basic_cells(bands=)` carry the served grade bands))
+  over a `World` dataclass
   copied from the baseline; specs are tracked JSONs under `scenarios/` (see
   README there). Run `python3 -m analysis.montecarlo.scenarios`
   (`--validate` = empty-scenario baseline check, `--run <name>` = delta
@@ -229,7 +247,83 @@ we also model **converting option schools to neighborhood schools** and
   code exists yet — next concrete step is Stage 2 `school_directory.py`
   (STARS name→school_id join + school classification).
 
-### KEY JOIN FACT (established session 1)
+### User scenarios — SPECIFIED + RUN session 10 (Prompt D)
+All three: spec under `scenarios/`, 200-draw MC (seed 20260610) under
+`simulate/<name>/`, full summary in `simulate/<name>/report.txt`. Deltas are
+vs. the 2024-25 baseline (basic 10,008 riders / 202 routes), 95% CIs.
+
+UNITS (user correction, s10): "riders" everywhere = STARS **rides/day**
+(AM + PM boardings each count; a both-ways student = 2; unique students are
+between half and all of the figure — long-route kids often ride AM only).
+
+| scenario | spec | Δ basic rides/day | Δ est routes | Δ buses (Δ$M/yr) | Δ avg stop→school dist |
+|---|---|---|---|---|---|
+| `ms_walk_1mi` | MS walk zones 2 → 1 mi | **+2,073** [+1,901, +2,228] | +41.8 [+38.4, +45.0] | **+0.0 (+$0.00)** | −0.08 mi (district mean) |
+| `hs_bussing` | re-add HS yellow bus, walk zones as-is (2 mi) | **+2,780** [+2,542, +3,016] | +56.1 [+51.3, +60.9] | **+0.0 (+$0.00)** | +0.23 mi |
+| `hs_bussing_1mi` | HS yellow bus + HS walk zones 2 → 1 mi | **+5,908** [+5,463, +6,364] | +119.2 [+110.3, +128.4] | +3.5 [0, +13.9] (+$0.52) | +0.08 mi |
+| `close_option_a` | KUOW "well-resourced" plan: close 21 schools | **+850** [+758, +937] | +17.2 [+15.3, +18.9] | +17.1 (+$2.55) | +0.06 mi |
+| `close_option_b` | KUOW "choice" plan: close 17 schools incl. Thurgood Marshall | **+1,136** [+1,078, +1,188] | +22.9 [+21.8, +24.0] | +23.0 (+$3.42) | +0.06 mi |
+| `close_fab4` | close North Beach, Sacajawea, Stevens, Sanislo → named single receivers | **+174** [+141, +206] | +3.5 [+2.8, +4.2] | +3.5 (+$0.52) | ±0.00 mi |
+| `convert_optA_rand1` | convert 5/6 Option-A option schools to neighborhood (keeps Boren option) | **+240** [+203, +280] | +4.8 [+4.1, +5.7] | +7.5 (+$1.12) | +0.09 mi |
+| `convert_optA_rand2` | same, other random combo (keeps Salmon Bay option) | **+238** [+208, +273] | +4.8 [+4.2, +5.5] | +7.9 (+$1.18) | +0.09 mi |
+
+Bus/cost column from the bell-shift fleet rule (s10, see below): MS/HS-shift
+route additions are FREE in fleet terms while the ES shift stays the busier
+one — which is why `ms_walk_1mi` and `hs_bussing` show +42/+56 routes but
++0 buses, and why the conversions (+4.8 routes, all ES-shift) cost MORE
+buses (+7.5) than their net route delta.
+
+Fiscal totals with the STARS EXAL funding formula (s10, 95% CIs; revenue =
+state reimbursement change, cost = bus fleet change, NET = revenue − cost):
+
+| scenario | Δ EXAL revenue $M/yr | Δ bus cost $M/yr | **NET $M/yr** |
+|---|---|---|---|
+| `ms_walk_1mi` | +5.33 [+4.90, +5.71] | 0.00 | **+5.33** |
+| `hs_bussing` | +17.13 [+16.40, +17.83] | 0.00 | **+17.13** |
+| `hs_bussing_1mi` | +25.72 [+24.50, +26.93] (CROSSES the $59.8M cap) | +0.52 | **+25.19** |
+| `close_option_a` | −7.03 [−7.22, −6.86] | +2.55 | **−9.58** |
+| `close_option_b` | −4.09 [−4.22, −3.98] | +3.42 | **−7.51** |
+| `close_option_b_dearborn` | −4.58 [−4.71, −4.48] | +3.40 | **−7.99** |
+| `close_fab4` | −1.20 [−1.28, −1.12] | +0.52 | **−1.72** |
+| `convert_optA_rand1` | +0.77 [+0.67, +0.88] | +1.12 | **−0.35** |
+| `convert_optA_rand2` | +0.77 [+0.69, +0.86] | +1.18 | **−0.41** |
+| `close_sacajawea` | −0.57 | −0.02 | **−0.55** |
+| `es_walk_1p5mi` | −6.74 [−7.15, −6.39] | −7.97 | **+1.24** |
+
+Headline reversals: the KUOW closure plans LOSE ~$7.5-9.6M/yr of state
+transportation funding net (the Destinations term: each closed served
+school −0.01523 in the exponent ≈ −$0.55M at current levels — dwarfs the
+extra-rider revenue), on top of which their building-operations savings
+($31.5M/$25.5M) are outside this model. Expanding service is revenue-
+POSITIVE under the formula (more boardings + for HS, +13 destinations);
+`hs_bussing` nets +$17M/yr. es_walk_1p5mi (service cut) loses revenue but
+saves more in buses → net +$1.2M.
+
+Notes: `ms_walk_1mi` also adds +162 gifted riders (MS HCC pathway sites'
+walk zones shrink); K-8s are level "ES" so the MS op leaves them alone.
+The closure pair (from the KUOW article on SPS's 2024 consolidation
+proposals) uses the engine's DEFAULT relocation rules, NOT SPS's actual
+boundary-redraw maps: neighborhood kids → 3 nearest open neighborhood ES
+split by existing draw; option kids → nearest open option site (Pathfinder
++~380 and Hazel Wolf +~118 riders absorb most displaced option-K-8 kids in
+both plans); HCC pathways relocate intact — Decatur's HC draw → Cascadia
+(default; 646 gifted riders there in both plans), and in B Thurgood
+Marshall's HC → **Beacon Hill International (205), per the plan**
+(USER-CORRECTED s10; `close_option_b_dearborn` is the Dearborn Park (251)
+alternative the plan also names — district deltas identical, gifted Δ +1.3
+vs −3.4). Option B adds MORE bus riders than A despite closing fewer
+schools — A
+eliminates more big option-K-8 ridership outright while B's TM closure
+scatters central-Seattle kids farther. Both plans skew rider GAINS toward
+high-poverty areas (equity cut, e.g. A: high-poverty ES tercile +705 vs
+low +362) — displaced kids in those areas more often land outside their
+receiver's walk zone.
+The HS pair rests on a **non-calibratable assumption**: HS riders get the
+baseline ES/MS propensity model (distance decay + demographic tilt, is_ms=0)
+and the basic 49.5 riders-per-route — there is no SPS HS yellow-bus history
+to fit against (HS has been ORCA-only; STARS shows zero HS basic routes).
+All 13 open HS-level sites get service, incl. Center School (option) and
+Nova (service).
 `school_code` (4-digit OSPI building code) is a **clean** join across
 geography + enrollment + absenteeism:
 - `parse_shapes.load_locations().school_code` ↔ `rc_seattle` enrollment/attendance
@@ -599,8 +693,9 @@ Resolved with **working defaults** this session (revisit any time):
   upgrade path).
 
 Still genuinely open for the user:
-1. **Concrete scenario list** — which schools to convert/move/close, what
-   thresholds to sweep. (User: "will specify later." Prompt D is for this.)
+1. **Concrete scenario list** — first three specified + run s10
+   (`ms_walk_1mi`, `hs_bussing`, `hs_bussing_1mi` — see "User scenarios"
+   above); more welcome any time.
 2. **Conversion semantics** — when an option school becomes a neighborhood
    school, where does its attendance area come from: carve from its geozone,
    redraw neighboring areas (hard sub-problem), or user-supplied polygon? And
@@ -968,9 +1063,168 @@ Still genuinely open for the user:
   calibrated buffers now expand from a 1-mi base, so K-8s lose fewer
   riders; est routes −51).
 
+- **2026-06-10 (s10)** First user scenarios (Prompt D) specified, validated,
+  and run end-to-end (200 draws each, seed 20260610): `ms_walk_1mi` (MS walk
+  threshold 2 → 1 mi), `hs_bussing` (re-add HS yellow bus, walk zones
+  unchanged), `hs_bussing_1mi` (HS bussing + HS walk threshold 2 → 1 mi).
+  Headline deltas (basic riders, 95% CI): +2,073 [+1,901, +2,228] /
+  +2,780 [+2,542, +3,016] / +5,908 [+5,463, +6,364]; est routes +42 / +56 /
+  +119. Full reports in `simulate/<name>/report.txt`; specs recorded in the
+  "User scenarios" table in Current state.
+- **2026-06-10 (s10)** New 6th scenario op `add_basic_service` ({level} or
+  {school_ids}) for the HS-bussing scenarios: grants basic yellow-bus
+  service without touching walk zones (compose with the walk ops).
+  Plumbing: `World.bus_bands` (baseline {es, ms}) + a `bands=` override on
+  `ridership.basic_cells` replace the hard-coded `_BUS_BANDS` filter at the
+  three call sites (scenarios calibration/evaluate, simulate `_eval_arm`);
+  defaults unchanged — empty-scenario baseline check re-run PASS. MODELING
+  CAVEAT (recorded in the specs too): added-HS riders reuse the
+  ES/MS-calibrated propensity (distance decay, demographic tilt with
+  is_ms=0, baseline-solved scale) and basic riders-per-route (49.5) — SPS
+  has no HS yellow-bus history (ORCA only; zero HS basic routes in STARS),
+  so the HS level is an extrapolation, not a fit. `add_basic_service
+  level=HS` covers all 13 open HS sites including Center School (option)
+  and Nova (service).
+- **2026-06-10 (s10)** `ms_walk_1mi` side-effect worth remembering: the MS
+  walk-threshold op also shrinks MS HCC pathway sites' walk zones → +162
+  gifted riders ride along with the +2,073 basic. K-8s (level "ES") are
+  untouched by MS-level ops by construction.
+- **2026-06-10 (s10)** USER CORRECTION to `close_option_b`: under the real
+  plan, Thurgood Marshall's HCC service relocates to **Beacon Hill
+  International or Dearborn Park**, not the engine default (nearest gifted
+  site = Cascadia). Spec updated with `hcc_receiver: 205` (Beacon Hill);
+  variant `close_option_b_dearborn.json` carries the Dearborn Park (251)
+  alternative. Both re-run (200 draws, seed 20260610): basic deltas
+  UNCHANGED (+1,136 [+1,078, +1,188] — the receiver only moves the gifted
+  table); gifted Δ now ≈0 (+1.3 Beacon Hill / −3.4 Dearborn, vs +10.6 with
+  the Cascadia default) — TM's ~189 gifted riders land at the new site
+  (192 / 187) instead of stacking onto Cascadia, whose gain is back to the
+  Decatur-only +173. Reports re-saved.
+- **2026-06-10 (s10)** Conversion scenarios `convert_optA_rand1/2`: the
+  Option A closure list contains 6 option schools (Licton Springs 955,
+  Salmon Bay 949, Cedar Park 210, TOPS 935, Orca 939, Boren 972 — all with
+  geozones); two random 5-of-6 combos (Python `random.Random(20260610)`)
+  converted to neighborhood schools instead of closing. rand1 keeps Boren
+  option, rand2 keeps Salmon Bay. 200-draw MC: basic Δ **+240** [+203,
+  +280] and **+238** [+208, +273] — virtually identical, so WHICH 5 of the
+  6 barely matters. Counterintuitive sign worth remembering: conversion was
+  expected to cut riders (lottery draws → local walkers, e.g. TOPS −213,
+  its avg rider distance 1.86 → 1.05 mi), but steady-state semantics send
+  each converted school's former lottery enrollees back to their areas'
+  OTHER destinations pro-rata — those replacement assignments are mostly
+  non-walkable (district avg stop→school distance +0.09 mi), and Orca's
+  geozone residents at stay-rate out-ride its old diffuse draw (+99). Net:
+  the two effects nearly cancel, slightly positive.
+- **2026-06-10 (s10)** VERIFIED (user check): district **basic riders
+  exclude HCC/gifted** — the 10,008.5 calibration target is STARS
+  `basic_students_on_buses`; gifted is the separate `special_students_gifted`
+  (1,315.5) with its own propensity; special_ed (2,506) is a third program,
+  not modeled. KNOWN PER-SCHOOL CONFLATION at the 4 mixed MS pathway sites
+  (Hamilton 105, Jane Addams 106, Eagle Staff 113, Washington 117): the
+  basic-pool column marginals are TOTAL RC enrollment incl. HC kids (e.g.
+  Hamilton 989 incl. 298 HC; ~783 HC kids across the 4), and `basic_cells`
+  does not subtract them, while the SAME kids form those sites' gifted
+  pools — so per-school basic+gifted sums double-count there, and scenario
+  deltas touching those sites (e.g. ms_walk_1mi: ~+695 of the +2,073 basic
+  delta is at the 4 sites, ~25% HC-share ⇒ rough ~+175-rider overlap) carry
+  a modest double-count. District BASELINES are immune (each program
+  renormalizes to its own STARS target). Extends the s8 closure-op note
+  ("the basic column isn't split by program"). Possible fix if it starts to
+  matter: subtract `highly_capable` from `col_marg` at gifted-route sites.
+- **2026-06-10 (s10)** KUOW closure plans modeled: `close_option_a` (the
+  "well-resourced schools" plan, 21 closures incl. most option/K-8s) and
+  `close_option_b` (the "choice" plan, 17 closures incl. Thurgood
+  Marshall). All names resolved against school_directory (Hay=234,
+  Decatur=287 hcc_pathway, TM=212 mixed neighborhood+HCC). 200-draw MC:
+  A basic Δ **+850** [+758, +937] riders / +17 routes; B **+1,136**
+  [+1,078, +1,188] / +23 routes; reports in `simulate/close_option_*/`.
+  Engine-default relocations (3-nearest-neighborhood split / nearest option
+  site / HCC intact to nearest gifted site = Cascadia for both Decatur and
+  TM), sequential NW→SW op order — NOT SPS's actual reassignment maps; the
+  bus-cost increase is a lower-bound-flavored estimate of transport
+  response, and the claimed $31.5M/$25.5M savings are building-operations
+  numbers outside this model. B > A in added riders even with fewer
+  closures (A removes more big option-K-8 ridership outright). Both skew
+  rider gains toward high-poverty ES areas.
+- **2026-06-10 (s10)** Bus fleet + cost model INGESTED (user-provided):
+  SPS pays ~**$148.9k per bus-year** (SY2024-25 all-in vendor cost: $56.89M
+  purchased transportation / 382 buses; SY2023-24 ≈ $148.4k; ≈ $820/bus/day
+  over ~181 service days; base daily rate alone $580-650; +~$12k/bus if
+  district supervision/crossing-guard overhead ~$4.7M/yr is added ⇒ ~$161k;
+  pre-COVID ≈ $106k; SY2022-23 ~$169k = Zūm-failure outlier, excluded).
+  Fleet rule (user): 2 bell shifts — ES rides at a different time from
+  MS/HS, a bus serves one route per shift, so **buses = max(simultaneously
+  active routes)**. Implemented POOLED across basic+gifted in
+  `report.bus_cost_summary` (validation: rule gives max(144+27, 47+13) =
+  171 vs STARS 2024-25 actual basic+gifted buses 162, +5.6%; per-program
+  maxes do NOT reproduce STARS — basic 144 vs 123, gifted 27 vs 39). All
+  10 saved reports regenerated with the new "Bus fleet + annual cost"
+  section. Headline consequence: MS/HS-shift route additions cost ~0 buses
+  while the ES shift stays the binding max (`ms_walk_1mi` +42 routes → +0
+  buses; `hs_bussing` +56 → +0; `hs_bussing_1mi` +119 → +3.5), whereas
+  ES-shift additions pay full freight (closures +17/+23 buses →
+  +$2.6M/+$3.4M/yr; conversions +7.5/+7.9 buses → +$1.1M/+$1.2M). CAVEAT:
+  $/bus is the all-in annual average — adding a 2nd route to an existing
+  bus still adds driver-hours/fuel ("excess hours"), so the +$0.00 rows
+  are a lower bound on marginal cost.
+- **2026-06-10 (s10)** USER CORRECTION — units: the STARS counts the model
+  calibrates to (`basic_students_on_buses` 10,008.5,
+  `special_students_gifted` 1,315.5) are **RIDES per day**, not unique
+  students: AM and PM boardings each count, a both-ways student = 2; on
+  longer routes more students ride mornings only. NO math changes — model
+  and targets share the unit, so all totals/deltas/CIs stand — but every
+  "riders" label means rides/day: unique students ∈ [rides/2, rides];
+  riders-per-route 49.5 = rides/day/route ≈ 25 students on a one-way run;
+  the solved "propensity" (0.646 implied, etc.) is expected rides/day per
+  eligible student (theoretical max 2, not 1 — the p_max=0.95 cap is a
+  calibrated shape bound, not a probability ceiling); the fitted distance
+  decay partly captures the AM-only behavior on long routes. Docstrings
+  (ridership.py, report.py), report output header, this file's scenario
+  table + glossary updated; all 10 reports regenerated.
+- **2026-06-10 (s10)** STARS EXAL funding formula INGESTED (user-provided,
+  2025-26): EXAL = exp(0.66498·ln(BasicRiders+1) + 0.11·ln(SpecialRiders+1)
+  + 0.01523·Destinations + 0.04231·AvgDistance + 0.02839·ln(LandArea)
+  − 0.29176·NonHighDist + 8.6013); allocation = min(EXAL, $59.8M prior-yr
+  cap) + $1,048,782 salary adj. Per user: assume the cap never binds and
+  coefficients are stable, so cap + salary adj drop out of deltas.
+  Implemented in `report.funding_summary` + a "State funding" report
+  section with NET fiscal Δ (= revenue − bus cost) per draw; validated
+  against the user's worked numbers (baseline EXAL $36.68M, marginal
+  $2,653/boarding ✓). Scenario deltas feed the formula on top of the
+  OFFICIAL SY2024-25 inputs (BasicRiders 9,194.75 — a different STARS
+  count than the model's 10,008.5 baseline; SpecialRiders 4,256.25 takes
+  the gifted deltas since gifted is a STARS "special" program;
+  Destinations 105.75 takes the change in served-school count, riders>0.5;
+  AvgDistance 2.16 takes the rider-weighted basic distance delta as a
+  proxy — route-avg vs rider-weighted measures differ). Results in the
+  fiscal table (Current state): closures LOSE ~$7.5-9.6M/yr net (the
+  Destinations term ≈ $0.55M per served school dominates), service
+  expansions GAIN (+$5.3M ms_walk_1mi, +$17.1M hs_bussing — each new HS
+  destination is worth ~$0.7M at the bigger scale). FLAG: `hs_bussing_1mi`
+  pushes EXAL to ~$62.4M > the $59.8M cap — its +$25.7M revenue assumes
+  the user's never-hit-cap instruction; capped reality would clip it to
+  ~+$23.1M.
+- **2026-06-10 (s10)** "Fab-4" closure modeled (`close_fab4`): North Beach
+  259→Viewlands 276, Sacajawea 268→Rogers 266, Stevens 272→Montlake 255,
+  Sanislo 273→Highland Park 235 — explicit single receivers (the named
+  consolidation partners), overriding the 3-nearest default. 200-draw MC:
+  basic Δ **+174** rides/day [+141, +206], +3.5 routes/buses (+$0.52M
+  cost), EXAL revenue −$1.20M (Destinations −3, NOT −4: Sanislo has ~0
+  baseline riders — its kids walk — so it never counted as a served
+  destination), **NET −$1.72M/yr**. District avg distance unchanged.
+  Equity cut: the rider gain lands almost entirely in the high-low-income
+  tercile (+217) — Highland Park/Rogers/Viewlands absorb ex-walkers as new
+  bus riders. Each pair's riders + the displaced walkers land at the named
+  receiver (Rogers +143, Viewlands +138, Montlake +83, Highland Park +74).
+
 ---
 
 ## Glossary
+- **Riders / rides per day** — every "riders" figure in this pipeline (and
+  the STARS `*_students_on_buses` / `special_students_gifted` columns it
+  calibrates to) counts **boardings per day**: AM and PM each count once, a
+  both-ways student = 2 (USER correction, s10). Unique students ∈
+  [rides/2, rides]; long-route students disproportionately ride AM only.
 - **Walk zone** — area close enough to a school that students are *not* bus
   eligible (must walk). **Transportation zone** = bus-eligible remainder.
 - **Attendance area** — geographic zone assigned to a neighborhood school.

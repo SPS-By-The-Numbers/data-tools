@@ -1,0 +1,57 @@
+=== MC report: convert_optA_rand1 (200 draws, seed 20260610) ===
+  Convert 5 of the 6 option schools on the Option A closure list to neighborhood schools (random combo 1 of 2, seed 20260610): Cedar Park, TOPS, Orca, Salmon Bay, Licton Springs (Boren stays option). Steady-state conversion semantics: each school's geozone becomes its attendance area, residents attend at the band's observed stay-rate, former lottery enrollees return to their areas' other destinations pro-rata.
+
+District (means over draws; deltas show 95% CI). NOTE: 'riders' = STARS rides/day —
+  AM and PM boardings each count, so a both-ways student counts as 2; unique
+  students are between half and all of the figure (long-route kids often ride AM only):
+  basic : riders  10,008.5 →  10,248.5   Δ  +240.0 [+203.2, +279.7]   est routes Δ +4.84 [+4.10, +5.65]
+  gifted: riders   1,315.5 →   1,315.5   Δ    +0.0 [+0.0, +0.0]   est routes Δ +0.00 [+0.00, +0.00]
+
+Bus fleet + annual cost (2 bell shifts: fleet = busier of ES vs MS/HS shift;
+  $148.9k per bus-year, SY2024-25 all-in vendor cost — see report.py constants):
+  buses:  179.7 →  187.3   Δ +7.5 [+6.7, +8.4]
+  annual cost Δ: +1.12 [+1.00, +1.26] $M/yr
+
+State funding (STARS EXAL reimbursement, 2025-26 formula; baseline $36.68M,
+  assumed below cap; Δinputs: basic/gifted ride deltas, served-school count, avg distance):
+  Δ inputs (means): BasicRiders +240, SpecialRiders +0, Destinations +0.0, AvgDistance +0.086 mi
+  revenue Δ: +0.77 [+0.67, +0.88] $M/yr
+  NET fiscal Δ (revenue − bus cost): -0.35 [-0.39, -0.31] $M/yr
+
+Avg stop→school distance, rider-weighted (basic, miles; STARS calls this 'average_distance'):
+   mean:  1.56 →  1.65   Δ +0.086 [+0.079, +0.094]
+    p50:  1.26 →  1.37   Δ +0.109 [+0.093, +0.118]
+    p90:  2.80 →  2.96   Δ +0.165 [+0.127, +0.213]
+
+Per-school movers (|mean Δriders| > 0.5): 56
+  TOPS                     basic    305.1 →    91.9   Δ  -213.2 [-228.1, -198.9]   routes Δ -4.30   dist 1.86→1.05mi
+  Salmon Bay               basic    313.3 →   173.0   Δ  -140.3 [-154.5, -127.8]   routes Δ -2.83   dist 1.56→1.21mi
+  Loyal Heights            basic    120.1 →    44.7   Δ   -75.3 [-83.7, -68.0]   routes Δ -1.52   dist 1.18→1.74mi
+  Robert Eagle Staff       basic    238.1 →   173.5   Δ   -64.6 [-70.0, -58.4]   routes Δ -1.30   dist 2.35→2.39mi
+  Aki Kurose               basic    391.7 →   334.4   Δ   -57.4 [-63.4, -50.8]   routes Δ -1.16   dist 1.71→1.77mi
+  Hawthorne                basic    173.6 →   119.4   Δ   -54.2 [-58.0, -50.7]   routes Δ -1.09   dist 0.84→0.85mi
+  Bagley                   basic    125.6 →    72.6   Δ   -52.9 [-58.7, -46.6]   routes Δ -1.07   dist 1.43→1.88mi
+  Greenwood                basic     74.4 →    24.9   Δ   -49.5 [-56.9, -42.0]   routes Δ -1.00   dist 1.04→1.35mi
+  Whitman                  basic     86.3 →    50.2   Δ   -36.1 [-40.3, -31.9]   routes Δ -0.73   dist 1.73→1.75mi
+  Whittier                 basic     57.1 →    25.8   Δ   -31.4 [-35.7, -27.3]   routes Δ -0.63   dist 0.89→1.29mi
+  Blaine                   basic    134.6 →   138.3   Δ    +3.6 [+3.3, +4.0]   routes Δ +0.07   dist 1.38→1.38mi
+  McGilvra                 basic     93.0 →    96.7   Δ    +3.7 [+3.3, +4.0]   routes Δ +0.07   dist 0.89→0.87mi
+  McClure                  basic    140.8 →   145.6   Δ    +4.8 [+4.3, +5.4]   routes Δ +0.10   dist 2.12→2.11mi
+  Washington               basic    159.5 →   167.0   Δ    +7.5 [+6.7, +8.5]   routes Δ +0.15   dist 2.33→2.29mi
+  Cedar Park               basic     81.9 →    89.8   Δ    +7.9 [+5.8, +10.1]   routes Δ +0.16   dist 1.40→1.07mi
+  Gatzert                  basic    166.0 →   174.4   Δ    +8.3 [+7.5, +9.1]   routes Δ +0.17   dist 1.31→1.31mi
+  Meany                    basic    100.8 →   113.6   Δ   +12.7 [+11.6, +14.2]   routes Δ +0.26   dist 2.12→2.09mi
+  Lowell                   basic    275.4 →   300.1   Δ   +24.7 [+23.0, +26.3]   routes Δ +0.50   dist 1.24→1.24mi
+  Orca                     basic    107.6 →   205.9   Δ   +98.2 [+88.2, +108.9]   routes Δ +1.98   dist 1.74→1.31mi
+  Licton Springs           basic     43.4 →  1030.3   Δ  +986.9 [+968.0, +1007.2]   routes Δ +19.92   dist 2.78→2.55mi
+
+Equity cuts (basic program; Δriders summed per group per draw):
+  by school low-income share (RC 2024-25 terciles):
+    low (≤18%)             ( 28 schools,   3,295 base riders)  Δ  -385.2 [-398.3, -371.7]
+    mid (18%–48%)          ( 25 schools,   3,292 base riders)  Δ  +658.4 [+629.1, +694.7]
+    high (>48%)            ( 24 schools,   3,421 base riders)  Δ   -33.1 [-38.4, -26.7]
+  by ES attendance-area poverty % (terciles; neighborhood ES only):
+    low (≤18)              ( 20 schools,   1,783 base riders)  Δ  -183.6 [-198.7, -171.2]
+    mid (18–46)            ( 18 schools,   1,767 base riders)  Δ  -156.1 [-167.1, -145.5]
+    high (>46)             ( 14 schools,   1,601 base riders)  Δ   +15.4 [+12.6, +18.1]
+    (no ES area)           ( 25 schools,   4,857 base riders)  Δ  +564.3 [+528.1, +611.5]

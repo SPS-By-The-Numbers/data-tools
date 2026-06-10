@@ -1,9 +1,22 @@
 === MC report: es_walk_1p5mi (200 draws, seed 20260610) ===
   Expand the elementary walk threshold from 1.0 to 1.5 miles (all ES walk zones regenerated as calibrated buffers).
 
-District (riders are means over draws; deltas show 95% CI):
+District (means over draws; deltas show 95% CI). NOTE: 'riders' = STARS rides/day —
+  AM and PM boardings each count, so a both-ways student counts as 2; unique
+  students are between half and all of the figure (long-route kids often ride AM only):
   basic : riders  10,008.5 →   7,485.9   Δ -2522.6 [-2664.5, -2405.4]   est routes Δ -50.91 [-53.78, -48.55]
   gifted: riders   1,315.5 →   1,229.0   Δ   -86.5 [-88.8, -84.2]   est routes Δ -2.63 [-2.70, -2.56]
+
+Bus fleet + annual cost (2 bell shifts: fleet = busier of ES vs MS/HS shift;
+  $148.9k per bus-year, SY2024-25 all-in vendor cost — see report.py constants):
+  buses:  179.7 →  126.2   Δ -53.5 [-56.4, -51.2]
+  annual cost Δ: -7.97 [-8.40, -7.62] $M/yr
+
+State funding (STARS EXAL reimbursement, 2025-26 formula; baseline $36.68M,
+  assumed below cap; Δinputs: basic/gifted ride deltas, served-school count, avg distance):
+  Δ inputs (means): BasicRiders -2,523, SpecialRiders -87, Destinations +0.0, AvgDistance +0.297 mi
+  revenue Δ: -6.74 [-7.15, -6.39] $M/yr
+  NET fiscal Δ (revenue − bus cost): +1.24 [+1.22, +1.25] $M/yr
 
 Avg stop→school distance, rider-weighted (basic, miles; STARS calls this 'average_distance'):
    mean:  1.56 →  1.86   Δ +0.297 [+0.288, +0.304]
