@@ -122,22 +122,22 @@ we also model **converting option schools to neighborhood schools** and
   API: `load_assignment()`, `load_kernel_params()`,
   `build_matrix(pop=sample_synth_pop(rng))` (MC hook),
   `kernel_bg_weights(school_id, kind, band)` for scenario kernels
-  (neighborhood / option / hcc_pathway — hcc uses `hcc_pathways_es.csv`).
+  (neighborhood / option / hcc_pathway — hcc uses `hcc_pathways_{es,ms}.csv`
+  by band, s9).
   GOTCHA: ES od rows with grade_band "6-8" (Blaine/Broadview-Thomson blocks)
   are EXCLUDED from flows — those kids are already in the MS OD tables.
-- **`eligibility.py`** — DONE (session 6). Stage 7: walk-zone membership,
-  pure geometry. `walker_fractions.csv` (tracked under `eligibility/`):
-  2,798 nonzero (GEOID, school_id) → walk_frac pairs (fraction of the BG's
-  SPS-territory area inside the school's official walk zone; missing pair =
-  0). Scenario hook: `walk_fractions(walkzones=<gdf>)` recomputes for resized
-  polygons. API: `load_walker_fractions()`, `bus_eligible()` (joins Stage 6 ×
-  Stage 7 → per school × band n_assigned/n_walk/n_bus_eligible),
-  `validate_pipeline()`. **M4 validation (2024-25): PASS** — 77 basic-route
-  schools, ES+MS assigned 31,123, walkers 15,894 (~50%), bus-eligible
-  15,229; implied on-bus propensity 10,008/15,229 = **0.657** (Stage 8's free
-  parameter, plausible); per-school bus-eligible vs STARS basic routes
-  Pearson r=0.718, Spearman ρ=0.622; median eligible/route 79 × 0.657 ≈ 52
-  riders/route vs actual 49.5 — consistent.
+- **`eligibility.py`** — DONE (session 6; rebuilt s9 after the K-8 1-mile
+  fix). Stage 7: walk-zone membership, pure geometry. `walker_fractions.csv`
+  (tracked under `eligibility/`): 2,654 nonzero (GEOID, school_id) →
+  walk_frac pairs (fraction of the BG's SPS-territory area inside the
+  school's official walk zone; missing pair = 0). Scenario hook:
+  `walk_fractions(walkzones=<gdf>)` recomputes for resized polygons. API:
+  `load_walker_fractions()`, `bus_eligible()` (joins Stage 6 × Stage 7 → per
+  school × band n_assigned/n_walk/n_bus_eligible), `validate_pipeline()`.
+  **M4 validation (2024-25, s9 numbers): PASS** — 77 basic-route schools,
+  ES+MS assigned 31,123, bus-eligible 15,500; implied on-bus propensity
+  10,008/15,500 = **0.646**; per-school bus-eligible vs STARS basic routes
+  Pearson r=0.715, Spearman ρ=0.609.
 - **`ridership.py`** — DONE (session 7). Stage 8: ride propensity → expected
   riders per school × program, tracked under `ridership/` (see README there).
   Model per cell: `p = clip(s·f(d)·exp(β·x), 0, 0.95)` with
@@ -145,11 +145,13 @@ we also model **converting option schools to neighborhood schools** and
   centered school covariates x = (is_ms, low_income_frac, swd_frac,
   absent_rate); s re-solved every call so basic riders = the STARS district
   target (10,008) — hard renormalization, θ shapes only the distribution.
-  Fitted θ (2024-25): ρ=1.0 (pure distance DECAY), decay 4.69 mi, β_ms +0.19,
-  β_li +0.38, β_swd +6.13, β_abs −0.31. Per-school riders vs STARS basic
-  routes: **r 0.718 (flat M4) → 0.814 (shaped)**. Gifted: HC enrollment at
-  the 7 gifted-route sites spread by HCC pathway kernel (ES) / own assignment
-  column (MS, 4b caveat); solved propensity 1.011 vs the 1,316 target.
+  Fitted θ (2024-25, refit s9 after the K-8 + MS-pathway fixes): ρ=0.85
+  (decay + a 0.15 flat floor), decay 4.69 mi, β_ms +0.12, β_li +0.31,
+  β_swd +5.62, β_abs +0.06 (≈0; confirmed noise). Per-school riders vs
+  STARS basic routes: **r 0.715 (flat M4) → 0.806 (shaped)**. Gifted: HC
+  enrollment at the 7 gifted-route sites spread by HCC pathway kernel (ES
+  era 2023-2025 + MS map, s9 — 4b resolved); solved propensity 0.918 vs the
+  1,316 target.
   Riders→routes via district riders-per-route (basic 49.5, gifted 32.9).
   API: `load_ridership()`, `load_params()` → `RidershipParams` (θ dataclass),
   `expected_riders(assignment, walk, params)` pure core,
@@ -179,11 +181,12 @@ we also model **converting option schools to neighborhood schools** and
     covariate centering (`fixed_scale` / `covar_means` added to
     `ridership.py`) — re-solving would renormalize every scenario back to
     10,008 and all deltas would vanish.
-  - **M6 validation PASS:** empty scenario reproduces the tracked baseline
-    within CSV rounding (19,094 cells max |Δ| 5e-5; walk 5e-7; riders
-    0.005). Smoke `close_sacajawea`: −104 riders at Sacajawea reabsorbed as
-    +78 Olympic View / +17 Wedgwood / +4.5 Rogers, district −4.9.
-    Smoke `es_walk_1p5mi`: basic 10,008→7,170 (−57 routes est).
+  - **M6 validation PASS** (re-confirmed s9 after each model change): empty
+    scenario reproduces the tracked baseline within CSV rounding (19,094
+    cells max |Δ| 5e-5; walk 5e-7; riders 0.005). EV smokes on the final s9
+    model: `close_sacajawea` −104 riders at Sacajawea reabsorbed by 3
+    neighbors, district −7.6; `es_walk_1p5mi` basic 10,008→7,485 (−51
+    routes est).
 - **`simulate.py`** — DONE (session 9). Stage 10: the paired MC driver.
   `run_mc(scenario, n_draws, seed)` samples θ (`sample_params`: decay_mi
   lognormal σ=0.2, betas normal sd=max(0.2|β̂|, 0.05), ρ fixed at the fitted
@@ -205,11 +208,14 @@ we also model **converting option schools to neighborhood schools** and
   (basic Δriders per draw grouped by RC low-income terciles and by ES
   attendance-area `poverty` terciles). CLI: `python3 -m
   analysis.montecarlo.report <name> [--save] [--top N]`. **M7 validation
-  PASS:** `close_sacajawea` 200 draws → district basic Δ −4.4, 95% CI
-  [−11.2, +2.8] brackets the expected-value −4.9; per-school movers match
-  the M6 smoke (Sacajawea −104.2 [−107.7, −99.8] → OV +78 / Wedgwood +17 /
-  Rogers +4.5). `es_walk_1p5mi` 200 draws → basic Δ −2,835 [−3,007, −2,693]
-  (≈ the −2,838 EV run), gifted −97 (Decatur walk zone), est routes −57.
+  PASS (re-confirmed s9 on the final model — K-8 1-mi + MS pathways):**
+  `close_sacajawea` 200 draws → district basic Δ −7.1, 95% CI [−13.3, −1.8]
+  brackets the expected-value −7.6. `es_walk_1p5mi` 200 draws → basic
+  Δ −2,523 [−2,664, −2,405] (EV −2,524), gifted −86.5, est routes −51.
+  **Headline outputs (user, s9): Δriders, Δroutes, Δ avg stop→school
+  distance** — school_draws carries per-school rider-weighted distance; no
+  AM/PM split (STARS has no direction/AM-PM dimension anywhere — checked
+  metrics + route numbering).
 - **`section4_seattle.py`** — DONE (session 2). Parses
   `data/2024-25-section4.pdf` into the observed area→school OD matrix +
   option-school draw tables under tracked `section4/`. The empirical anchor
@@ -237,10 +243,10 @@ geography + enrollment + absenteeism:
 
 ### Environment / deps
 - Work inside the repo venv: `source venv/bin/activate`.
-- Added this session (NOT yet pinned in `requirements.txt` — **open task**):
-  `geopandas`, `shapely`, `pyproj`, `pyogrio`. These upgraded `pandas` to 3.0
-  and `numpy` to 2.4 in the venv. Decide whether to pin or keep a separate
-  geo-requirements file (the SAFS pipeline may not want pandas 3.0).
+- `requirements.txt` is fully PINNED (s9) to the working venv, including the
+  geo stack (`geopandas` 1.1.3, `shapely`, `pyproj`, `pyogrio`) and the
+  pandas 3.0.3 / numpy 2.4.6 they pulled forward. Single requirements file —
+  no separate geo-requirements; the SAFS pipeline runs on the same versions.
 
 ---
 
@@ -273,10 +279,17 @@ thresholds) and reprojects to 4326 on demand for lat/long.
 - 4 walk-zone school_ids (911/950/960/983 = John Marshall, South Lake, World
   School, "Y - Mc @ Uw") are closed/leased/service schools absent from
   `locations`. Kept but flagged.
-- **SPS walk thresholds (verify before using):** ~1 mile for elementary, ~2
-  miles for middle/high. These define who is *walk-zone* (ineligible for the
-  bus) vs *transportation-zone* (eligible). Confirm exact rule + any
-  hazard-route exceptions.
+- **SPS walk thresholds — VERIFIED s9** against
+  https://www.seattleschools.org/resources/transportation/ : "Elementary and
+  K-8 schools have a 1-mile walk boundary"; "Middle schools have a 2-mile
+  walk boundary" (yellow bus OR Metro ORCA); "High schools have a 2-mile
+  walk boundary" (ORCA only — consistent with STARS showing zero HS basic
+  yellow-bus routes). Shapefile reach medians match (0.92/1.89/1.87 mi).
+  **Open discrepancy (question 7):** the website says K-8 = 1 mile, but the
+  raw walk-zone layer carries separate ~1-mi AND ~1.7-2.0-mi pieces for most
+  K-8s (Hazel Wolf, TOPS, Orca, South Shore, Broadview-Thomson, Blaine,
+  Licton Springs) which our dissolve unions — so the model's K-8 walk zones
+  follow the GIS (2-mi for the union), not the published 1-mi rule.
 
 ### Public data sources to wire in (NOT yet pulled)
 Goal: estimate the count + location of school-age children, by grade band, at a
@@ -345,10 +358,27 @@ fine geographic level (block group / tract) so we can intersect with attendance
     gifted routes/yr through 2022-23, 0 after). TM (21), Cascadia (21),
     FP (11), Decatur (5).
   - Rainier View areas → TM in both historical eras.
-- The PDF covers **ES only**. MS gifted destinations in STARS (Hamilton,
-  Washington, Eagle Staff, Jane Addams K-8, Madison) need their own pathway
-  mapping later; HS HCC transportation ended with Garfield routes after
-  2018-19.
+- The PDF covers **ES only**; HS HCC transportation ended with Garfield
+  routes after 2018-19.
+
+### HCC MS pathway areas — INGESTED session 9 → `hcc_pathways_ms.csv`
+- Source: `data/sps/shapes/MS-HCC-pathways.pdf` (SPS "Middle School HCC
+  Pathways" map, 2022, updated 7/18/2022, MapFile `HC_Pathways_2022`). Each
+  MS pathway = a union of MS attendance areas: **Robert Eagle Staff** ←
+  {Whitman, Eagle Staff}; **Jane Addams** ← {Jane Addams, Eckstein};
+  **Hamilton** ← {Hamilton, McClure}; **Washington** ← {Meany, Washington,
+  Mercer, Aki Kurose}; **Madison** ← {Madison, Denny}.
+- Tracked CSV `hcc_pathways_ms.csv`: 12 rows (joins `attendance_ms.name`
+  **12/12 exact**), same three era columns as the ES file so the
+  `hcc_era` API works uniformly:
+  - `pathway_2017_2022` — the 5-site 2022 map as-is (STARS: Madison ran
+    gifted routes through 2021-22).
+  - `pathway_2023_2025` — 4 sites; **Madison + Denny areas → Washington
+    (ASSUMED, needs user verification** — inferred from STARS: Madison ran 0
+    gifted routes 2022-23..2024-25; parallels the ES Fairmount-Park→TM
+    consolidation).
+  - `pathway_2025map` — 5 sites; Madison resumes (STARS 2025-26 shows
+    Madison with 2 gifted routes again, matching the proposed-map era).
 
 ### Section 4 OD flows — INGESTED session 2 → `analysis/montecarlo/section4/`
 - Source: `data/2024-25-section4.pdf` (SPS Annual Enrollment Report 2024-25,
@@ -579,14 +609,32 @@ Still genuinely open for the user:
 3. **HCC behavior on closure/move** — does the pathway relocate (riders
    follow) or dissolve (riders go to neighborhood schools)? Default: pathway
    relocates intact.
-4. **Walk-rule verification** — confirm exact SPS thresholds (~1 mi ES, ~2 mi
-   MS/HS) + hazard-route exceptions before Stage 7.
-4b. **MS HC pathways** — map Hamilton / Washington / Eagle Staff / Jane Addams
-   / Madison to MS attendance areas (analogous to `hcc_pathways_es.csv`).
-5. **Output decision context** — cost? equity? bus-count planning? Shapes
-   which report metrics get emphasis.
-6. **requirements.txt** strategy (see Environment above) — geo deps still
-   unpinned.
+4. ~~**Walk-rule verification**~~ — VERIFIED s9, two ways: (a) shapefiles —
+   median max-reach of the official polygons from the school point is 0.92
+   mi (ES, n=72), 1.89 mi (MS), 1.87 mi (HS) vs the nominal 1 / 2 / 2;
+   hazard carve-outs trim area (median ES equivalent radius 0.61 mi);
+   (b) the SPS transportation page (USER-VERIFIED + fetched s9) states the
+   same 1 / 2 / 2 rule, with MS = yellow bus or ORCA and HS = ORCA only.
+   Licton Springs' 3.6-mi reach is a disjoint-piece artifact.
+7. ~~**K-8 walk-zone rule conflict**~~ — RESOLVED s9 (USER decision: the
+   website is authoritative). `parse_shapes.load_walkzones` now keeps only
+   the 1-mile core piece for K-8/PK-8 zones (min max-reach from the school
+   point; `k8_full_union=True` restores the old union). Eligibility +
+   ridership rebuilt, MC re-run. Caveat: Licton Springs (955) has no ~1-mi
+   piece in the layer at all — it keeps its smallest piece (1.88 mi reach).
+4b. ~~**MS HC pathways**~~ — RESOLVED s9: `hcc_pathways_ms.csv` from
+   `data/sps/shapes/MS-HCC-pathways.pdf`; gifted pool now uses the MS
+   pathway kernel (propensity 1.011 → 0.918). One **ASSUMPTION to verify**:
+   Madison + Denny areas → Washington in the 2023-2025 era (see the MS
+   pathway section above).
+5. ~~**Output decision context**~~ — RESOLVED s9 (user): the outputs that
+   matter are **Δ basic riders, Δ # bus routes, Δ avg stop→school distance**
+   (≈ STARS `average_distance`, labeled "average route length" in places).
+   No AM/PM split — STARS has no direction dimension. report.py leads with
+   these; equity cuts stay as a secondary section.
+6. ~~**requirements.txt** strategy~~ — RESOLVED s9: pinned everything in
+   `requirements.txt` to the working venv (pandas 3.0.3 / numpy 2.4.6 /
+   geopandas 1.1.3 stack); no separate geo-requirements file.
 
 ---
 
@@ -858,6 +906,67 @@ Still genuinely open for the user:
   `es_walk_1p5mi` n=200: basic Δ −2,835 [−3,007, −2,693], gifted −97
   [−99.5, −94.4], est routes −57; equity cut shows the rider loss skews
   away from high-poverty ES areas (low-poverty tercile −827 vs high −610).
+
+- **2026-06-10 (s9)** `requirements.txt` pinned (open question 6 resolved):
+  all direct deps at the working-venv versions — single file, no separate
+  geo-requirements. Notable: pandas 3.0.3 / numpy 2.4.6 (pulled forward by
+  the geo stack) are now the pinned baseline for the SAFS pipeline too; also
+  added previously-missing direct deps (numpy, SQLAlchemy, psycopg2-binary,
+  matplotlib/plotnine/mizani/scipy/statsmodels, extract-msg, requests,
+  python-dateutil). Repo test suite = the one pre-broken data_reader_test.py
+  (NOTES s7) — nothing else to regress; dry-run resolve clean.
+
+- **2026-06-10 (s9)** Open question 4b RESOLVED: MS HCC pathway map ingested
+  from `data/sps/shapes/MS-HCC-pathways.pdf` → tracked `hcc_pathways_ms.csv`
+  (12/12 attendance_ms names join; same era columns as the ES file).
+  `kernel_bg_weights` hcc_pathway kind generalized to es/ms bands;
+  `ridership.gifted_pool` + `scenarios` gifted handling now use the MS
+  pathway kernel instead of the school's own assignment column. Effect:
+  MS eligible pools grew (Washington 49.8 → 89.7 — the od-column draw had
+  concentrated HC kids inside the walk zone), gifted propensity 1.011 →
+  **0.918** (now < 1, as a propensity should be); basic θ unchanged
+  (r 0.814). Tracked ridership/ rebuilt; empty-scenario baseline check
+  PASS; both 200-draw MC runs + reports re-generated (es_walk_1p5mi gifted
+  Δ −97 → −88). ASSUMED pending user check: Madison+Denny → Washington for
+  2023-2025 (STARS route evidence; parallels ES FP→TM).
+- **2026-06-10 (s9)** Open question 4 (walk thresholds) VERIFIED from the
+  walk-zone shapefiles: max polygon reach from the school point has median
+  0.92 mi ES / 1.89 MS / 1.87 HS vs nominal 1 / 2 / 2 mi — consistent with
+  crow-flies caps + hazard carve-outs (median ES equivalent radius 0.61 mi,
+  i.e. ~⅓ of the nominal disk area survives the carve-outs). K-8 option
+  sites reach ~2 mi (MS rule in the same dissolved polygon). Calibrated-
+  buffer approach unchanged — it already absorbs per-school trimming via m.
+- **2026-06-10 (s9)** Walk rule verified against the live SPS transportation
+  page (https://www.seattleschools.org/resources/transportation/, fetched at
+  user direction): ES + K-8 = 1-mile walk boundary, MS = 2 (yellow bus or
+  ORCA), HS = 2 (ORCA only). Confirms the model's thresholds AND its
+  HS-has-no-basic-yellow-bus structure. NEW open question 7 from the same
+  check: the GIS walk-zone layer carries ~2-mi pieces for K-8s that the
+  website's 1-mi K-8 rule contradicts; model currently follows the GIS
+  union. Page silent on crow-flies vs walking distance and hazard
+  exceptions (the polygons embed them).
+- **2026-06-10 (s9)** Output decision context locked (user): headline
+  outputs = Δ basic riders, Δ routes, Δ avg stop→school distance; AM/PM
+  split impossible (no direction dimension anywhere in STARS — checked
+  metric definitions and route-number conventions). simulate.py
+  school_draws.csv gained per-school rider-weighted base/scen mean distance
+  (basic rows); report.py movers table shows it; district distance section
+  relabeled "avg stop→school distance".
+
+- **2026-06-10 (s9)** Open question 7 RESOLVED — USER decision: the SPS
+  website's K-8 = 1-mile rule is authoritative over the GIS layer's K-8
+  piece unions. `parse_shapes.load_walkzones` now keeps only the 1-mile core
+  piece per K-8/PK-8 zone (min max-reach from the school point;
+  `k8_full_union=True` restores the union; Licton Springs has no 1-mi piece
+  → keeps its smallest, 1.88 mi). Full rebuild downstream: eligibility
+  (2,798 → 2,654 pairs; basic pool 15,229 → 15,500; implied propensity
+  0.646), ridership refit (ρ 1.0 → 0.85 — a 0.15 flat propensity floor
+  appears once K-8 pools grow; β_swd 5.62 still dominant; β_abs ≈ 0;
+  r 0.806), scenarios `--validate` PASS, both 200-draw MC runs + reports
+  regenerated. EV deltas moved: `close_sacajawea` −4.9 → −7.6 (CI [−13.3,
+  −1.8] brackets it); `es_walk_1p5mi` −2,838 → −2,524 (smaller because K-8
+  calibrated buffers now expand from a 1-mi base, so K-8s lose fewer
+  riders; est routes −51).
 
 ---
 

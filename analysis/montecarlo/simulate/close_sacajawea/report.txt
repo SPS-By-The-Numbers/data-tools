@@ -2,27 +2,27 @@
   Close Sacajawea ES (268, a school on SPS's real consolidation candidate lists). Receivers default to the 3 nearest open neighborhood elementaries; displaced kids split per residence area by the receivers' existing draw.
 
 District (riders are means over draws; deltas show 95% CI):
-  basic : riders  10,008.5 →  10,004.1   Δ    -4.4 [-11.2, +2.8]   est routes Δ -0.09 [-0.23, +0.06]
+  basic : riders  10,008.5 →  10,001.4   Δ    -7.1 [-13.3, -1.8]   est routes Δ -0.14 [-0.27, -0.04]
   gifted: riders   1,315.5 →   1,315.5   Δ    +0.0 [+0.0, +0.0]   est routes Δ +0.00 [+0.00, +0.00]
 
-Rider-weighted distance to school (basic, miles):
-   mean:  1.52 →  1.52   Δ +0.000 [-0.000, +0.001]
-    p50:  1.26 →  1.26   Δ +0.004 [+0.000, +0.014]
-    p90:  2.72 →  2.72   Δ -0.000 [-0.003, +0.002]
+Avg stop→school distance, rider-weighted (basic, miles; STARS calls this 'average_distance'):
+   mean:  1.56 →  1.56   Δ +0.000 [+0.000, +0.001]
+    p50:  1.26 →  1.27   Δ +0.004 [+0.000, +0.014]
+    p90:  2.80 →  2.80   Δ +0.000 [-0.001, +0.002]
 
 Per-school movers (|mean Δriders| > 0.5): 4
   Sacajawea                basic    104.2 →     0.0   Δ  -104.2 [-107.7, -99.8]   routes Δ -2.10
-  Rogers                   basic     87.2 →    91.8   Δ    +4.5 [+4.2, +4.9]   routes Δ +0.09
-  Wedgwood                 basic     47.4 →    64.6   Δ   +17.2 [+14.3, +20.3]   routes Δ +0.35
-  Olympic View             basic    147.4 →   225.6   Δ   +78.2 [+72.7, +84.6]   routes Δ +1.58
+  Rogers                   basic     84.3 →    88.7   Δ    +4.4 [+4.1, +4.7]   routes Δ +0.09   dist 0.91→0.92mi
+  Wedgwood                 basic     46.4 →    63.3   Δ   +16.9 [+14.3, +19.9]   routes Δ +0.34   dist 1.00→1.04mi
+  Olympic View             basic    143.1 →   219.0   Δ   +75.9 [+71.0, +81.4]   routes Δ +1.53   dist 1.07→1.08mi
 
 Equity cuts (basic program; Δriders summed per group per draw):
   by school low-income share (RC 2024-25 terciles):
-    low (≤18%)             ( 28 schools,   3,325 base riders)  Δ   +17.0 [+14.1, +20.1]
-    mid (18%–48%)          ( 25 schools,   3,310 base riders)  Δ   -26.0 [-32.9, -19.0]
-    high (>48%)            ( 24 schools,   3,374 base riders)  Δ    +4.6 [+4.3, +5.0]
+    low (≤18%)             ( 28 schools,   3,295 base riders)  Δ   +16.7 [+14.1, +19.7]
+    mid (18%–48%)          ( 25 schools,   3,292 base riders)  Δ   -28.2 [-34.5, -22.3]
+    high (>48%)            ( 24 schools,   3,421 base riders)  Δ    +4.5 [+4.1, +4.8]
   by ES attendance-area poverty % (terciles; neighborhood ES only):
-    low (≤18)              ( 20 schools,   1,801 base riders)  Δ   +17.2 [+14.2, +20.3]
-    mid (18–46)            ( 18 schools,   1,799 base riders)  Δ   -21.5 [-28.7, -14.2]
-    high (>46)             ( 14 schools,   1,530 base riders)  Δ    +0.0 [-0.0, +0.1]
-    (no ES area)           ( 25 schools,   4,878 base riders)  Δ    -0.1 [-0.4, +0.0]
+    low (≤18)              ( 20 schools,   1,783 base riders)  Δ   +16.9 [+14.2, +19.9]
+    mid (18–46)            ( 18 schools,   1,767 base riders)  Δ   -24.0 [-30.6, -17.7]
+    high (>46)             ( 14 schools,   1,601 base riders)  Δ    +0.0 [-0.0, +0.1]
+    (no ES area)           ( 25 schools,   4,857 base riders)  Δ    -0.1 [-0.1, +0.0]

@@ -81,13 +81,18 @@ def district_summary(run: dict) -> pd.DataFrame:
 def school_summary(run: dict) -> pd.DataFrame:
     """Per school × program: mean rider delta + CI, sorted by delta."""
     sc = run["school"].copy()
+    for c in ("base_dist_mean", "scen_dist_mean"):  # absent in pre-s9 runs
+        if c not in sc.columns:
+            sc[c] = np.nan
     sc["d_riders"] = sc["scen_riders"] - sc["base_riders"]
     g = sc.groupby(["school_id", "program"])
     out = g.agg(base_riders=("base_riders", "mean"),
                 scen_riders=("scen_riders", "mean"),
                 d_mean=("d_riders", "mean"),
                 d_lo=("d_riders", lambda s: s.quantile(CI_LO)),
-                d_hi=("d_riders", lambda s: s.quantile(CI_HI))).reset_index()
+                d_hi=("d_riders", lambda s: s.quantile(CI_HI)),
+                base_dist=("base_dist_mean", "mean"),
+                scen_dist=("scen_dist_mean", "mean")).reset_index()
     tgt = rid.district_targets()
     rpr = {"basic": tgt["on_bus"] / tgt["routes_basic"],
            "gifted": tgt["gifted"] / tgt["routes_gifted"]}
@@ -182,7 +187,8 @@ def report(name: str, top: int = 10, save: bool = False) -> str:
     d = run["district"]
     db = d[d.program == "basic"]
     if "base_dist_mean" in db.columns and db["base_dist_mean"].notna().any():
-        w("\nRider-weighted distance to school (basic, miles):\n")
+        w("\nAvg stop→school distance, rider-weighted (basic, miles; STARS "
+          "calls this 'average_distance'):\n")
         for stat in ("dist_mean", "dist_p50", "dist_p90"):
             delta = db[f"scen_{stat}"] - db[f"base_{stat}"]
             w(f"  {stat[5:]:>5s}: {db[f'base_{stat}'].mean():5.2f} → "
@@ -192,11 +198,15 @@ def report(name: str, top: int = 10, save: bool = False) -> str:
     movers = ss[ss["d_mean"].abs() > 0.5]
     w(f"\nPer-school movers (|mean Δriders| > 0.5): {len(movers)}\n")
     shown = pd.concat([movers.head(top), movers.tail(top)]).drop_duplicates("school_id")
+    has_dist = "base_dist" in shown.columns
     for _, r in shown.iterrows():
+        dist = ""
+        if has_dist and pd.notna(r.get("base_dist")) and pd.notna(r.get("scen_dist")):
+            dist = f"   dist {r['base_dist']:4.2f}→{r['scen_dist']:4.2f}mi"
         w(f"  {r['name']:24.24s} {r['program']:6s} "
           f"{r['base_riders']:7.1f} → {r['scen_riders']:7.1f}   "
           f"Δ {r['d_mean']:+7.1f} [{r['d_lo']:+.1f}, {r['d_hi']:+.1f}]"
-          f"   routes Δ {r['d_routes_mean']:+5.2f}\n")
+          f"   routes Δ {r['d_routes_mean']:+5.2f}{dist}\n")
 
     cuts = equity_cuts(run)
     w("\nEquity cuts (basic program; Δriders summed per group per draw):\n")

@@ -134,17 +134,29 @@ def _weighted_quantile(v: np.ndarray, w: np.ndarray, qs: tuple) -> list[float]:
     return [float(np.interp(q, cum, v)) for q in qs]
 
 
-def _dist_stats(cells: pd.DataFrame, params: rid.RidershipParams,
-                scale: float) -> dict:
-    """Rider-weighted distance stats for the basic program of one arm."""
+def _cell_riders(cells: pd.DataFrame, params: rid.RidershipParams,
+                 scale: float) -> np.ndarray:
+    """Expected riders per basic cell (same propensity math as expected_riders)."""
     shape = rid._cell_shape(cells, params)
     p = np.minimum(scale * shape, params.p_max) if np.isfinite(scale) \
         else np.full_like(shape, params.p_max)
-    w = cells["n_eligible"].to_numpy() * p
+    return cells["n_eligible"].to_numpy() * p
+
+
+def _dist_stats(cells: pd.DataFrame, w: np.ndarray) -> dict:
+    """District rider-weighted stop→school distance stats (basic program)."""
     d = cells["dist_mi"].to_numpy()
     p50, p90 = _weighted_quantile(d, w, (0.5, 0.9))
     return {"dist_mean": float(np.average(d, weights=w)) if w.sum() > 0 else float("nan"),
             "dist_p50": p50, "dist_p90": p90}
+
+
+def _school_dist(cells: pd.DataFrame, w: np.ndarray) -> pd.Series:
+    """Per-school rider-weighted mean stop→school distance, miles."""
+    df = pd.DataFrame({"school_id": cells["school_id"].to_numpy(),
+                       "wd": w * cells["dist_mi"].to_numpy(), "w": w})
+    g = df.groupby("school_id").sum()
+    return g["wd"] / g["w"].where(g["w"] > 0)
 
 
 # ---------------------------------------------------------------------------
@@ -196,11 +208,20 @@ def run_mc(scenario: scn.Scenario | str,
                               "riders_base": "base_riders",
                               "n_bus_eligible_scen": "scen_eligible",
                               "riders_scen": "scen_riders"})
-        school_rows.append(j.reset_index().assign(draw=i))
+
+        # rider-weighted stop→school distances (basic program)
+        w_b = _cell_riders(cells_b, theta, scale)
+        w_s = _cell_riders(cells_s, theta, scale)
+        sd_b, sd_s = _school_dist(cells_b, w_b), _school_dist(cells_s, w_s)
+        jr = j.reset_index()
+        is_basic = jr["program"] == "basic"
+        jr["base_dist_mean"] = np.where(is_basic, jr["school_id"].map(sd_b), np.nan)
+        jr["scen_dist_mean"] = np.where(is_basic, jr["school_id"].map(sd_s), np.nan)
+        school_rows.append(jr.assign(draw=i))
 
         dd = j.groupby(level="program").sum()
-        ds_b = _dist_stats(cells_b, theta, scale)
-        ds_s = _dist_stats(cells_s, theta, scale)
+        ds_b = _dist_stats(cells_b, w_b)
+        ds_s = _dist_stats(cells_s, w_s)
         for prog, r in dd.iterrows():
             row = {"draw": i, "program": prog,
                    "base_riders": float(r["base_riders"]),
@@ -220,8 +241,8 @@ def run_mc(scenario: scn.Scenario | str,
 
     district = pd.DataFrame(district_rows)
     school = pd.concat(school_rows, ignore_index=True)[
-        ["draw", "school_id", "program",
-         "base_eligible", "base_riders", "scen_eligible", "scen_riders"]]
+        ["draw", "school_id", "program", "base_eligible", "base_riders",
+         "scen_eligible", "scen_riders", "base_dist_mean", "scen_dist_mean"]]
     theta_df = pd.DataFrame(theta_rows)
     runtime = time.time() - t0
 
@@ -240,7 +261,8 @@ def run_mc(scenario: scn.Scenario | str,
                 d[c] = d[c].round(4)
         d.to_csv(run_dir / "district_draws.csv", index=False)
         sc = school.copy()
-        for c in ("base_eligible", "base_riders", "scen_eligible", "scen_riders"):
+        for c in ("base_eligible", "base_riders", "scen_eligible", "scen_riders",
+                  "base_dist_mean", "scen_dist_mean"):
             sc[c] = sc[c].round(3)
         sc.to_csv(run_dir / "school_draws.csv", index=False)
         theta_df.to_csv(run_dir / "theta_draws.csv", index=False)

@@ -16,7 +16,7 @@ Files per run:
 | file | grain | columns |
 |---|---|---|
 | `district_draws.csv` | draw × program | base/scen riders, d_riders; rider-weighted `dist_mean/p50/p90` base+scen (basic rows only) |
-| `school_draws.csv` | draw × school × program | base/scen eligible + riders |
+| `school_draws.csv` | draw × school × program | base/scen eligible + riders; base/scen rider-weighted mean stop→school distance (basic rows only) |
 | `theta_draws.csv` | draw | sampled θ fields + solved `gifted_propensity` and propensity `scale` |
 | `meta.json` | run | scenario spec, n_draws, seed, sample flags, runtime |
 | `report.txt` | run | Stage 11 text report (only if `report --save` was run) |
