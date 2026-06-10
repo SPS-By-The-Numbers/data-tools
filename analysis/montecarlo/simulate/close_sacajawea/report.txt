@@ -1,0 +1,28 @@
+=== MC report: close_sacajawea (200 draws, seed 20260610) ===
+  Close Sacajawea ES (268, a school on SPS's real consolidation candidate lists). Receivers default to the 3 nearest open neighborhood elementaries; displaced kids split per residence area by the receivers' existing draw.
+
+District (riders are means over draws; deltas show 95% CI):
+  basic : riders  10,008.5 →  10,004.1   Δ    -4.4 [-11.2, +2.8]   est routes Δ -0.09 [-0.23, +0.06]
+  gifted: riders   1,315.5 →   1,315.5   Δ    +0.0 [+0.0, +0.0]   est routes Δ +0.00 [+0.00, +0.00]
+
+Rider-weighted distance to school (basic, miles):
+   mean:  1.52 →  1.52   Δ +0.000 [-0.000, +0.001]
+    p50:  1.26 →  1.26   Δ +0.004 [+0.000, +0.014]
+    p90:  2.72 →  2.72   Δ -0.000 [-0.003, +0.002]
+
+Per-school movers (|mean Δriders| > 0.5): 4
+  Sacajawea                basic    104.2 →     0.0   Δ  -104.2 [-107.7, -99.8]   routes Δ -2.10
+  Rogers                   basic     87.2 →    91.8   Δ    +4.5 [+4.2, +4.9]   routes Δ +0.09
+  Wedgwood                 basic     47.4 →    64.6   Δ   +17.2 [+14.3, +20.3]   routes Δ +0.35
+  Olympic View             basic    147.4 →   225.6   Δ   +78.2 [+72.7, +84.6]   routes Δ +1.58
+
+Equity cuts (basic program; Δriders summed per group per draw):
+  by school low-income share (RC 2024-25 terciles):
+    low (≤18%)             ( 28 schools,   3,325 base riders)  Δ   +17.0 [+14.1, +20.1]
+    mid (18%–48%)          ( 25 schools,   3,310 base riders)  Δ   -26.0 [-32.9, -19.0]
+    high (>48%)            ( 24 schools,   3,374 base riders)  Δ    +4.6 [+4.3, +5.0]
+  by ES attendance-area poverty % (terciles; neighborhood ES only):
+    low (≤18)              ( 20 schools,   1,801 base riders)  Δ   +17.2 [+14.2, +20.3]
+    mid (18–46)            ( 18 schools,   1,799 base riders)  Δ   -21.5 [-28.7, -14.2]
+    high (>46)             ( 14 schools,   1,530 base riders)  Δ    +0.0 [-0.0, +0.1]
+    (no ES area)           ( 25 schools,   4,878 base riders)  Δ    -0.1 [-0.4, +0.0]

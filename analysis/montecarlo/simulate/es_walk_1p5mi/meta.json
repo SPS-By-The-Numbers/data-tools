@@ -1,0 +1,16 @@
+{
+  "scenario": "es_walk_1p5mi",
+  "description": "Expand the elementary walk threshold from 1.0 to 1.5 miles (all ES walk zones regenerated as calibrated buffers).",
+  "ops": [
+    {
+      "op": "set_walk_threshold",
+      "level": "ES",
+      "miles": 1.5
+    }
+  ],
+  "n_draws": 200,
+  "seed": 20260610,
+  "sample_theta": true,
+  "sample_pop": true,
+  "runtime_s": 40.4
+}

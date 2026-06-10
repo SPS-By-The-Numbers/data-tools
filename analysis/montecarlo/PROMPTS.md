@@ -95,36 +95,38 @@ Read `ridership/README.md` + NOTES.md s7 decision-log entries before touching.
 
 ---
 
-## H. M6 — Stage 9 scenario engine (next session)
+## H. M6 — Stage 9 scenario engine — DONE 2026-06-10 (session 8)
 
-```
-Continuing the SPS ridership Monte Carlo (analysis/montecarlo/). Read NOTES.md
-in full; `source venv/bin/activate`.
+Built as specced: `scenarios.py` (World dataclass + the 5 ops + JSON spec
+validation + `apply`/`evaluate`/`run_scenario`) and tracked specs under
+`scenarios/` (see README there). Empty scenario reproduces the baseline
+within CSV rounding (`--validate` PASS); smokes: `close_sacajawea`
+(−104 riders reabsorbed by 3 neighbors, district −4.9) and `es_walk_1p5mi`
+(basic 10,008 → 7,170). Critical mechanics: residence strata FIXED (ops edit
+only the destination side); scenario evaluation uses the baseline-solved
+propensity scale + covariate centering via new backward-compatible
+`ridership.py` params (`fixed_scale`, `points`, `basic_ids`, `covar_means`)
+— re-solving would renormalize deltas away. Read the module docstring +
+NOTES.md s8 decision-log entries before touching.
 
-Build M6: Stage 9 scenarios.py + scenarios/*.json from the architecture in
-NOTES.md (the 5 ops: set_walk_threshold, scale_walkzone, close_school,
-convert_option_to_neighborhood, move_school).
+---
 
-  - A scenario = ordered op list applied to a copy of the baseline world
-    (geography + school directory + draw kernels). Validate referenced
-    school_ids against parse_shapes locations.
-  - apply(scenario) must produce the inputs the existing hooks already take:
-    walkzone GeoDataFrame → eligibility.walk_fractions(walkzones=...),
-    edited flows/kernels → assignment.build_matrix(...) /
-    kernel_bg_weights(school_id, kind, band), then
-    ridership.expected_riders(assignment, walk, params).
-  - Walk-zone resizing via calibrated buffers (fit a per-school crow-flies
-    multiplier reproducing the official polygon area at the current
-    threshold; see NOTES.md "Walk-zone resizing approach").
-  - Closure fallback rules: attendance kids → receiving neighborhood
-    school(s); option/HCC kids → next pathway/option site (NOTES open
-    questions 2-3 have the user defaults: pathway relocates intact).
-  - Validate: an empty scenario must reproduce the baseline exactly
-    (assignment matrix, eligible pool, riders). Run one smoke scenario
-    end-to-end and report rider deltas.
+## I. M7 — Stages 10-11 MC loop + report — DONE 2026-06-10 (session 9)
 
-When done, update NOTES.md Current State + Decision Log + this prompt.
-```
+Built as specced: `simulate.py` (paired MC driver, `run_mc(scenario,
+n_draws, seed)` → tracked CSVs under `simulate/<scenario>/`) and `report.py`
+(district/per-school delta CIs, distance stats, equity cuts by RC low-income
+and ES-area poverty terciles). Key decisions (NOTES s9 decision log):
+**per-draw calibration** (scale + covar means + gifted propensity re-solved
+on each draw's own baseline, reused for the paired scenario run); θ sampling
+= decay_mi lognormal σ=0.2, betas normal sd=max(0.2|β̂|, 0.05), ρ FIXED at
+the fitted 1.0 boundary; scenario worlds built once (θ/pop-independent).
+Perf: ~0.2 s per paired draw (the 30-60 s estimate was cold-cache; per-world
+walk fractions hoisted out of the loop). Validation PASS: 200-draw
+`close_sacajawea` basic Δ −4.4 [−11.2, +2.8] brackets the EV −4.9; sampling
+disabled reproduces EV exactly; `es_walk_1p5mi` Δ −2,835 [−3,007, −2,693].
+Usage: `python3 -m analysis.montecarlo.simulate --scenario <name>` then
+`python3 -m analysis.montecarlo.report <name> --save`.
 
 ---
 
@@ -165,8 +167,10 @@ string label ("2024-25"), not the int fall-year used in montecarlo.
   - M1 (`school_directory`) DONE (s3). M2 (`baseline_ridership`) DONE (s4).
   - M3 (`acs_population` + `synth_population`) DONE (s5).
   - M4 (`assignment` + `eligibility`) DONE (s6). M5 (`ridership`) DONE (s7).
-  - **Next up: N=9 (`scenarios`, prompt H)**. After that: N=10/11
-    (MC loop + report).
+  - M6 (`scenarios`) DONE (s8). M7 (`simulate` + `report`) DONE (s9).
+  - **All milestones complete. Next up: user-specified scenarios (prompt D)**
+    — write the spec JSON under `scenarios/`, then
+    `simulate --scenario <name>` + `report <name> --save`.
 - school_directory loaders: `load_schools()`, `load_stars_name_map()`,
   `load_section4_name_map()`. See `school_directory/README.md`.
 - baseline_ridership loaders: `load_school_routes()`, `load_school_enrollment()`,
@@ -180,6 +184,15 @@ string label ("2024-25"), not the int fall-year used in montecarlo.
 - ridership loaders: `load_ridership()`, `load_params()` → `RidershipParams`;
   Stage-10 hooks `expected_riders(assignment, walk, params)`,
   `sample_riders(rng, ...)`. See `ridership/README.md`.
+- scenarios API: `baseline_world()`, `load_scenario(name)`, `apply(scenario)`,
+  `evaluate(world, params=, pop=)`, `run_scenario(scenario)`; specs under
+  `scenarios/` (see README there). CLI: `--validate` (baseline check),
+  `--run <name>` (delta report).
+- simulate API: `run_mc(scenario, n_draws=200, seed=20260610)`, `load_run()`,
+  `sample_params(rng)`; saved runs under `simulate/<scenario>/` (see README
+  there). report API: `report(name)`, `district_summary()`, `school_summary()`,
+  `equity_cuts()`. CLI: `simulate --scenario <name> [--no-theta] [--no-pop]`;
+  `report <name> [--save] [--top N]`.
 - If a planning answer changes the architecture, edit NOTES.md *and* prompt B/C
   so future sessions inherit the new plan.
 - These prompts assume the repo conventions in the top-level CLAUDE.md (run

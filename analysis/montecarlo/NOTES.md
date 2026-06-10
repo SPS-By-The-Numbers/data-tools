@@ -12,11 +12,14 @@ rates) are uncertain and we want distributions, not point estimates.
 > top-to-bottom and continue without re-deriving anything. Keep it honest —
 > record what is *assumed/unverified* as well as what is *done*.
 
-Last updated: **2026-06-10** (session 7 — M5 `ridership.py` DONE).
-**Next session = M6:** Stage 9 `scenarios.py` — machine-readable scenario spec
-+ the 5 ops (walk-zone resize, closure, conversion, move), apply() → mutated
-world feeding the Stage 6/7/8 hooks (`build_matrix`, `walk_fractions`,
-`expected_riders`).
+Last updated: **2026-06-10** (session 9 — M7 `simulate.py` + `report.py`
+DONE; **all milestones M1-M7 complete — the pipeline is fully built**).
+**Next session:** real scenario definitions from the user (Prompt D) — the
+machinery runs any spec end-to-end in ~40 s for 200 draws:
+`python3 -m analysis.montecarlo.simulate --scenario <name>` then
+`python3 -m analysis.montecarlo.report <name> --save`. Remaining model-quality
+work lives in the open questions (4 walk-rule verification, 4b MS HC
+pathways, 6 requirements pinning).
 
 Scenario scope EXPANDED in session 2: besides walk-zone changes and closures,
 we also model **converting option schools to neighborhood schools** and
@@ -152,6 +155,61 @@ we also model **converting option schools to neighborhood schools** and
   `expected_riders(assignment, walk, params)` pure core,
   `sample_riders(rng, ...)` Poisson MC wrapper. Stage 10 samples θ via
   `dataclasses.replace(load_params(), ...)`.
+- **`scenarios.py`** — DONE (session 8). Stage 9: scenario engine — the 5 ops
+  (`set_walk_threshold`, `scale_walkzone`, `close_school`,
+  `convert_option_to_neighborhood`, `move_school`) over a `World` dataclass
+  copied from the baseline; specs are tracked JSONs under `scenarios/` (see
+  README there). Run `python3 -m analysis.montecarlo.scenarios`
+  (`--validate` = empty-scenario baseline check, `--run <name>` = delta
+  report). Key design (full semantics in the module docstring):
+  - Residence strata (BG × attendance-area weights) are FIXED; ops edit only
+    the destination side: flow columns, enrollment marginals, walk zones,
+    school points, gifted table. Enrollment band totals conserved exactly.
+  - Walk resize = calibrated buffers (per-school multiplier reproducing the
+    official polygon AREA at ES 1 mi / MS,HS 2 mi). Empty scenario keeps the
+    official polygons.
+  - Closure moves the school's flow column to receivers (kids stay put);
+    defaults: 3 nearest same-level neighborhood schools split ∝ existing
+    draw per area / nearest option site / HCC pathway relocates intact
+    (member areas + HC enrollment merge into `hcc_receiver`).
+  - Conversion (steady-state, no grandfathering): geozone residents attend
+    at the band's observed stay-rate; old decay-draw enrollees return to
+    their areas' other destinations pro-rata.
+  - Scenario evaluation REUSES the baseline-solved propensity scale +
+    covariate centering (`fixed_scale` / `covar_means` added to
+    `ridership.py`) — re-solving would renormalize every scenario back to
+    10,008 and all deltas would vanish.
+  - **M6 validation PASS:** empty scenario reproduces the tracked baseline
+    within CSV rounding (19,094 cells max |Δ| 5e-5; walk 5e-7; riders
+    0.005). Smoke `close_sacajawea`: −104 riders at Sacajawea reabsorbed as
+    +78 Olympic View / +17 Wedgwood / +4.5 Rogers, district −4.9.
+    Smoke `es_walk_1p5mi`: basic 10,008→7,170 (−57 routes est).
+- **`simulate.py`** — DONE (session 9). Stage 10: the paired MC driver.
+  `run_mc(scenario, n_draws, seed)` samples θ (`sample_params`: decay_mi
+  lognormal σ=0.2, betas normal sd=max(0.2|β̂|, 0.05), ρ fixed at the fitted
+  1.0 boundary) + population (`sample_synth_pop`) per draw, evaluates
+  baseline and scenario with the SAME draw. **Calibration is PER-DRAW**: the
+  propensity scale, covariate means, and gifted propensity are re-solved on
+  each draw's baseline cells then reused for the paired scenario run —
+  baseline district totals hit the STARS targets every draw by construction;
+  uncertainty lives in the per-school split and all deltas. Per-world
+  invariants (mutated World, walk fractions) hoisted out of the loop →
+  **~0.2 s/draw** (the old 30-60 s/evaluate estimate was cold-cache). Saves
+  tracked CSVs under `simulate/<scenario>/` (see README there):
+  district_draws / school_draws / theta_draws / meta.json. CLI:
+  `--scenario <name> [--n-draws 200] [--seed] [--no-theta] [--no-pop]`;
+  no-arg lists saved runs. API: `run_mc()`, `load_run()`, `sample_params()`.
+- **`report.py`** — DONE (session 9). Stage 11: summarizes a saved run —
+  district rider + est-route deltas with 95% percentile CIs, rider-weighted
+  distance stats (mean/p50/p90), per-school movers with CIs, equity cuts
+  (basic Δriders per draw grouped by RC low-income terciles and by ES
+  attendance-area `poverty` terciles). CLI: `python3 -m
+  analysis.montecarlo.report <name> [--save] [--top N]`. **M7 validation
+  PASS:** `close_sacajawea` 200 draws → district basic Δ −4.4, 95% CI
+  [−11.2, +2.8] brackets the expected-value −4.9; per-school movers match
+  the M6 smoke (Sacajawea −104.2 [−107.7, −99.8] → OV +78 / Wedgwood +17 /
+  Rogers +4.5). `es_walk_1p5mi` 200 draws → basic Δ −2,835 [−3,007, −2,693]
+  (≈ the −2,838 EV run), gifted −97 (Decatur walk zone), est routes −57.
 - **`section4_seattle.py`** — DONE (session 2). Parses
   `data/2024-25-section4.pdf` into the observed area→school OD matrix +
   option-school draw tables under tracked `section4/`. The empirical anchor
@@ -486,8 +544,13 @@ isochrones via osmnx. Avoids a heavy dependency until the simple thing fails.
 - **M5** Stage 8 ridership — DONE (s7). Distance-decay + demographic
   propensity shape; district totals exact by renormalization; per-school
   route correlation r 0.718 → 0.814; gifted propensity 1.011 (4b caveat).
-- **M6** Stage 9 scenario engine + the 5 ops — **← next session.**
-- **M7** Stages 10-11 MC loop + reporting; first real scenario runs.
+- **M6** Stage 9 scenario engine + the 5 ops — DONE (s8). Empty scenario ==
+  baseline (CSV-rounding exact); closure + walk-threshold smokes sensible;
+  all 5 op code paths exercised; band enrollment conserved.
+- **M7** Stages 10-11 `simulate` + `report` — DONE (s9). Paired MC with
+  per-draw calibration, ~0.2 s/draw; 200-draw validation on both smoke
+  scenarios PASS (CI brackets the expected-value deltas). **Pipeline
+  complete — next: user-specified scenarios (Prompt D).**
 
 ---
 
@@ -701,6 +764,100 @@ Still genuinely open for the user:
 - **2026-06-10 (s7)** Known pre-existing repo breakage (not this project):
   `extractors/safs/data_reader_test.py` imports a nonexistent
   `extractors.safs.mdb_reader` → pytest collection error. Untouched.
+
+- **2026-06-10 (s8)** Stage 9 `scenarios.py` built (M6). Central design
+  decision: scenario ops NEVER touch the residence strata (BG × area
+  weights) — they edit only the destination side (flow columns, enrollment
+  marginals, walk zones, points, gifted table). This keeps the Section-4 OD
+  anchoring intact under every op; "kids stay where they live, only their
+  destination changes."
+- **2026-06-10 (s8)** Scenario evaluation must NOT re-solve the propensity
+  scale: Stage 8's hard renormalization would pin every scenario at the
+  10,008 district target and all deltas would vanish by construction.
+  `ridership.py` gained backward-compatible hooks: `expected_riders(...,
+  fixed_scale=)` (use the baseline-solved s), `basic_cells(..., points=,
+  basic_ids=, covar_means=)` (moved schools / changed service set / baseline
+  covariate centering so the tilt of untouched cells doesn't shift).
+  Verified: solved-vs-fixed paths agree to 0.0 on the baseline.
+- **2026-06-10 (s8)** Enrollment marginals follow flow edits by per-school
+  flow-total ratio, then each band renormalizes to its baseline total
+  (closures/conversions move kids between schools, never out of the
+  district). Conservation verified exact on a 3-op scenario.
+- **2026-06-10 (s8)** Walk-zone resizing per the locked calibrated-buffer
+  plan: m = sqrt(official_area/π)/(T·5280) per school (T = ES 1 mi, MS/HS
+  2 mi — open question 4 still owes verification); scenario zones =
+  point.buffer(m·T'·5280). The empty scenario keeps the official polygons —
+  buffers only replace zones an op touches. Schools lacking an official
+  zone (only Decatur 287) get their level's median m; note
+  `set_walk_threshold ES` therefore GIVES Decatur a walk zone it lacks at
+  baseline (−77 gifted riders in the 1.5-mi smoke — defensible reading of
+  "regenerate all zones", revisit if it surprises).
+- **2026-06-10 (s8)** Closure fallback defaults (user defaults from open
+  questions 2-3): attendance school → 3 nearest open same-level
+  neighborhood schools, displaced kids split per residence area ∝ the
+  receivers' existing draw from that area (nearest receiver if none draws);
+  option school → nearest open same-level option site; HCC pathway
+  relocates INTACT (member areas + HC enrollment merge into hcc_receiver,
+  default nearest same-band gifted site). Conversion is STEADY-STATE (no
+  transition-year grandfathering). Known caveat: a mixed site (Thurgood
+  Marshall: neighborhood + HC) moves its whole basic flow column by the
+  neighborhood rule while HC moves via the gifted table — the basic column
+  isn't split by program (baseline has the same conflation).
+- **2026-06-10 (s8)** Smoke results: `close_sacajawea` — Sacajawea's 104
+  basic riders → Olympic View +78 / Wedgwood +17 / Rogers +4.5, district
+  −4.9 (some displaced kids land inside receivers' walk zones).
+  `es_walk_1p5mi` — basic 10,008 → 7,170 (−28%, −57 est routes); biggest
+  losers are option K-8s (Hazel Wolf −192, Salmon Bay −130, TOPS −122)
+  whose decay draws concentrate kids near school. Note K-8s carry level
+  "ES" → ES threshold ops resize their single walk-zone polygon for both
+  bands.
+
+- **2026-06-10 (s9)** Stage 10 `simulate.py` built (M7). **Calibration is
+  per-draw**, not fixed at the expected-value baseline: each draw re-solves
+  the propensity scale, covariate centering means, and gifted propensity on
+  its OWN baseline cells (with that draw's θ + population), then reuses all
+  three for the paired scenario run. Rationale: the district targets
+  (10,008 / 1,316) are observed facts, not uncertain inputs — every sampled
+  world must reproduce them at baseline; fixed EV calibration would let the
+  baseline district total drift with the draw, adding variance that is
+  calibration error rather than parameter uncertainty. Consequence: baseline
+  district totals are degenerate across draws by construction; distributions
+  live in the per-school split and in every delta.
+- **2026-06-10 (s9)** θ sampling distributions (start-simple defaults,
+  revisit when scenario realism demands): `decay_mi` lognormal around the
+  fit with σ_log = 0.2 (≈ ±20%); each β normal around the fit with
+  sd = max(0.2·|β̂|, 0.05); **ρ held fixed at the fitted 1.0** (the fit
+  pinned it at the pure-decay boundary — sampling below adds a flat floor
+  the fit firmly rejected, s7); `p_max` fixed (structural cap);
+  `gifted_propensity` solved per draw (see calibration entry). Population
+  per draw via `sample_synth_pop` (Dirichlet, s5). Scenario behavioral
+  responses (stay-rate etc., NOTES "What the MC loop samples") are NOT yet
+  sampled — they remain scenario-spec constants; add per-op sampling if a
+  real scenario needs it.
+- **2026-06-10 (s9)** Scenario worlds are built ONCE from the expected-value
+  baseline (geometry/flow edits don't depend on θ or the population draw);
+  per-world walk fractions are computed once outside the draw loop. One
+  approximation noted: a moved option school's flow column is re-derived
+  inside `apply()` with the EV population (the per-draw IPF reconciles it).
+  Performance correction: a full paired draw costs **~0.2 s** (2× IPF +
+  cells + gifted + riders) — the "30-60 s per evaluate()" figure in the s8
+  notes was dominated by cold geometry loads, not per-draw work; no further
+  caching needed for hundreds of draws.
+- **2026-06-10 (s9)** Stage 11 `report.py` built: percentile 95% CIs over
+  the paired draws; routes derived from rider deltas via district
+  riders-per-route (route CIs inherit rider CIs); equity cuts sum basic
+  Δriders per draw per group (RC low-income terciles over the run's schools;
+  ES attendance-area `poverty` terciles, option/K-8 sites grouped as
+  "(no ES area)"). MC results saved as tracked CSVs under
+  `simulate/<scenario>/` (per-run overwrite), consistent with the
+  tracked-intermediates convention.
+- **2026-06-10 (s9)** M7 validation PASS: `close_sacajawea` n=200 (seed
+  20260610) district basic Δ −4.4 [−11.2, +2.8] brackets the EV −4.9
+  (decomposition: θ-only sd 2.9, pop-only sd 1.9); with sampling disabled
+  the loop reproduces the EV run exactly (Δ −4.9 both draws).
+  `es_walk_1p5mi` n=200: basic Δ −2,835 [−3,007, −2,693], gifted −97
+  [−99.5, −94.4], est routes −57; equity cut shows the rider loss skews
+  away from high-poverty ES areas (low-poverty tercile −827 vs high −610).
 
 ---
 

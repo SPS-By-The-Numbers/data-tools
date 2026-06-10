@@ -1,0 +1,44 @@
+=== MC report: es_walk_1p5mi (200 draws, seed 20260610) ===
+  Expand the elementary walk threshold from 1.0 to 1.5 miles (all ES walk zones regenerated as calibrated buffers).
+
+District (riders are means over draws; deltas show 95% CI):
+  basic : riders  10,008.5 →   7,173.4   Δ -2835.1 [-3007.4, -2692.7]   est routes Δ -57.22 [-60.70, -54.35]
+  gifted: riders   1,315.5 →   1,218.4   Δ   -97.1 [-99.5, -94.4]   est routes Δ -2.95 [-3.03, -2.87]
+
+Rider-weighted distance to school (basic, miles):
+   mean:  1.52 →  1.84   Δ +0.318 [+0.308, +0.327]
+    p50:  1.26 →  1.62   Δ +0.361 [+0.340, +0.382]
+    p90:  2.72 →  2.97   Δ +0.246 [+0.221, +0.294]
+
+Per-school movers (|mean Δriders| > 0.5): 68
+  Hazel Wolf               basic    298.0 →   105.8   Δ  -192.2 [-207.3, -179.9]   routes Δ -3.88
+  Salmon Bay               basic    321.9 →   193.2   Δ  -128.6 [-134.4, -119.8]   routes Δ -2.60
+  TOPS                     basic    318.4 →   197.7   Δ  -120.7 [-127.2, -112.0]   routes Δ -2.44
+  Hawthorne                basic    179.3 →    90.3   Δ   -89.0 [-98.3, -79.4]   routes Δ -1.80
+  Emerson                  basic    111.5 →    25.4   Δ   -86.0 [-98.0, -76.1]   routes Δ -1.74
+  Olympic Hills            basic    158.0 →    77.5   Δ   -80.5 [-85.4, -76.1]   routes Δ -1.62
+  Decatur                  gifted   192.2 →   114.9   Δ   -77.3 [-80.1, -74.7]   routes Δ -2.35
+  Thornton Creek           basic    184.7 →   109.8   Δ   -75.0 [-82.9, -66.5]   routes Δ -1.51
+  Broadview-Thomson        basic    111.5 →    37.4   Δ   -74.0 [-80.7, -65.4]   routes Δ -1.49
+  Loyal Heights            basic    122.2 →    50.4   Δ   -71.8 [-81.5, -63.3]   routes Δ -1.45
+  Stanford                 basic    127.6 →   112.7   Δ   -14.9 [-18.2, -12.0]   routes Δ -0.30
+  Cascadia                 gifted   521.8 →   507.4   Δ   -14.4 [-15.1, -13.6]   routes Δ -0.44
+  Rainier View             basic     35.7 →    22.0   Δ   -13.8 [-17.3, -11.0]   routes Δ -0.28
+  McDonald                 basic    123.5 →   110.8   Δ   -12.7 [-15.9, -9.4]   routes Δ -0.26
+  Laurelhurst              basic    109.6 →    97.1   Δ   -12.5 [-14.1, -11.1]   routes Δ -0.25
+  Cedar Park               basic     82.0 →    69.8   Δ   -12.2 [-15.1, -9.5]   routes Δ -0.25
+  West Seattle Elementary  basic     44.4 →    32.4   Δ   -12.1 [-13.7, -10.3]   routes Δ -0.24
+  Licton Springs           basic     41.6 →    30.3   Δ   -11.4 [-12.7, -10.1]   routes Δ -0.23
+  Thurgood Marshall        gifted   208.1 →   202.6   Δ    -5.5 [-5.8, -5.2]   routes Δ -0.17
+  Pathfinder               basic    350.0 →   349.1   Δ    -0.9 [-1.1, -0.7]   routes Δ -0.02
+
+Equity cuts (basic program; Δriders summed per group per draw):
+  by school low-income share (RC 2024-25 terciles):
+    low (≤18%)             ( 28 schools,   3,325 base riders)  Δ  -999.5 [-1082.1, -938.1]
+    mid (18%–48%)          ( 25 schools,   3,310 base riders)  Δ -1011.2 [-1071.9, -960.5]
+    high (>48%)            ( 24 schools,   3,374 base riders)  Δ  -824.4 [-878.9, -777.7]
+  by ES attendance-area poverty % (terciles; neighborhood ES only):
+    low (≤18)              ( 20 schools,   1,801 base riders)  Δ  -826.7 [-905.4, -774.2]
+    mid (18–46)            ( 18 schools,   1,799 base riders)  Δ  -675.3 [-721.1, -635.0]
+    high (>46)             ( 14 schools,   1,530 base riders)  Δ  -610.2 [-651.2, -573.0]
+    (no ES area)           ( 25 schools,   4,878 base riders)  Δ  -722.9 [-752.0, -692.9]
