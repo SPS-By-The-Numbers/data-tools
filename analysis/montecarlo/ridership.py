@@ -142,7 +142,10 @@ def school_covariates(year: int = BASE_YEAR) -> pd.DataFrame:
 
 def basic_cells(assignment: pd.DataFrame | None = None,
                 walk: pd.DataFrame | None = None,
-                year: int = BASE_YEAR) -> pd.DataFrame:
+                year: int = BASE_YEAR,
+                points: pd.Series | None = None,
+                basic_ids: set[int] | None = None,
+                covar_means: dict[str, float] | None = None) -> pd.DataFrame:
     """Per-cell bus-eligible pool for the basic program.
 
     One row per (GEOID, school, band) cell of the assignment matrix, ES+MS
@@ -150,13 +153,21 @@ def basic_cells(assignment: pd.DataFrame | None = None,
     n_eligible (= n_expected × (1 − walk_frac)), dist_mi (BG centroid →
     school point), raw covariates, and centered x_* covariates (centering
     weighted by n_eligible, so β=0 means a flat tilt over the pool).
+
+    Scenario overrides (Stage 9): ``points`` replaces the school points (moved
+    schools), ``basic_ids`` replaces the basic-served school set (closures /
+    conversions), and ``covar_means`` pins the covariate centering to the
+    baseline pool so a fixed-scale scenario evaluation doesn't shift the tilt
+    of untouched cells. The means actually used are returned in
+    ``df.attrs['covar_means']``.
     """
     if assignment is None:
         assignment = load_assignment()
     if walk is None:
         walk = load_walker_fractions()
-    routes = load_school_routes()
-    basic_ids = set(routes[(routes.year == year) & (routes.program == "basic")].school_id)
+    if basic_ids is None:
+        routes = load_school_routes()
+        basic_ids = set(routes[(routes.year == year) & (routes.program == "basic")].school_id)
 
     df = assignment[
         assignment.grade_band.isin(_BUS_BANDS) & assignment.school_id.isin(basic_ids)
@@ -166,7 +177,7 @@ def basic_cells(assignment: pd.DataFrame | None = None,
     df = df[df["n_eligible"] > 0].copy()
 
     cents = _bg_centroids()
-    pts = _school_points()
+    pts = _school_points() if points is None else points
     df["dist_mi"] = shapely.distance(
         cents.reindex(df["GEOID"]).to_numpy(),
         pts.reindex(df["school_id"]).to_numpy(),
@@ -176,12 +187,19 @@ def basic_cells(assignment: pd.DataFrame | None = None,
     cov = school_covariates(year)
     df = df.merge(cov, left_on="school_id", right_index=True, how="left")
     w = df["n_eligible"].to_numpy()
+    means_used = {}
     for c in _COVARS:
         v = df[c].to_numpy(dtype=float)
         ok = ~np.isnan(v)
-        mean = float(np.average(v[ok], weights=w[ok]))
+        if covar_means is not None:
+            mean = float(covar_means[c])
+        else:
+            mean = float(np.average(v[ok], weights=w[ok]))
+        means_used[c] = mean
         df[f"x_{c}"] = np.where(ok, v - mean, 0.0)
-    return df.reset_index(drop=True)
+    df = df.reset_index(drop=True)
+    df.attrs["covar_means"] = means_used
+    return df
 
 
 # ---------------------------------------------------------------------------
@@ -296,7 +314,8 @@ def expected_riders(assignment: pd.DataFrame | None = None,
                     year: int = BASE_YEAR,
                     cells: pd.DataFrame | None = None,
                     gifted: pd.DataFrame | None = None,
-                    return_info: bool = False):
+                    return_info: bool = False,
+                    fixed_scale: float | None = None):
     """Expected riders per school × program (the Stage 10 entry point).
 
     Pure function of (assignment, walk_fractions, θ): pass a sampled
@@ -306,6 +325,11 @@ def expected_riders(assignment: pd.DataFrame | None = None,
     has them (e.g. the fit loop). Basic bands are aggregated per school;
     grade_band is informational. est_routes = riders / district
     riders-per-route for the program.
+
+    ``fixed_scale`` (Stage 9): use this propensity scale s instead of
+    re-solving against the district target. Scenarios MUST pass the
+    baseline-solved scale — re-solving would renormalize every scenario back
+    to the baseline district total and all deltas would vanish.
     """
     if params is None:
         params = load_params()
@@ -315,7 +339,15 @@ def expected_riders(assignment: pd.DataFrame | None = None,
         gifted = gifted_pool(assignment, walk, year)
     tgt = district_targets(year)
 
-    p, scale = _cell_propensity(cells, params, tgt["on_bus"])
+    if fixed_scale is None:
+        p, scale = _cell_propensity(cells, params, tgt["on_bus"])
+    else:
+        scale = fixed_scale
+        shape = _cell_shape(cells, params)
+        if np.isfinite(scale):
+            p = np.minimum(scale * shape, params.p_max)
+        else:
+            p = np.full_like(shape, params.p_max)
     riders = cells["n_eligible"].to_numpy() * p
     per_band = cells.assign(riders=riders).groupby(
         ["school_id", "grade_band"], as_index=False

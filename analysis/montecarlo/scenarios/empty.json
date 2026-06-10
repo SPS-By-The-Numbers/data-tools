@@ -1,0 +1,5 @@
+{
+  "name": "empty",
+  "description": "No ops — must reproduce the 2024-25 baseline exactly (M6 acceptance check).",
+  "ops": []
+}
