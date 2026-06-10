@@ -12,9 +12,11 @@ rates) are uncertain and we want distributions, not point estimates.
 > top-to-bottom and continue without re-deriving anything. Keep it honest —
 > record what is *assumed/unverified* as well as what is *done*.
 
-Last updated: **2026-06-09** (session 6 — M4 `assignment.py` + `eligibility.py` DONE).
-**Next session = M5:** Stage 8 `ridership.py` (on-bus propensity; calibrate to
-10,008 basic on-bus; implied global propensity from M4 is 0.657).
+Last updated: **2026-06-10** (session 7 — M5 `ridership.py` DONE).
+**Next session = M6:** Stage 9 `scenarios.py` — machine-readable scenario spec
++ the 5 ops (walk-zone resize, closure, conversion, move), apply() → mutated
+world feeding the Stage 6/7/8 hooks (`build_matrix`, `walk_fractions`,
+`expected_riders`).
 
 Scenario scope EXPANDED in session 2: besides walk-zone changes and closures,
 we also model **converting option schools to neighborhood schools** and
@@ -133,6 +135,23 @@ we also model **converting option schools to neighborhood schools** and
   parameter, plausible); per-school bus-eligible vs STARS basic routes
   Pearson r=0.718, Spearman ρ=0.622; median eligible/route 79 × 0.657 ≈ 52
   riders/route vs actual 49.5 — consistent.
+- **`ridership.py`** — DONE (session 7). Stage 8: ride propensity → expected
+  riders per school × program, tracked under `ridership/` (see README there).
+  Model per cell: `p = clip(s·f(d)·exp(β·x), 0, 0.95)` with
+  `f(d) = (1−ρ) + ρ·exp(−d/decay_mi)` (d = BG centroid → school point) and
+  centered school covariates x = (is_ms, low_income_frac, swd_frac,
+  absent_rate); s re-solved every call so basic riders = the STARS district
+  target (10,008) — hard renormalization, θ shapes only the distribution.
+  Fitted θ (2024-25): ρ=1.0 (pure distance DECAY), decay 4.69 mi, β_ms +0.19,
+  β_li +0.38, β_swd +6.13, β_abs −0.31. Per-school riders vs STARS basic
+  routes: **r 0.718 (flat M4) → 0.814 (shaped)**. Gifted: HC enrollment at
+  the 7 gifted-route sites spread by HCC pathway kernel (ES) / own assignment
+  column (MS, 4b caveat); solved propensity 1.011 vs the 1,316 target.
+  Riders→routes via district riders-per-route (basic 49.5, gifted 32.9).
+  API: `load_ridership()`, `load_params()` → `RidershipParams` (θ dataclass),
+  `expected_riders(assignment, walk, params)` pure core,
+  `sample_riders(rng, ...)` Poisson MC wrapper. Stage 10 samples θ via
+  `dataclasses.replace(load_params(), ...)`.
 - **`section4_seattle.py`** — DONE (session 2). Parses
   `data/2024-25-section4.pdf` into the observed area→school OD matrix +
   option-school draw tables under tracked `section4/`. The empirical anchor
@@ -464,11 +483,10 @@ isochrones via osmnx. Avoids a heavy dependency until the simple thing fails.
   matrix (19,094 cells, tracked `assignment/`); walk fractions (tracked
   `eligibility/`); combined validation PASS (implied propensity 0.657,
   route-count correlation r=0.72).
-- **M5** Stage 8 ridership — **← next session.** P(ride | eligible, ...);
-  calibrate to STARS on_bus = 10,008 basic (implied global propensity 0.657
-  from M4); soft-target per-school basic route counts (202); gifted program
-  via HCC kernels vs 1,316 target.
-- **M6** Stage 9 scenario engine + the 5 ops.
+- **M5** Stage 8 ridership — DONE (s7). Distance-decay + demographic
+  propensity shape; district totals exact by renormalization; per-school
+  route correlation r 0.718 → 0.814; gifted propensity 1.011 (4b caveat).
+- **M6** Stage 9 scenario engine + the 5 ops — **← next session.**
 - **M7** Stages 10-11 MC loop + reporting; first real scenario runs.
 
 ---
@@ -650,6 +668,39 @@ Still genuinely open for the user:
   (fitted exp decay), hcc_pathway (era-config union from
   hcc_pathways_es.csv). Raises on an empty kernel (wrong school for the
   kind).
+
+- **2026-06-10 (s7)** Stage 8 `ridership.py` built. Propensity form
+  `p = clip(s·f(d)·exp(β·x), 0, p_max)` with bounded mixture
+  `f(d) = (1−ρ) + ρ·exp(−d/decay_mi)`; the level s is NOT a parameter — it is
+  re-solved against the district on-bus target every call (capped cells
+  handled by an active-set renormalization), so θ only shapes the
+  distribution and the 10,008 target holds under any θ/scenario. θ fit by
+  coarse grid + converging coordinate refinement against route-implied
+  per-school riders (STARS basic routes × 10,008/Σroutes, 77 schools).
+- **2026-06-10 (s7)** Fit result: ρ pinned at 1.0 = pure exponential distance
+  decay (decay 4.69 mi) — bus propensity FALLS with distance from school.
+  Interpretation: service-area limits at big-draw option schools (distant
+  eligible kids don't get/take service), NOT a hazard-dip near school (an
+  unbounded near-school-boost parameterization degenerated into this same
+  pure-decay shape, so it was reparameterized to the bounded mixture).
+- **2026-06-10 (s7)** swd_frac is the strongest ridership covariate
+  (β_swd +6.13; ablation drops r 0.814 → 0.734; raw correlation of implied
+  per-school propensity with swd_frac +0.46). It is a demographic PROXY on
+  the basic program — special-ed routes are a separate STARS program, not
+  modeled. β_absent ≈ −0.31 adds ~nothing to r (kept on SSE only).
+- **2026-06-10 (s7)** Gifted pool: HC enrollment at the 7 gifted-route sites
+  (ES: HCC pathway kernel, era 2023-2025; MS: the school's own assignment
+  column). Solved propensity 1.011 > 1 ⇒ the pool is slightly UNDERESTIMATED,
+  because the MS OD-column approximation understates how far HC kids live
+  from school. Open question 4b (MS pathway map) is the fix; district gifted
+  total (1,316) is exact by construction regardless.
+- **2026-06-10 (s7)** Riders → route-ish outputs via district riders-per-route
+  by program (2024-25: basic 49.5, gifted 32.9); `est_routes` in
+  `ridership/school_ridership.csv`. Per-school n_routes_actual kept alongside
+  for comparison (191 of the 202 district basic routes map to schools).
+- **2026-06-10 (s7)** Known pre-existing repo breakage (not this project):
+  `extractors/safs/data_reader_test.py` imports a nonexistent
+  `extractors.safs.mdb_reader` → pytest collection error. Untouched.
 
 ---
 

@@ -1,0 +1,2 @@
+rho,decay_mi,beta_ms,beta_low_income,beta_swd,beta_absent,p_max,gifted_propensity,scale,riders_per_route_basic,riders_per_route_gifted,n_schools,sse_before,sse_after,pearson_routes_before,pearson_routes_after
+1.0,4.6875,0.1875,0.375,6.125,-0.3125,0.95,1.0109448648820862,0.9280586387350838,49.5470297029703,32.8875,77,339772.6500305828,221797.96337301808,0.7178901440815674,0.8141512421578719

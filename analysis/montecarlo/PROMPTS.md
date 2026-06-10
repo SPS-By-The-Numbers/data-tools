@@ -79,34 +79,49 @@ See the two READMEs + NOTES.md s6 decision-log entries before touching.
 
 ---
 
-## G. M5 — Stage 8 ridership (next session)
+## G. M5 — Stage 8 ridership — DONE 2026-06-10 (session 7)
+
+Built as specced: `ridership.py` — bounded-mixture distance shape
+`f(d) = (1−ρ)+ρ·exp(−d/L)` × centered demographic tilt, level re-solved to
+the 10,008 district target every call (renormalization survives any θ).
+Fitted: ρ=1.0 pure decay, L=4.69 mi, β_swd +6.13 dominant (demographic
+proxy — SpEd routes are a separate program). Per-school route correlation
+**r 0.718 → 0.814**. Gifted via HCC kernel (ES) / assignment columns (MS):
+propensity 1.011 vs 1,316 target (>1 ⇒ MS pool understated; fix = open
+question 4b). Tracked `ridership/school_ridership.csv` + `params.csv`;
+loaders `load_ridership()`, `load_params()`; Stage-10 hooks
+`expected_riders(assignment, walk, params θ)` + `sample_riders(rng)`.
+Read `ridership/README.md` + NOTES.md s7 decision-log entries before touching.
+
+---
+
+## H. M6 — Stage 9 scenario engine (next session)
 
 ```
 Continuing the SPS ridership Monte Carlo (analysis/montecarlo/). Read NOTES.md
 in full; `source venv/bin/activate`.
 
-Build M5: Stage 8 ridership.py from the architecture in NOTES.md.
+Build M6: Stage 9 scenarios.py + scenarios/*.json from the architecture in
+NOTES.md (the 5 ops: set_walk_threshold, scale_walkzone, close_school,
+convert_option_to_neighborhood, move_school).
 
-  P(ride | bus-eligible, distance, grade band, demographics, absenteeism)
-  - Start from eligibility.bus_eligible() (per school × band n_bus_eligible).
-    Deterministic expected-value mode first; MC wrapper after it fits.
-  - The M4 baseline: a single global propensity 0.657 reproduces the 10,008
-    basic on-bus target by construction. Stage 8's job is the SHAPE: propensity
-    varying with distance-to-school (BG centroid → school point), grade band
-    (ES vs MS), and school demographics (low_income, SWD from
-    school_enrollment.csv; absenteeism from rc_seattle) — while still hitting
-    10,008 district-wide (hard re-normalization is fine).
-  - Soft target: per-school basic route counts (school_routes.csv, 202 routes;
-    current eligible-vs-routes correlation is r=0.718 — distance/demographic
-    shape should IMPROVE it; report before/after).
-  - Gifted program: separate propensity on the HCC pathway flows
-    (kernel/OD columns for Cascadia, Decatur, TM ES; MS gifted sites pending
-    open question 4b) vs the 1,316 gifted rider target.
-  - Map riders → routes/buses via riders-per-route by program (~49.5
-    basic 2024-25) for cost-ish outputs.
-  - Output: tracked ridership/ table per school × program (+ loaders);
-    pure-functional core taking (assignment, walk_fractions, params θ) so
-    Stage 10 can sample θ.
+  - A scenario = ordered op list applied to a copy of the baseline world
+    (geography + school directory + draw kernels). Validate referenced
+    school_ids against parse_shapes locations.
+  - apply(scenario) must produce the inputs the existing hooks already take:
+    walkzone GeoDataFrame → eligibility.walk_fractions(walkzones=...),
+    edited flows/kernels → assignment.build_matrix(...) /
+    kernel_bg_weights(school_id, kind, band), then
+    ridership.expected_riders(assignment, walk, params).
+  - Walk-zone resizing via calibrated buffers (fit a per-school crow-flies
+    multiplier reproducing the official polygon area at the current
+    threshold; see NOTES.md "Walk-zone resizing approach").
+  - Closure fallback rules: attendance kids → receiving neighborhood
+    school(s); option/HCC kids → next pathway/option site (NOTES open
+    questions 2-3 have the user defaults: pathway relocates intact).
+  - Validate: an empty scenario must reproduce the baseline exactly
+    (assignment matrix, eligible pool, riders). Run one smoke scenario
+    end-to-end and report rider deltas.
 
 When done, update NOTES.md Current State + Decision Log + this prompt.
 ```
@@ -149,9 +164,9 @@ string label ("2024-25"), not the int fall-year used in montecarlo.
   (LOCKED)". Keep prompt C's `<N>` consistent with that list.
   - M1 (`school_directory`) DONE (s3). M2 (`baseline_ridership`) DONE (s4).
   - M3 (`acs_population` + `synth_population`) DONE (s5).
-  - M4 (`assignment` + `eligibility`) DONE (s6).
-  - **Next up: N=8 (`ridership`, prompt G)**. After that: N=9 (scenarios),
-    N=10/11 (MC loop + report).
+  - M4 (`assignment` + `eligibility`) DONE (s6). M5 (`ridership`) DONE (s7).
+  - **Next up: N=9 (`scenarios`, prompt H)**. After that: N=10/11
+    (MC loop + report).
 - school_directory loaders: `load_schools()`, `load_stars_name_map()`,
   `load_section4_name_map()`. See `school_directory/README.md`.
 - baseline_ridership loaders: `load_school_routes()`, `load_school_enrollment()`,
@@ -162,6 +177,9 @@ string label ("2024-25"), not the int fall-year used in montecarlo.
 - eligibility loaders: `load_walker_fractions()`, `bus_eligible()`,
   `validate_pipeline()`; scenario hook `walk_fractions(walkzones=...)`.
   See `eligibility/README.md`.
+- ridership loaders: `load_ridership()`, `load_params()` → `RidershipParams`;
+  Stage-10 hooks `expected_riders(assignment, walk, params)`,
+  `sample_riders(rng, ...)`. See `ridership/README.md`.
 - If a planning answer changes the architecture, edit NOTES.md *and* prompt B/C
   so future sessions inherit the new plan.
 - These prompts assume the repo conventions in the top-level CLAUDE.md (run

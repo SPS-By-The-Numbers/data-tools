@@ -1,0 +1,85 @@
+school_id,name,level,program,grade_band,n_bus_eligible,propensity,riders,n_routes_actual,est_routes
+103,Denny,MS,basic,ms,268.51,0.9054,243.11,6,4.91
+104,Eckstein,MS,basic,ms,133.72,0.4038,53.99,3,1.09
+105,Hamilton,MS,basic,ms,450.07,0.4995,224.79,2,4.54
+106,Jane Addams,MS,basic,ms,458.27,0.6469,296.46,5,5.98
+107,Madison,MS,basic,ms,512.34,0.5008,256.56,5,5.18
+109,Meany,MS,basic,ms,150.63,0.6775,102.05,3,2.06
+110,Mercer,MS,basic,ms,396.67,0.5455,216.38,5,4.37
+113,Robert Eagle Staff,MS,basic,ms,390.77,0.6374,249.09,3,5.03
+115,Whitman,MS,basic,ms,147.13,0.6238,91.79,2,1.85
+117,Washington,MS,basic,ms,258.86,0.6226,161.16,2,3.25
+118,McClure,MS,basic,ms,267.37,0.5458,145.94,4,2.95
+130,Aki Kurose,MS,basic,ms,663.54,0.6017,399.23,7,8.06
+201,Adams,ES,basic,es,78.79,0.6974,54.95,1,1.11
+202,Alki,ES,basic,es,169.61,0.5184,87.93,3,1.77
+203,Arbor Heights,ES,basic,es,259.65,0.714,185.38,3,3.74
+204,Bagley,ES,basic,es,177.44,0.7132,126.56,1,2.55
+208,Broadview-Thomson,ES,basic,es+ms,134.58,0.8276,111.38,1,2.25
+209,Bryant,ES,basic,es,148.72,0.3521,52.37,1,1.06
+210,Cedar Park,ES,basic,es,192.94,0.423,81.61,2,1.65
+211,Coe,ES,basic,es,75.91,0.6549,49.72,1,1.0
+215,Concord,ES,basic,es,119.5,0.5638,67.37,1,1.36
+218,B F Day,ES,basic,es,157.04,0.6449,101.28,3,2.04
+220,Graham Hill,ES,basic,es,89.46,0.8086,72.34,1,1.46
+221,Emerson,ES,basic,es,163.85,0.6762,110.8,3,2.24
+222,Fairmount Park,ES,basic,es,146.21,0.5608,82.0,1,1.66
+225,Gatewood,ES,basic,es,83.96,0.5121,43.0,1,0.87
+226,Gatzert,ES,basic,es,258.55,0.6261,161.89,1,3.27
+229,Green Lake,ES,basic,es,251.68,0.8461,212.95,3,4.3
+230,Greenwood,ES,basic,es,110.42,0.7093,78.33,1,1.58
+233,Hawthorne,ES,basic,es,280.51,0.6367,178.6,3,3.6
+234,Hay,ES,basic,es,76.54,0.8283,63.4,2,1.28
+235,Highland Park,ES,basic,es,83.34,0.6166,51.39,1,1.04
+236,West Seattle Elementary,ES,basic,es,50.58,0.8808,44.55,1,0.9
+239,Lafayette,ES,basic,es,272.76,0.5845,159.43,2,3.22
+241,Stanford,ES,basic,es,384.65,0.3298,126.87,2,2.56
+242,Laurelhurst,ES,basic,es,157.6,0.6899,108.73,1,2.19
+243,Lawton,ES,basic,es,216.44,0.5503,119.11,2,2.4
+244,Leschi,ES,basic,es,36.95,0.9241,34.14,1,0.69
+245,Lowell,ES,basic,es,320.17,0.8557,273.96,6,5.53
+246,Loyal Heights,ES,basic,es,232.25,0.5253,121.99,1,2.46
+247,McDonald,ES,basic,es,369.9,0.3314,122.59,2,2.47
+248,McGilvra,ES,basic,es,145.78,0.6548,95.46,2,1.93
+249,Madrona,ES,basic,es,29.85,0.7576,22.61,1,0.46
+250,Magnolia,ES,basic,es,86.67,0.7844,67.98,1,1.37
+251,Dearborn Park,ES,basic,es,132.3,0.4762,63.01,1,1.27
+252,Maple,ES,basic,es,239.69,0.7285,174.62,1,3.52
+255,Montlake,ES,basic,es,87.41,0.6925,60.53,4,1.22
+257,Baldwin,ES,basic,es,121.79,0.8905,108.46,2,2.19
+259,North Beach,ES,basic,es,160.69,0.7669,123.23,1,2.49
+261,Olympic Hills,ES,basic,es,173.4,0.9095,157.71,2,3.18
+262,Olympic View,ES,basic,es,186.98,0.786,146.97,2,2.97
+264,Rainier View,ES,basic,es,79.98,0.4421,35.36,1,0.71
+266,Rogers,ES,basic,es,106.04,0.8225,87.21,4,1.76
+267,Roxhill,ES,basic,es,117.45,0.8619,101.23,2,2.04
+268,Sacajawea,ES,basic,es,109.94,0.95,104.45,1,2.11
+269,Sand Point,ES,basic,es,105.59,0.9319,98.39,2,1.99
+270,Genesee Hill,ES,basic,es,157.95,0.7071,111.68,1,2.25
+272,Stevens,ES,basic,es,41.18,0.9383,38.64,1,0.78
+275,Rising Star,ES,basic,es,94.69,0.94,89.01,3,1.8
+276,Viewlands,ES,basic,es,150.67,0.488,73.53,2,1.48
+277,View Ridge,ES,basic,es,126.62,0.6893,87.28,1,1.76
+279,Wedgwood,ES,basic,es,105.65,0.4485,47.39,2,0.96
+281,West Woodland,ES,basic,es,67.25,0.705,47.41,1,0.96
+282,Whittier,ES,basic,es,76.19,0.8006,61.0,1,1.23
+286,Wing Luke,ES,basic,es,179.02,0.5811,104.03,1,2.1
+288,Kimball,ES,basic,es,186.48,0.8682,161.9,3,3.27
+289,Blaine,ES,basic,es+ms,105.7,0.901,95.23,1,1.92
+291,South Shore,ES,basic,es+ms,362.72,0.6905,250.46,5,5.05
+292,Hazel Wolf,ES,basic,es+ms,497.66,0.5982,297.72,7,6.01
+930,Pathfinder,ES,basic,es+ms,399.14,0.8852,353.32,7,7.13
+935,TOPS,ES,basic,es+ms,435.42,0.7323,318.88,6,6.44
+939,Orca,ES,basic,es+ms,152.25,0.447,68.05,2,1.37
+949,Salmon Bay,ES,basic,es+ms,378.6,0.8548,323.63,6,6.53
+955,Licton Springs,ES,basic,es+ms,43.95,0.95,41.75,2,0.84
+972,Boren,ES,basic,es+ms,261.46,0.7748,202.58,6,4.09
+974,Queen Anne,ES,basic,es,86.83,0.9039,78.48,3,1.58
+977,Thornton Creek,ES,basic,es,237.99,0.7739,184.19,4,3.72
+105,Hamilton,MS,gifted,ms,135.61,1.0109,137.1,3,4.17
+106,Jane Addams,MS,gifted,ms,90.0,1.0109,90.98,4,2.77
+113,Robert Eagle Staff,MS,gifted,ms,114.18,1.0109,115.43,2,3.51
+117,Washington,MS,gifted,ms,49.76,1.0109,50.31,4,1.53
+212,Thurgood Marshall,ES,gifted,es,205.83,1.0109,208.08,12,6.33
+287,Decatur,ES,gifted,es,190.0,1.0109,192.08,3,5.84
+971,Cascadia,ES,gifted,es,515.88,1.0109,521.52,12,15.86
