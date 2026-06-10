@@ -64,44 +64,49 @@ When done, update NOTES.md Current State + Decision Log.
 
 ---
 
-## F. M4 — Stages 6-7 assignment + eligibility (next session)
+## F. M4 — Stages 6-7 assignment + eligibility — DONE 2026-06-09 (session 6)
+
+Built as specced: `assignment.py` (OD-anchored prior + IPF → tracked
+`assignment/assignment_matrix.csv`, 19,094 cells; option-kernel decay fits in
+`assignment/kernel_params.csv`: ES/MS 0.50 mi, HS 1.50 mi) and
+`eligibility.py` (pure-geometry walk fractions → tracked
+`eligibility/walker_fractions.csv`, 2,798 pairs). Combined validation PASS:
+bus-eligible pool 15,229 at the 77 basic-route schools → implied propensity
+0.657 vs the 10,008 target; per-school eligible vs basic routes r=0.718.
+Scenario hooks ready for M6: `build_matrix(pop=...)`,
+`kernel_bg_weights(school_id, kind, band)`, `walk_fractions(walkzones=...)`.
+See the two READMEs + NOTES.md s6 decision-log entries before touching.
+
+---
+
+## G. M5 — Stage 8 ridership (next session)
 
 ```
 Continuing the SPS ridership Monte Carlo (analysis/montecarlo/). Read NOTES.md
 in full; `source venv/bin/activate`.
 
-Build M4: Stages 6 + 7 from the architecture in NOTES.md.
+Build M5: Stage 8 ridership.py from the architecture in NOTES.md.
 
-Stage 6 — assignment.py:
-  draw kernels + IPF → P(school | block_group, grade_band)
-  - Baseline: anchor to observed Section 4 OD flows (section4_seattle.load_od())
-    at attendance-area granularity; IPF distributes within-area to block groups.
-  - Inputs: synth_pop.csv (row marginals), school_enrollment.csv (column
-    marginals by school×grade), block_groups.csv (geometry for point-in-polygon),
-    Section 4 OD flows, schools.csv (classification + kernel type),
-    hcc_pathways_es.csv (for HCC draw kernels).
-  - Kernel types: neighborhood (uniform over attendance area), option (distance-
-    decay in geozone), hcc_pathway (region-wide, no decay).
-  - Output: tracked assignment/assignment_matrix.parquet or .csv (BG × school
-    × grade_band probability weights); also loaders.
-
-Stage 7 — eligibility.py:
-  walk-zone membership → walker vs bus-eligible fraction per BG × school
-  - Use parse_shapes walkzones (polygons, EPSG:2926); a child is walk-zone if
-    their BG centroid (or better: fraction of BG area) is inside the walk zone.
-  - BASELINE eligibility is pure geometry against the official walk-zone
-    polygons — no fitting. The calibrated-buffer approach (NOTES.md
-    architecture) is only for SCENARIO thresholds (resized walk zones).
-  - WARNING: STARS basic_students_in_walk_areas is ~96-324/yr — a reporting
-    adjustment, NOT a walker count. There is no independent district-level
-    walker calibration target (see s5 correction in NOTES.md Decision Log).
-  - Output: tracked eligibility/walker_fractions.csv (BG × school → walk_frac).
-
-Validate the combined pipeline: applying assignment × eligibility × on-bus
-propensity should approximately reproduce the 10,008 basic on-bus calibration
-target (2024-25, from district_targets.csv) — if the error is >20%, something
-is structurally off. Secondary check: per-school basic route counts (202
-district-wide) should correlate with predicted bus-eligible kids per school.
+  P(ride | bus-eligible, distance, grade band, demographics, absenteeism)
+  - Start from eligibility.bus_eligible() (per school × band n_bus_eligible).
+    Deterministic expected-value mode first; MC wrapper after it fits.
+  - The M4 baseline: a single global propensity 0.657 reproduces the 10,008
+    basic on-bus target by construction. Stage 8's job is the SHAPE: propensity
+    varying with distance-to-school (BG centroid → school point), grade band
+    (ES vs MS), and school demographics (low_income, SWD from
+    school_enrollment.csv; absenteeism from rc_seattle) — while still hitting
+    10,008 district-wide (hard re-normalization is fine).
+  - Soft target: per-school basic route counts (school_routes.csv, 202 routes;
+    current eligible-vs-routes correlation is r=0.718 — distance/demographic
+    shape should IMPROVE it; report before/after).
+  - Gifted program: separate propensity on the HCC pathway flows
+    (kernel/OD columns for Cascadia, Decatur, TM ES; MS gifted sites pending
+    open question 4b) vs the 1,316 gifted rider target.
+  - Map riders → routes/buses via riders-per-route by program (~49.5
+    basic 2024-25) for cost-ish outputs.
+  - Output: tracked ridership/ table per school × program (+ loaders);
+    pure-functional core taking (assignment, walk_fractions, params θ) so
+    Stage 10 can sample θ.
 
 When done, update NOTES.md Current State + Decision Log + this prompt.
 ```
@@ -142,16 +147,21 @@ string label ("2024-25"), not the int fall-year used in montecarlo.
 ## Notes on using these
 - The architecture stage numbers (#1–#11) live in NOTES.md → "Architecture
   (LOCKED)". Keep prompt C's `<N>` consistent with that list.
-  - M1 (`school_directory`) DONE (s3).
-  - M2 (`baseline_ridership`) DONE (s4).
-  - **Next up: N=4/5 (`acs_population` + `synth_population`)** — Census API
-    key needed (free, CENSUS_API_KEY env var). After that: N=6/7 (assignment +
-    eligibility), N=8 (ridership), N=9 (scenarios), N=10/11 (MC loop + report).
+  - M1 (`school_directory`) DONE (s3). M2 (`baseline_ridership`) DONE (s4).
+  - M3 (`acs_population` + `synth_population`) DONE (s5).
+  - M4 (`assignment` + `eligibility`) DONE (s6).
+  - **Next up: N=8 (`ridership`, prompt G)**. After that: N=9 (scenarios),
+    N=10/11 (MC loop + report).
 - school_directory loaders: `load_schools()`, `load_stars_name_map()`,
   `load_section4_name_map()`. See `school_directory/README.md`.
 - baseline_ridership loaders: `load_school_routes()`, `load_school_enrollment()`,
   `load_district_targets()`, `load_kernel_check()`. See `baseline_ridership/README.md`.
   2024-25 calibration targets: 10,008 basic on-bus, 1,316 gifted, 202 basic routes.
+- assignment loaders: `load_assignment()`, `load_kernel_params()`; MC/scenario
+  hooks `build_matrix(pop=...)`, `kernel_bg_weights()`. See `assignment/README.md`.
+- eligibility loaders: `load_walker_fractions()`, `bus_eligible()`,
+  `validate_pipeline()`; scenario hook `walk_fractions(walkzones=...)`.
+  See `eligibility/README.md`.
 - If a planning answer changes the architecture, edit NOTES.md *and* prompt B/C
   so future sessions inherit the new plan.
 - These prompts assume the repo conventions in the top-level CLAUDE.md (run

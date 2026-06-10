@@ -12,8 +12,9 @@ rates) are uncertain and we want distributions, not point estimates.
 > top-to-bottom and continue without re-deriving anything. Keep it honest —
 > record what is *assumed/unverified* as well as what is *done*.
 
-Last updated: **2026-06-09** (session 5 — M3 `acs_population.py` + `synth_population.py` DONE).
-**Next session = M4:** Stages 6-7 `assignment.py` + `eligibility.py` (IPF + walk-zone membership).
+Last updated: **2026-06-09** (session 6 — M4 `assignment.py` + `eligibility.py` DONE).
+**Next session = M5:** Stage 8 `ridership.py` (on-bus propensity; calibrate to
+10,008 basic on-bus; implied global propensity from M4 is 0.657).
 
 Scenario scope EXPANDED in session 2: besides walk-zone changes and closures,
 we also model **converting option schools to neighborhood schools** and
@@ -101,6 +102,37 @@ we also model **converting option schools to neighborhood schools** and
   Sampler: `sample_synth_pop(rng)` draws grade-band fractions from Dirichlet
   per block group; district total is preserved, variance is spatial + grade-band.
   Build: `python3 -m analysis.montecarlo.synth_population --build`
+- **`assignment.py`** — DONE (session 6). Stage 6: baseline P(school | block
+  group, grade band) anchored to Section 4 OD flows + IPF. Run
+  `python3 -m analysis.montecarlo.assignment` (or `--build`). Outputs tracked
+  under `assignment/` — see README there.
+  Key outputs:
+  - `assignment_matrix.csv` — 19,094 cells: GEOID × school_id × grade_band
+    (es/ms/hs) → n_expected, p. Rows = synth_pop kids (scaled ×0.93/0.87/0.95
+    per band to enrollment totals); columns = RC per-grade 2024-25 enrollment
+    by band (98 schools, PK excluded); prior = BG-area overlay weights ×
+    observed P(school|area,band). IPF: columns exact, row residual ≈ 0.
+  - `kernel_params.csv` — option-kernel exponential decay fit to OD draws:
+    ES 0.50 mi (TV 0.28 vs 0.75 uniform), MS 0.50 mi, HS 1.50 mi.
+  API: `load_assignment()`, `load_kernel_params()`,
+  `build_matrix(pop=sample_synth_pop(rng))` (MC hook),
+  `kernel_bg_weights(school_id, kind, band)` for scenario kernels
+  (neighborhood / option / hcc_pathway — hcc uses `hcc_pathways_es.csv`).
+  GOTCHA: ES od rows with grade_band "6-8" (Blaine/Broadview-Thomson blocks)
+  are EXCLUDED from flows — those kids are already in the MS OD tables.
+- **`eligibility.py`** — DONE (session 6). Stage 7: walk-zone membership,
+  pure geometry. `walker_fractions.csv` (tracked under `eligibility/`):
+  2,798 nonzero (GEOID, school_id) → walk_frac pairs (fraction of the BG's
+  SPS-territory area inside the school's official walk zone; missing pair =
+  0). Scenario hook: `walk_fractions(walkzones=<gdf>)` recomputes for resized
+  polygons. API: `load_walker_fractions()`, `bus_eligible()` (joins Stage 6 ×
+  Stage 7 → per school × band n_assigned/n_walk/n_bus_eligible),
+  `validate_pipeline()`. **M4 validation (2024-25): PASS** — 77 basic-route
+  schools, ES+MS assigned 31,123, walkers 15,894 (~50%), bus-eligible
+  15,229; implied on-bus propensity 10,008/15,229 = **0.657** (Stage 8's free
+  parameter, plausible); per-school bus-eligible vs STARS basic routes
+  Pearson r=0.718, Spearman ρ=0.622; median eligible/route 79 × 0.657 ≈ 52
+  riders/route vs actual 49.5 — consistent.
 - **`section4_seattle.py`** — DONE (session 2). Parses
   `data/2024-25-section4.pdf` into the observed area→school OD matrix +
   option-school draw tables under tracked `section4/`. The empirical anchor
@@ -428,16 +460,14 @@ isochrones via osmnx. Avoids a heavy dependency until the simple thing fails.
 - **M3** Stages 4-5 `acs_population` + `synth_population` — DONE (s5).
   558 SPS-territory block groups; 76,474 school-age children; 52,904 est.
   public (1.06x SPS enrollment — calibrates in IPF). Tracked → `census_seattle/`.
-- **M4** Stages 6-7 assignment + eligibility — **← next session.**
-  `assignment.py`: draw kernels + IPF → P(school|block_group, grade). Anchored
-  to Section 4 OD flows (area→school). `eligibility.py`: walk-zone membership
-  (scenario-aware) → walker vs bus-eligible, computed geometrically from the
-  official walk-zone polygons (parse_shapes). NOTE: STARS
-  `basic_students_in_walk_areas` is only ~96-324/yr — it is a STARS reporting
-  adjustment, NOT a count of kids living in walk zones; do not calibrate
-  walker counts to it. Calibrate the combined pipeline to
-  `basic_students_on_buses` = 10,008 (2024-25) instead.
-- **M5** Stage 8 ridership; calibrate to STARS on_bus.
+- **M4** Stages 6-7 assignment + eligibility — DONE (s6). OD-anchored IPF
+  matrix (19,094 cells, tracked `assignment/`); walk fractions (tracked
+  `eligibility/`); combined validation PASS (implied propensity 0.657,
+  route-count correlation r=0.72).
+- **M5** Stage 8 ridership — **← next session.** P(ride | eligible, ...);
+  calibrate to STARS on_bus = 10,008 basic (implied global propensity 0.657
+  from M4); soft-target per-school basic route counts (202); gifted program
+  via HCC kernels vs 1,316 target.
 - **M6** Stage 9 scenario engine + the 5 ops.
 - **M7** Stages 10-11 MC loop + reporting; first real scenario runs.
 
@@ -585,6 +615,41 @@ Still genuinely open for the user:
   membership comes purely from the official walk-zone polygons (geometry);
   the eligibility stage has no independent district-level walker target —
   end-to-end calibration runs against `basic_students_on_buses` = 10,008.
+
+- **2026-06-09 (s6)** Stage 6 `assignment.py` built. Baseline anchored to
+  Section 4 OD as planned: prior = BG-area overlay weights × P(school|area,
+  band); IPF rows = synth_pop (scaled per band ×0.93 es / ×0.87 ms / ×0.95 hs
+  to RC totals), columns = RC per-grade 2024-25 enrollment by band (98
+  schools; PK excluded — not transported and not in synth_pop). All 98 OD
+  destination schools and all 80 residence areas resolve via
+  school_directory; every school with RC band enrollment has an OD flow
+  column (no structural-zero drops). ES OD "6-8" rows excluded to avoid
+  double-counting with MS OD. Cells < 1e-4 expected kids dropped from the
+  tracked CSV (affects only ~11 near-empty BG-bands).
+- **2026-06-09 (s6)** Option draw kernels fit to OD: single exponential
+  distance decay per band on BG centroids, grid-searched. ES/MS 0.50 mi,
+  HS 1.50 mi; mean total-variation vs observed draws ~0.18-0.36, far better
+  than the no-decay baseline (~0.46-0.75). Geozone-priority + lottery-tail
+  structure NOT modeled (plain decay was sufficient at area granularity);
+  revisit in M6 only if scenario realism demands it.
+- **2026-06-09 (s6)** Stage 7 `eligibility.py` built: walk_frac = area
+  fraction of the BG's SPS-clipped area inside the official walk-zone
+  polygon (denominator sps_area_sqft, consistent with sps_frac weighting in
+  synth_pop). No fitting, per the s5 correction. ~50% of ES+MS kids assigned
+  to basic-route schools live in walk zones.
+- **2026-06-09 (s6)** M4 combined validation PASS (criteria: implied
+  propensity ∈ [0.2, 0.9] and Pearson > 0.5): bus-eligible pool 15,229 at
+  the 77 basic-route schools → implied on-bus propensity 0.657 vs the
+  10,008 target; per-school eligible vs basic route counts r=0.718
+  (ρ=0.622); median eligible-per-route 79 → ~52 riders/route at 0.657,
+  matching the actual 49.5. Note: HS has NO basic yellow-bus routes (STARS
+  2024-25) — basic eligibility is an ES+MS concept; HS enters only via
+  scenario reporting, not basic calibration.
+- **2026-06-09 (s6)** `kernel_bg_weights()` (assignment.py) is the scenario
+  kernel API for M6: neighborhood (attendance-area membership), option
+  (fitted exp decay), hcc_pathway (era-config union from
+  hcc_pathways_es.csv). Raises on an empty kernel (wrong school for the
+  kind).
 
 ---
 
