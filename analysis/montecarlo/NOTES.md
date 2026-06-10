@@ -37,6 +37,15 @@ we also model **converting option schools to neighborhood schools** and
 
 ## Current state (what exists today)
 
+- **`findings.html`** + generator **`findings_html.py`** — NEW (s10):
+  self-contained findings report (inline-SVG charts, no external deps) for
+  a school-board/advocacy audience: Fig 1 Δrides with CIs, Fig 2 routes vs
+  buses (bell-shift effect), Fig 3 fiscal (funding vs cost vs net), full
+  table + per-scenario cards + key findings + caveats. REGENERATE after
+  any re-run: `python3 -m analysis.montecarlo.findings_html` (it reads the
+  saved `simulate/<name>/` runs via the report-stage summary functions, so
+  it always matches the tracked outputs; editorial blurbs live in the
+  script's SCENARIOS list — update them when adding scenarios).
 - **`OVERVIEW.md`** — NEW (s10): technical documentation of the simulation
   (pipeline construction, variables + sampling distributions, fitted θ,
   fiscal models, calibration/validation table, enumerated assumptions and

@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>What Would It Do to the Buses? — SPS scenario findings</title>
+<style>
+:root{
+  --ink:#16130e; --paper:#faf6ec; --paper2:#f3ecdc; --yellow:#f7c200;
+  --green:#2a6f4e; --brick:#a03123; --muted:#8c8475; --rule:#d8cfba;
+}
+*{box-sizing:border-box}
+html{background:var(--paper2)}
+body{
+  margin:0; color:var(--ink); background:var(--paper);
+  font:17px/1.62 Charter,"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+  max-width:1060px; margin-inline:auto; padding:0 28px 80px;
+  box-shadow:0 0 60px rgba(22,19,14,.18);
+}
+.stripe{height:14px; margin:0 -28px;
+  background:repeating-linear-gradient(135deg,var(--yellow) 0 26px,var(--ink) 26px 38px)}
+header{padding:38px 0 18px; border-bottom:4px double var(--ink)}
+.kicker{font:700 13px/1 Avenir,"Avenir Next",Seravek,Verdana,sans-serif;
+  letter-spacing:.22em; text-transform:uppercase; color:var(--brick)}
+h1{font:900 clamp(34px,5.4vw,58px)/1.04 Superclarendon,"Bookman Old Style",
+  "Clarendon Text Pro",Rockwell,Charter,Georgia,serif; margin:.25em 0 .15em;
+  letter-spacing:-.01em}
+.dek{font-size:20px; color:#3d382e; max-width:62ch; margin:.2em 0 1em}
+.byline{font:13px/1.5 Avenir,"Avenir Next",Seravek,Verdana,sans-serif;
+  color:var(--muted); letter-spacing:.05em}
+h2{font:800 26px/1.2 Superclarendon,"Bookman Old Style",Rockwell,Charter,Georgia,serif;
+  margin:2.2em 0 .5em; padding-top:1.1em; border-top:1.5px solid var(--ink)}
+h2 .no{display:inline-block; background:var(--yellow); border:1.5px solid var(--ink);
+  padding:1px 9px; margin-right:10px; font-size:18px; vertical-align:3px}
+p{max-width:72ch}
+figure{margin:1.6em 0 2.2em; padding:18px 16px 10px; background:#fffdf6;
+  border:1.5px solid var(--ink); box-shadow:6px 6px 0 var(--paper2)}
+figcaption{font:13px/1.55 Avenir,"Avenir Next",Seravek,Verdana,sans-serif;
+  color:#4a4438; margin-top:8px; max-width:90ch}
+figcaption b{color:var(--ink)}
+svg{width:100%; height:auto; display:block}
+.legend{font:12px/1 Avenir,"Avenir Next",Seravek,Verdana,sans-serif; color:#4a4438;
+  display:flex; gap:18px; flex-wrap:wrap; margin:4px 2px 10px}
+.legend span{display:inline-flex; align-items:center; gap:6px}
+.sw{width:22px; height:11px; border:1.3px solid var(--ink); display:inline-block}
+.callout{background:var(--paper2); border-left:6px solid var(--yellow);
+  padding:14px 20px; margin:1.4em 0; max-width:78ch}
+.callout p{margin:.4em 0}
+table{border-collapse:collapse; width:100%; margin:1.4em 0;
+  font:14px/1.45 ui-monospace,Menlo,Consolas,monospace}
+caption{caption-side:top; text-align:left;
+  font:700 13px/2 Avenir,"Avenir Next",Seravek,Verdana,sans-serif;
+  letter-spacing:.12em; text-transform:uppercase}
+th{font:700 12px/1.3 Avenir,"Avenir Next",Seravek,Verdana,sans-serif;
+  letter-spacing:.06em; text-transform:uppercase; text-align:right;
+  border-bottom:2px solid var(--ink); padding:6px 8px}
+th:first-child,td:first-child{text-align:left}
+td{padding:6px 8px; border-bottom:1px solid var(--rule); text-align:right;
+  white-space:nowrap}
+tr.grp td{border-bottom:none; padding-top:16px;
+  font:700 12px/1 Avenir,"Avenir Next",Seravek,Verdana,sans-serif;
+  letter-spacing:.14em; text-transform:uppercase; color:var(--brick)}
+.pos{color:var(--green); font-weight:700}
+.neg{color:var(--brick); font-weight:700}
+.cards{display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr));
+  gap:16px; margin:1.4em 0}
+.card{border:1.5px solid var(--ink); background:#fffdf6; padding:14px 16px 12px}
+.card h3{margin:0 0 2px; font:800 17px/1.25 Superclarendon,"Bookman Old Style",
+  Rockwell,Georgia,serif}
+.card .tag{font:700 10px/1 Avenir,"Avenir Next",Seravek,Verdana,sans-serif;
+  letter-spacing:.16em; text-transform:uppercase; color:var(--brick)}
+.card p{font-size:14.5px; line-height:1.5; margin:.5em 0; color:#3d382e}
+.card .nums{font:13px/1.7 ui-monospace,Menlo,Consolas,monospace;
+  border-top:1px solid var(--rule); padding-top:7px}
+ol.findings{max-width:74ch; padding-left:1.3em}
+ol.findings li{margin:.7em 0}
+.foot{margin-top:3em; border-top:4px double var(--ink); padding-top:14px;
+  font:13px/1.7 Avenir,"Avenir Next",Seravek,Verdana,sans-serif; color:#4a4438}
+.foot ol{padding-left:1.2em}
+.foot li{margin:.35em 0}
+code{font:.92em ui-monospace,Menlo,Consolas,monospace; background:var(--paper2);
+  padding:0 4px}
+@media print{body{box-shadow:none; max-width:none} figure{box-shadow:none}}
+</style>
+<body>
+<div class="stripe"></div>
+<header>
+  <div class="kicker">SPS By The Numbers · Transportation Simulation Findings</div>
+  <h1>What Would It Do to the Buses?</h1>
+  <p class="dek">Monte Carlo estimates of how eleven policy scenarios —
+  walk-zone changes, restored high-school service, school closures, and
+  option-school conversions — would change Seattle Public Schools yellow-bus
+  ridership, fleet size, and state transportation funding.</p>
+  <div class="byline">Generated 2026-06-10 · 200 paired draws per scenario
+  (seed 20260610) · baseline school year 2024-25 ·
+  methods: <a href="OVERVIEW.md">OVERVIEW.md</a></div>
+</header>
+
+<h2><span class="no">§1</span>How to read this</h2>
+<p>Every number is a <b>change from the 2024-25 baseline</b> (10,008.5 basic
+rides/day, 202 routes, ≈180 buses, $36.7M state reimbursement). “Rides per
+day” counts boardings the way the state does: morning and afternoon each
+count once, so a student riding both ways counts as 2. Brackets are 95%
+intervals over a few hundred simulated worlds that vary <i>where students
+live</i> (census uncertainty) and <i>how readily families use the bus</i>
+(behavioral-parameter uncertainty) — they are not year-to-year noise.</p>
+<div class="callout"><p><b>The one-sentence summary:</b> expanding service
+<i>earns</i> the district money — added riders raise the state’s funding
+formula faster than they raise costs, and middle/high-school routes reuse
+buses the elementary shift already pays for — while school closures
+<i>lose</i> transportation money from both directions at once.</p></div>
+
+<h2><span class="no">§2</span>Ridership: who gains, who loses</h2>
+<figure>
+<svg viewBox="0 0 960 430" role="img" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="13"><line x1="505.7" y1="14" x2="505.7" y2="406" stroke="#16130e" stroke-width="1.5"/><text x="300" y="47.0" text-anchor="end" fill="#16130e" font-family="inherit">Re-add HS yellow bus + 1-mi walk zone</text><rect x="505.7" y="34.0" width="247.3" height="18" fill="#f7c200" stroke="#16130e" stroke-width="1.2"/><line x1="674.6" y1="43.0" x2="849.4" y2="43.0" stroke="#16130e" stroke-width="1.5"/><line x1="674.6" y1="38.0" x2="674.6" y2="48.0" stroke="#16130e" stroke-width="1.5"/><line x1="849.4" y1="38.0" x2="849.4" y2="48.0" stroke="#16130e" stroke-width="1.5"/><text x="857.4" y="47.0" text-anchor="start" fill="#16130e" font-weight="bold">+3,532</text><text x="300" y="81.0" text-anchor="end" fill="#16130e" font-family="inherit">Shrink MS walk zones to 1 mile</text><rect x="505.7" y="68.0" width="145.1" height="18" fill="#f7c200" stroke="#16130e" stroke-width="1.2"/><line x1="638.8" y1="77.0" x2="661.7" y2="77.0" stroke="#16130e" stroke-width="1.5"/><line x1="638.8" y1="72.0" x2="638.8" y2="82.0" stroke="#16130e" stroke-width="1.5"/><line x1="661.7" y1="72.0" x2="661.7" y2="82.0" stroke="#16130e" stroke-width="1.5"/><text x="669.7" y="81.0" text-anchor="start" fill="#16130e" font-weight="bold">+2,073</text><text x="300" y="115.0" text-anchor="end" fill="#16130e" font-family="inherit">Re-add HS yellow bus (2-mi walk zone)</text><rect x="505.7" y="102.0" width="116.1" height="18" fill="#f7c200" stroke="#16130e" stroke-width="1.2"/><line x1="585.8" y1="111.0" x2="669.0" y2="111.0" stroke="#16130e" stroke-width="1.5"/><line x1="585.8" y1="106.0" x2="585.8" y2="116.0" stroke="#16130e" stroke-width="1.5"/><line x1="669.0" y1="106.0" x2="669.0" y2="116.0" stroke="#16130e" stroke-width="1.5"/><text x="677.0" y="115.0" text-anchor="start" fill="#16130e" font-weight="bold">+1,659</text><text x="300" y="149.0" text-anchor="end" fill="#16130e" font-family="inherit">KUOW Option B: close 17 schools</text><rect x="505.7" y="136.0" width="79.5" height="18" fill="#f7c200" stroke="#16130e" stroke-width="1.2"/><line x1="581.2" y1="145.0" x2="588.9" y2="145.0" stroke="#16130e" stroke-width="1.5"/><line x1="581.2" y1="140.0" x2="581.2" y2="150.0" stroke="#16130e" stroke-width="1.5"/><line x1="588.9" y1="140.0" x2="588.9" y2="150.0" stroke="#16130e" stroke-width="1.5"/><text x="596.9" y="149.0" text-anchor="start" fill="#16130e" font-weight="bold">+1,136</text><text x="300" y="183.0" text-anchor="end" fill="#16130e" font-family="inherit">Option B, HCC → Dearborn Park</text><rect x="505.7" y="170.0" width="79.5" height="18" fill="#f7c200" stroke="#16130e" stroke-width="1.2"/><line x1="581.2" y1="179.0" x2="588.9" y2="179.0" stroke="#16130e" stroke-width="1.5"/><line x1="581.2" y1="174.0" x2="581.2" y2="184.0" stroke="#16130e" stroke-width="1.5"/><line x1="588.9" y1="174.0" x2="588.9" y2="184.0" stroke="#16130e" stroke-width="1.5"/><text x="596.9" y="183.0" text-anchor="start" fill="#16130e" font-weight="bold">+1,136</text><text x="300" y="217.0" text-anchor="end" fill="#16130e" font-family="inherit">KUOW Option A: close 21 schools</text><rect x="505.7" y="204.0" width="59.5" height="18" fill="#f7c200" stroke="#16130e" stroke-width="1.2"/><line x1="558.8" y1="213.0" x2="571.3" y2="213.0" stroke="#16130e" stroke-width="1.5"/><line x1="558.8" y1="208.0" x2="558.8" y2="218.0" stroke="#16130e" stroke-width="1.5"/><line x1="571.3" y1="208.0" x2="571.3" y2="218.0" stroke="#16130e" stroke-width="1.5"/><text x="579.3" y="217.0" text-anchor="start" fill="#16130e" font-weight="bold">+850</text><text x="300" y="251.0" text-anchor="end" fill="#16130e" font-family="inherit">Convert 5 option schools (combo 1)</text><rect x="505.7" y="238.0" width="16.8" height="18" fill="#f7c200" stroke="#16130e" stroke-width="1.2"/><line x1="520.0" y1="247.0" x2="525.3" y2="247.0" stroke="#16130e" stroke-width="1.5"/><line x1="520.0" y1="242.0" x2="520.0" y2="252.0" stroke="#16130e" stroke-width="1.5"/><line x1="525.3" y1="242.0" x2="525.3" y2="252.0" stroke="#16130e" stroke-width="1.5"/><text x="533.3" y="251.0" text-anchor="start" fill="#16130e" font-weight="bold">+240</text><text x="300" y="285.0" text-anchor="end" fill="#16130e" font-family="inherit">Convert 5 option schools (combo 2)</text><rect x="505.7" y="272.0" width="16.7" height="18" fill="#f7c200" stroke="#16130e" stroke-width="1.2"/><line x1="520.3" y1="281.0" x2="524.9" y2="281.0" stroke="#16130e" stroke-width="1.5"/><line x1="520.3" y1="276.0" x2="520.3" y2="286.0" stroke="#16130e" stroke-width="1.5"/><line x1="524.9" y1="276.0" x2="524.9" y2="286.0" stroke="#16130e" stroke-width="1.5"/><text x="532.9" y="285.0" text-anchor="start" fill="#16130e" font-weight="bold">+238</text><text x="300" y="319.0" text-anchor="end" fill="#16130e" font-family="inherit">Close 4 ES (named receivers)</text><rect x="505.7" y="306.0" width="12.2" height="18" fill="#f7c200" stroke="#16130e" stroke-width="1.2"/><line x1="515.6" y1="315.0" x2="520.2" y2="315.0" stroke="#16130e" stroke-width="1.5"/><line x1="515.6" y1="310.0" x2="515.6" y2="320.0" stroke="#16130e" stroke-width="1.5"/><line x1="520.2" y1="310.0" x2="520.2" y2="320.0" stroke="#16130e" stroke-width="1.5"/><text x="528.2" y="319.0" text-anchor="start" fill="#16130e" font-weight="bold">+174</text><text x="300" y="353.0" text-anchor="end" fill="#16130e" font-family="inherit">Close Sacajawea ES only</text><rect x="505.2" y="340.0" width="1.0" height="18" fill="#8c8475" stroke="#16130e" stroke-width="1.2"/><line x1="504.8" y1="349.0" x2="505.6" y2="349.0" stroke="#16130e" stroke-width="1.5"/><line x1="504.8" y1="344.0" x2="504.8" y2="354.0" stroke="#16130e" stroke-width="1.5"/><line x1="505.6" y1="344.0" x2="505.6" y2="354.0" stroke="#16130e" stroke-width="1.5"/><text x="496.8" y="353.0" text-anchor="end" fill="#16130e" font-weight="bold">-7</text><text x="300" y="387.0" text-anchor="end" fill="#16130e" font-family="inherit">Expand ES walk zones to 1.5 miles</text><rect x="329.1" y="374.0" width="176.6" height="18" fill="#8c8475" stroke="#16130e" stroke-width="1.2"/><line x1="319.2" y1="383.0" x2="337.3" y2="383.0" stroke="#16130e" stroke-width="1.5"/><line x1="319.2" y1="378.0" x2="319.2" y2="388.0" stroke="#16130e" stroke-width="1.5"/><line x1="337.3" y1="378.0" x2="337.3" y2="388.0" stroke="#16130e" stroke-width="1.5"/><text x="311.2" y="387.0" text-anchor="end" fill="#16130e" font-weight="bold">-2,523</text><text x="505.7" y="422" text-anchor="middle" fill="#8c8475">0 rides/day</text></svg>
+<figcaption><b>Fig. 1 — Change in basic yellow-bus rides per day.</b>
+Bars are the mean across draws; whiskers are 95% intervals. Service
+expansions dominate; the wide whiskers on the two high-school scenarios
+reflect the untestable assumption about how many high-schoolers would
+actually ride (modeled as a discounted fraction of middle-school behavior).
+Closures <i>add</i> riders: students who walked to a closed school usually
+live outside the receiving school’s walk zone.</figcaption>
+</figure>
+
+<h2><span class="no">§3</span>Routes need not mean buses</h2>
+<figure>
+<div class="legend"><span><span class="sw" style="background:none;border-style:dashed"></span>Δ routes (dashed outline)</span>
+<span><span class="sw" style="background:var(--yellow)"></span>Δ buses (solid)</span></div>
+<svg viewBox="0 0 960 498" role="img" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="13"><line x1="514.7" y1="14" x2="514.7" y2="474" stroke="#16130e" stroke-width="1.5"/><text x="300" y="50.0" text-anchor="end" fill="#16130e">Re-add HS yellow bus + 1-mi walk zone</text><rect x="514.7" y="32.0" width="254.9" height="11" fill="none" stroke="#16130e" stroke-width="1.3" stroke-dasharray='3 2'/><rect x="514.7" y="46.0" width="1.0" height="11" fill="#f7c200" stroke="#16130e" stroke-width="1.3" /><text x="800" y="50.0" fill="#16130e">+71 rt / +0 bus</text><text x="300" y="90.0" text-anchor="end" fill="#16130e">Shrink MS walk zones to 1 mile</text><rect x="514.7" y="72.0" width="149.5" height="11" fill="none" stroke="#16130e" stroke-width="1.3" stroke-dasharray='3 2'/><rect x="514.7" y="86.0" width="1.0" height="11" fill="#f7c200" stroke="#16130e" stroke-width="1.3" /><text x="800" y="90.0" fill="#16130e">+42 rt / +0 bus</text><text x="300" y="130.0" text-anchor="end" fill="#16130e">Re-add HS yellow bus (2-mi walk zone)</text><rect x="514.7" y="112.0" width="119.7" height="11" fill="none" stroke="#16130e" stroke-width="1.3" stroke-dasharray='3 2'/><rect x="514.7" y="126.0" width="1.0" height="11" fill="#f7c200" stroke="#16130e" stroke-width="1.3" /><text x="800" y="130.0" fill="#16130e">+33 rt / +0 bus</text><text x="300" y="170.0" text-anchor="end" fill="#16130e">KUOW Option B: close 17 schools</text><rect x="514.7" y="152.0" width="82.0" height="11" fill="none" stroke="#16130e" stroke-width="1.3" stroke-dasharray='3 2'/><rect x="514.7" y="166.0" width="82.2" height="11" fill="#f7c200" stroke="#16130e" stroke-width="1.3" /><text x="800" y="170.0" fill="#16130e">+23 rt / +23 bus</text><text x="300" y="210.0" text-anchor="end" fill="#16130e">Option B, HCC → Dearborn Park</text><rect x="514.7" y="192.0" width="82.0" height="11" fill="none" stroke="#16130e" stroke-width="1.3" stroke-dasharray='3 2'/><rect x="514.7" y="206.0" width="81.7" height="11" fill="#f7c200" stroke="#16130e" stroke-width="1.3" /><text x="800" y="210.0" fill="#16130e">+23 rt / +23 bus</text><text x="300" y="250.0" text-anchor="end" fill="#16130e">KUOW Option A: close 21 schools</text><rect x="514.7" y="232.0" width="61.4" height="11" fill="none" stroke="#16130e" stroke-width="1.3" stroke-dasharray='3 2'/><rect x="514.7" y="246.0" width="61.2" height="11" fill="#f7c200" stroke="#16130e" stroke-width="1.3" /><text x="800" y="250.0" fill="#16130e">+17 rt / +17 bus</text><text x="300" y="290.0" text-anchor="end" fill="#16130e">Convert 5 option schools (combo 1)</text><rect x="514.7" y="272.0" width="17.3" height="11" fill="none" stroke="#16130e" stroke-width="1.3" stroke-dasharray='3 2'/><rect x="514.7" y="286.0" width="27.0" height="11" fill="#f7c200" stroke="#16130e" stroke-width="1.3" /><text x="800" y="290.0" fill="#16130e">+5 rt / +8 bus</text><text x="300" y="330.0" text-anchor="end" fill="#16130e">Convert 5 option schools (combo 2)</text><rect x="514.7" y="312.0" width="17.2" height="11" fill="none" stroke="#16130e" stroke-width="1.3" stroke-dasharray='3 2'/><rect x="514.7" y="326.0" width="28.2" height="11" fill="#f7c200" stroke="#16130e" stroke-width="1.3" /><text x="800" y="330.0" fill="#16130e">+5 rt / +8 bus</text><text x="300" y="370.0" text-anchor="end" fill="#16130e">Close 4 ES (named receivers)</text><rect x="514.7" y="352.0" width="12.6" height="11" fill="none" stroke="#16130e" stroke-width="1.3" stroke-dasharray='3 2'/><rect x="514.7" y="366.0" width="12.6" height="11" fill="#f7c200" stroke="#16130e" stroke-width="1.3" /><text x="800" y="370.0" fill="#16130e">+4 rt / +4 bus</text><text x="300" y="410.0" text-anchor="end" fill="#16130e">Close Sacajawea ES only</text><rect x="514.2" y="392.0" width="1.0" height="11" fill="none" stroke="#16130e" stroke-width="1.3" stroke-dasharray='3 2'/><rect x="514.2" y="406.0" width="1.0" height="11" fill="#f7c200" stroke="#16130e" stroke-width="1.3" /><text x="800" y="410.0" fill="#16130e">-0 rt / -0 bus</text><text x="300" y="450.0" text-anchor="end" fill="#16130e">Expand ES walk zones to 1.5 miles</text><rect x="332.7" y="432.0" width="182.0" height="11" fill="none" stroke="#16130e" stroke-width="1.3" stroke-dasharray='3 2'/><rect x="323.3" y="446.0" width="191.4" height="11" fill="#f7c200" stroke="#16130e" stroke-width="1.3" /><text x="800" y="450.0" fill="#16130e">-51 rt / -54 bus</text><text x="514.7" y="490" text-anchor="middle" fill="#8c8475">0</text></svg>
+<figcaption><b>Fig. 2 — Added routes vs added buses.</b> SPS runs two bell
+shifts: elementary rides at a different time from middle/high school, so one
+bus can serve a route on each shift and the fleet size is set by the
+<i>busier</i> shift — currently elementary. Middle- and high-school route
+additions therefore need <b>zero new buses</b>, while closures and
+conversions add elementary-shift routes and pay full price (≈$149k per
+bus-year). The $0 rows are a lower bound: a second route on an existing bus
+still adds driver-hours.</figcaption>
+</figure>
+
+<h2><span class="no">§4</span>The money: funding formula vs bus costs</h2>
+<p>Washington reimburses districts through the STARS “Expected Allocation”
+formula. It pays for <i>more riders</i>, <i>more served schools</i>, and
+<i>longer average routes</i> — at the current margin roughly
+<b>$2,650 per daily boarding-count per year</b> and roughly
+<b>$550k per served school</b>.</p>
+<figure>
+<div class="legend"><span><span class="sw" style="background:var(--green);border:none"></span>Δ state funding</span>
+<span><span class="sw" style="background:var(--brick);border:none"></span>Δ bus cost (shown as money out)</span>
+<span>◆ net, with 95% whisker</span></div>
+<svg viewBox="0 0 960 570" role="img" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="13"><line x1="473.2" y1="18" x2="473.2" y2="544" stroke="#16130e" stroke-width="1.5"/><text x="300" y="44.0" text-anchor="end" fill="#16130e">Re-add HS yellow bus + 1-mi walk zone</text><rect x="473.2" y="34.0" width="299.5" height="9" fill="#2a6f4e" opacity="0.85"/><rect x="473.2" y="46.0" width="1.0" height="9" fill="#a03123" opacity="0.85"/><line x1="719.9" y1="63" x2="836.0" y2="63" stroke="#16130e" stroke-width="1.5"/><path d="M 772.7 57 L 778.7 63 L 772.7 69 L 766.7 63 Z" fill="#16130e"/><text x="845.0" y="67" text-anchor="start" font-weight="bold" fill="#16130e">+18.9</text><text x="300" y="90.0" text-anchor="end" fill="#16130e">Re-add HS yellow bus (2-mi walk zone)</text><rect x="473.2" y="80.0" width="214.4" height="9" fill="#2a6f4e" opacity="0.85"/><rect x="473.2" y="92.0" width="1.0" height="9" fill="#a03123" opacity="0.85"/><line x1="661.8" y1="109" x2="722.1" y2="109" stroke="#16130e" stroke-width="1.5"/><path d="M 687.6 103 L 693.6 109 L 687.6 115 L 681.6 109 Z" fill="#16130e"/><text x="731.1" y="113" text-anchor="start" font-weight="bold" fill="#16130e">+13.6</text><text x="300" y="136.0" text-anchor="end" fill="#16130e">Shrink MS walk zones to 1 mile</text><rect x="473.2" y="126.0" width="84.3" height="9" fill="#2a6f4e" opacity="0.85"/><rect x="473.2" y="138.0" width="1.0" height="9" fill="#a03123" opacity="0.85"/><line x1="550.8" y1="155" x2="563.5" y2="155" stroke="#16130e" stroke-width="1.5"/><path d="M 557.5 149 L 563.5 155 L 557.5 161 L 551.5 155 Z" fill="#16130e"/><text x="572.5" y="159" text-anchor="start" font-weight="bold" fill="#16130e">+5.3</text><text x="300" y="182.0" text-anchor="end" fill="#16130e">Expand ES walk zones to 1.5 miles</text><rect x="366.7" y="172.0" width="106.5" height="9" fill="#2a6f4e" opacity="0.85"/><rect x="473.2" y="184.0" width="126.1" height="9" fill="#a03123" opacity="0.85"/><line x1="492.5" y1="201" x2="493.0" y2="201" stroke="#16130e" stroke-width="1.5"/><path d="M 492.8 195 L 498.8 201 L 492.8 207 L 486.8 201 Z" fill="#16130e"/><text x="502.0" y="205" text-anchor="start" font-weight="bold" fill="#16130e">+1.2</text><text x="300" y="228.0" text-anchor="end" fill="#16130e">Convert 5 option schools (combo 1)</text><rect x="473.2" y="218.0" width="12.2" height="9" fill="#2a6f4e" opacity="0.85"/><rect x="455.4" y="230.0" width="17.8" height="9" fill="#a03123" opacity="0.85"/><line x1="467.0" y1="247" x2="468.3" y2="247" stroke="#16130e" stroke-width="1.5"/><path d="M 467.6 241 L 473.6 247 L 467.6 253 L 461.6 247 Z" fill="#16130e"/><text x="458.0" y="251" text-anchor="end" font-weight="bold" fill="#16130e">-0.4</text><text x="300" y="274.0" text-anchor="end" fill="#16130e">Convert 5 option schools (combo 2)</text><rect x="473.2" y="264.0" width="12.2" height="9" fill="#2a6f4e" opacity="0.85"/><rect x="454.6" y="276.0" width="18.6" height="9" fill="#a03123" opacity="0.85"/><line x1="466.0" y1="293" x2="467.6" y2="293" stroke="#16130e" stroke-width="1.5"/><path d="M 466.8 287 L 472.8 293 L 466.8 299 L 460.8 293 Z" fill="#16130e"/><text x="457.0" y="297" text-anchor="end" font-weight="bold" fill="#16130e">-0.4</text><text x="300" y="320.0" text-anchor="end" fill="#16130e">Close Sacajawea ES only</text><rect x="464.2" y="310.0" width="9.0" height="9" fill="#2a6f4e" opacity="0.85"/><rect x="473.2" y="322.0" width="1.0" height="9" fill="#a03123" opacity="0.85"/><line x1="464.5" y1="339" x2="464.6" y2="339" stroke="#16130e" stroke-width="1.5"/><path d="M 464.5 333 L 470.5 339 L 464.5 345 L 458.5 339 Z" fill="#16130e"/><text x="455.5" y="343" text-anchor="end" font-weight="bold" fill="#16130e">-0.6</text><text x="300" y="366.0" text-anchor="end" fill="#16130e">Close 4 ES (named receivers)</text><rect x="454.3" y="356.0" width="18.9" height="9" fill="#2a6f4e" opacity="0.85"/><rect x="464.9" y="368.0" width="8.3" height="9" fill="#a03123" opacity="0.85"/><line x1="445.7" y1="385" x2="446.3" y2="385" stroke="#16130e" stroke-width="1.5"/><path d="M 446.0 379 L 452.0 385 L 446.0 391 L 440.0 385 Z" fill="#16130e"/><text x="436.7" y="389" text-anchor="end" font-weight="bold" fill="#16130e">-1.7</text><text x="300" y="412.0" text-anchor="end" fill="#16130e">KUOW Option B: close 17 schools</text><rect x="408.6" y="402.0" width="64.7" height="9" fill="#2a6f4e" opacity="0.85"/><rect x="419.1" y="414.0" width="54.2" height="9" fill="#a03123" opacity="0.85"/><line x1="353.6" y1="431" x2="355.1" y2="431" stroke="#16130e" stroke-width="1.5"/><path d="M 354.4 425 L 360.4 431 L 354.4 437 L 348.4 431 Z" fill="#16130e"/><text x="344.6" y="435" text-anchor="end" font-weight="bold" fill="#16130e">-7.5</text><text x="300" y="458.0" text-anchor="end" fill="#16130e">Option B, HCC → Dearborn Park</text><rect x="400.7" y="448.0" width="72.5" height="9" fill="#2a6f4e" opacity="0.85"/><rect x="419.4" y="460.0" width="53.8" height="9" fill="#a03123" opacity="0.85"/><line x1="346.1" y1="477" x2="347.6" y2="477" stroke="#16130e" stroke-width="1.5"/><path d="M 346.9 471 L 352.9 477 L 346.9 483 L 340.9 477 Z" fill="#16130e"/><text x="337.1" y="481" text-anchor="end" font-weight="bold" fill="#16130e">-8.0</text><text x="300" y="504.0" text-anchor="end" fill="#16130e">KUOW Option A: close 21 schools</text><rect x="362.0" y="494.0" width="111.2" height="9" fill="#2a6f4e" opacity="0.85"/><rect x="432.9" y="506.0" width="40.3" height="9" fill="#a03123" opacity="0.85"/><line x1="320.2" y1="523" x2="323.1" y2="523" stroke="#16130e" stroke-width="1.5"/><path d="M 321.7 517 L 327.7 523 L 321.7 529 L 315.7 523 Z" fill="#16130e"/><text x="311.2" y="527" text-anchor="end" font-weight="bold" fill="#16130e">-9.6</text><text x="473.2" y="560" text-anchor="middle" fill="#8c8475">$0M / yr</text></svg>
+<figcaption><b>Fig. 3 — Annual fiscal impact, $M/yr.</b> Net = funding change
+minus bus-cost change. Closures lose money twice over: displaced walkers
+become riders the district must carry, while every closed served school
+forfeits its Destinations term in the formula. Building-operations savings
+(the stated rationale for closures, $25–31M in the district’s plans) are
+<i>outside</i> this model — these bars are the transportation offset against
+those savings.</figcaption>
+</figure>
+
+<h2><span class="no">§5</span>All eleven scenarios</h2>
+<table><caption>All scenarios — district deltas vs the 2024-25 baseline (10,008.5 basic rides/day; 202 routes; ~180 buses)</caption><tr><th>Scenario</th><th>Δ rides/day</th><th>95% CI</th><th>Δ routes</th><th>Δ buses</th><th>Δ bus $M</th><th>Δ funding $M</th><th>Net $M/yr</th></tr><tr class="grp"><td colspan="8">Expand service</td></tr><tr><td>Shrink MS walk zones to 1 mile</td><td class="pos">+2,073</td><td>[+1,901, +2,227]</td><td class="pos">+41.8</td><td class="">+0.0</td><td class="">-0.00</td><td class="pos">+5.33</td><td class="pos">+5.33</td></tr><tr><td>Re-add HS yellow bus (2-mi walk zone)</td><td class="pos">+1,659</td><td>[+1,143, +2,332]</td><td class="pos">+33.5</td><td class="">+0.0</td><td class="">-0.00</td><td class="pos">+13.56</td><td class="pos">+13.56</td></tr><tr><td>Re-add HS yellow bus + 1-mi walk zone</td><td class="pos">+3,532</td><td>[+2,411, +4,908]</td><td class="pos">+71.3</td><td class="">+0.0</td><td class="">-0.00</td><td class="pos">+18.94</td><td class="pos">+18.94</td></tr><tr class="grp"><td colspan="8">Reduce service</td></tr><tr><td>Expand ES walk zones to 1.5 miles</td><td class="neg">-2,523</td><td>[-2,664, -2,405]</td><td class="neg">-50.9</td><td class="pos">-53.5</td><td class="pos">+7.97</td><td class="neg">-6.74</td><td class="pos">+1.24</td></tr><tr class="grp"><td colspan="8">Closures</td></tr><tr><td>Close 4 ES (named receivers)</td><td class="pos">+174</td><td>[+141, +206]</td><td class="pos">+3.5</td><td class="neg">+3.5</td><td class="neg">-0.52</td><td class="neg">-1.20</td><td class="neg">-1.72</td></tr><tr><td>Close Sacajawea ES only</td><td class="neg">-7</td><td>[-13, -2]</td><td class="neg">-0.1</td><td class="pos">-0.1</td><td class="">+0.02</td><td class="neg">-0.57</td><td class="neg">-0.55</td></tr><tr><td>KUOW Option A: close 21 schools</td><td class="pos">+850</td><td>[+758, +937]</td><td class="pos">+17.2</td><td class="neg">+17.1</td><td class="neg">-2.55</td><td class="neg">-7.03</td><td class="neg">-9.58</td></tr><tr><td>KUOW Option B: close 17 schools</td><td class="pos">+1,136</td><td>[+1,078, +1,188]</td><td class="pos">+22.9</td><td class="neg">+23.0</td><td class="neg">-3.42</td><td class="neg">-4.09</td><td class="neg">-7.51</td></tr><tr><td>Option B, HCC → Dearborn Park</td><td class="pos">+1,136</td><td>[+1,078, +1,188]</td><td class="pos">+22.9</td><td class="neg">+22.9</td><td class="neg">-3.40</td><td class="neg">-4.58</td><td class="neg">-7.99</td></tr><tr class="grp"><td colspan="8">Conversions</td></tr><tr><td>Convert 5 option schools (combo 1)</td><td class="pos">+240</td><td>[+203, +280]</td><td class="pos">+4.8</td><td class="neg">+7.5</td><td class="neg">-1.12</td><td class="pos">+0.77</td><td class="neg">-0.35</td></tr><tr><td>Convert 5 option schools (combo 2)</td><td class="pos">+238</td><td>[+208, +273]</td><td class="pos">+4.8</td><td class="neg">+7.9</td><td class="neg">-1.18</td><td class="pos">+0.77</td><td class="neg">-0.41</td></tr></table>
+<div class="cards">
+<div class="card"><div class="tag">Expand service</div><h3>Shrink MS walk zones to 1 mile</h3><p>Students 1–2 mi from middle school become bus-eligible. All 12 middle schools gain riders; the MS bell shift has spare buses, so the fleet does not grow.</p><div class="nums">rides/day +2,073 [+1,901, +2,227] &nbsp;gifted +162<br>routes +41.8 &nbsp;·&nbsp; buses +0.0 &nbsp;·&nbsp; avg dist -0.08 mi<br><b>net fiscal +5.3 [+4.9, +5.7] $M/yr</b></div></div><div class="card"><div class="tag">Expand service</div><h3>Re-add HS yellow bus (2-mi walk zone)</h3><p>High schoolers are currently ORCA-only. Modeled as a fraction of MS ridership (×0.7 for independent transit travel, 11th–12th graders additionally ×0.5 — cars).</p><div class="nums">rides/day +1,659 [+1,143, +2,332]<br>routes +33.5 &nbsp;·&nbsp; buses +0.0 &nbsp;·&nbsp; avg dist +0.15 mi<br><b>net fiscal +13.6 [+11.9, +15.7] $M/yr</b></div></div><div class="card"><div class="tag">Expand service</div><h3>Re-add HS yellow bus + 1-mi walk zone</h3><p>Same HS service, but students 1–2 mi out are also eligible. Roughly doubles the HS rider gain; still fleet-free.</p><div class="nums">rides/day +3,532 [+2,411, +4,908]<br>routes +71.3 &nbsp;·&nbsp; buses +0.0 &nbsp;·&nbsp; avg dist +0.06 mi<br><b>net fiscal +18.9 [+15.6, +22.9] $M/yr</b></div></div><div class="card"><div class="tag">Reduce service</div><h3>Expand ES walk zones to 1.5 miles</h3><p>The reverse lever: ES students inside 1.5 mi lose bus eligibility. Big bus savings, big reimbursement loss — they nearly cancel.</p><div class="nums">rides/day -2,523 [-2,664, -2,405] &nbsp;gifted -87<br>routes -50.9 &nbsp;·&nbsp; buses -53.5 &nbsp;·&nbsp; avg dist +0.30 mi<br><b>net fiscal +1.2 [+1.2, +1.2] $M/yr</b></div></div><div class="card"><div class="tag">Closures</div><h3>Close 4 ES (named receivers)</h3><p>North Beach→Viewlands, Sacajawea→Rogers, Stevens→Montlake, Sanislo→Highland Park. Every receiver gains more riders than its partner lost: ex-walkers convert to riders.</p><div class="nums">rides/day +174 [+141, +206]<br>routes +3.5 &nbsp;·&nbsp; buses +3.5 &nbsp;·&nbsp; avg dist +0.00 mi<br><b>net fiscal -1.7 [-1.7, -1.7] $M/yr</b></div></div><div class="card"><div class="tag">Closures</div><h3>Close Sacajawea ES only</h3><p>Single closure with default (3-nearest) receivers; the smallest scenario, included as a reference point.</p><div class="nums">rides/day -7 [-13, -2]<br>routes -0.1 &nbsp;·&nbsp; buses -0.1 &nbsp;·&nbsp; avg dist +0.00 mi<br><b>net fiscal -0.6 [-0.6, -0.5] $M/yr</b></div></div><div class="card"><div class="tag">Closures</div><h3>KUOW Option A: close 21 schools</h3><p>The “well-resourced schools” plan — eliminates most option/K-8 programs. Displaced riders go to the remaining schools; 18 served destinations disappear from the funding formula.</p><div class="nums">rides/day +850 [+758, +937] &nbsp;gifted -2<br>routes +17.2 &nbsp;·&nbsp; buses +17.1 &nbsp;·&nbsp; avg dist +0.06 mi<br><b>net fiscal -9.6 [-9.7, -9.5] $M/yr</b></div></div><div class="card"><div class="tag">Closures</div><h3>KUOW Option B: close 17 schools</h3><p>The “choice” plan — keeps more option schools but closes Thurgood Marshall; its HCC pathway moves to Beacon Hill International per the plan.</p><div class="nums">rides/day +1,136 [+1,078, +1,188] &nbsp;gifted +1<br>routes +22.9 &nbsp;·&nbsp; buses +23.0 &nbsp;·&nbsp; avg dist +0.05 mi<br><b>net fiscal -7.5 [-7.6, -7.5] $M/yr</b></div></div><div class="card"><div class="tag">Closures</div><h3>Option B, HCC → Dearborn Park</h3><p>Identical to Option B except Thurgood Marshall’s HCC service lands at Dearborn Park — the other receiver the plan names. District deltas are essentially unchanged.</p><div class="nums">rides/day +1,136 [+1,078, +1,188] &nbsp;gifted -3<br>routes +22.9 &nbsp;·&nbsp; buses +22.9 &nbsp;·&nbsp; avg dist +0.05 mi<br><b>net fiscal -8.0 [-8.0, -7.9] $M/yr</b></div></div><div class="card"><div class="tag">Conversions</div><h3>Convert 5 option schools (combo 1)</h3><p>Cedar Park, TOPS, Orca, Salmon Bay, Licton Springs become neighborhood schools. Lottery riders become walkers, but displaced enrollees scatter to non-walkable seats — the effects nearly cancel.</p><div class="nums">rides/day +240 [+203, +280]<br>routes +4.8 &nbsp;·&nbsp; buses +7.5 &nbsp;·&nbsp; avg dist +0.09 mi<br><b>net fiscal -0.4 [-0.4, -0.3] $M/yr</b></div></div><div class="card"><div class="tag">Conversions</div><h3>Convert 5 option schools (combo 2)</h3><p>Same experiment with Boren swapped in for Salmon Bay. The near-equal result shows WHICH five barely matters.</p><div class="nums">rides/day +238 [+208, +273]<br>routes +4.8 &nbsp;·&nbsp; buses +7.9 &nbsp;·&nbsp; avg dist +0.09 mi<br><b>net fiscal -0.4 [-0.5, -0.4] $M/yr</b></div></div>
+</div>
+
+<h2><span class="no">§6</span>Key findings</h2>
+<ol class="findings">
+<li><b>Service expansion pays for itself under the funding formula.</b>
+Shrinking middle-school walk zones to 1 mile adds ≈2,070 rides/day, zero
+buses, and ≈+$5.3M/yr net. Restoring high-school yellow bus adds
+≈+$13.6M/yr net even at heavily discounted HS ridership.</li>
+<li><b>Closures cost transportation money from both directions.</b> The
+21-school Option A plan: +850 rides/day to carry (+$2.6M bus cost) and
+−$7.0M/yr in state funding — net ≈ <b>−$9.6M/yr</b>, an offset of roughly a
+third of its claimed $31.5M building savings. Option B nets ≈ −$7.5M/yr.</li>
+<li><b>Every consolidation receiver gains more riders than its closed
+partner had.</b> Walkers at the closed school become bus riders at the
+receiver — e.g. Sanislo has ≈0 riders today, yet closing it adds ~74
+rides/day at Highland Park.</li>
+<li><b>The bell-shift structure makes middle/high-school service nearly
+free in fleet terms</b> while the elementary shift remains larger — the
+cheapest capacity in the system is on the MS/HS shift.</li>
+<li><b>Option-school conversions are roughly transportation-neutral</b>
+(net ≈ −$0.4M/yr): lottery riders become walkers, but their replacement
+assignments scatter to non-walkable seats — and which five schools convert
+barely matters.</li>
+<li><b>Rider gains under closures skew toward higher-poverty schools</b> —
+the consolidation receivers sit in poorer attendance areas than the schools
+being closed (see per-run equity cuts in the full reports).</li>
+</ol>
+
+<div class="foot">
+<b>Methods &amp; caveats</b>
+<ol>
+<li>Full technical documentation, calibration and validation:
+<a href="OVERVIEW.md">OVERVIEW.md</a>. Per-scenario detail (per-school
+movers, distance distributions, equity cuts):
+<code>simulate/&lt;scenario&gt;/report.txt</code>.</li>
+<li>High-school ridership is an uncalibrated assumption (SPS has never run
+HS yellow bus in the data): modeled as middle-school behavior ×0.7 for
+independent transit travel, with 11th–12th graders additionally ×0.5 for
+cars. Both factors are sampled, which is why HS intervals are wide.</li>
+<li>Funding deltas assume the EXAL formula’s coefficients hold and the
+prior-year cap never binds (true for every scenario shown), and apply
+modeled deltas to the official SY2024-25 formula inputs.</li>
+<li>Closure scenarios use the district’s named receivers where published
+(fab-4, Thurgood Marshall’s HCC) and distance-based defaults elsewhere —
+not official boundary redraws. Building-operations savings are out of
+scope.</li>
+<li>Bus cost uses the all-in vendor average ($148.9k/bus-yr); marginal
+route costs on an existing bus (driver-hours) are not priced, so “+0 bus”
+rows understate true marginal cost somewhat.</li>
+</ol>
+Source: <code>analysis/montecarlo/</code> in the
+<a href="https://github.com/SPS-By-The-Numbers/data-tools">SPS-By-The-Numbers/data-tools</a>
+repository. Regenerate this page with
+<code>python3 -m analysis.montecarlo.findings_html</code>.
+</div>
+<div class="stripe" style="margin-top:34px"></div>
+</body>
+</html>
