@@ -330,8 +330,9 @@ def kernel_bg_weights(school_id: int, kind: str, band: str,
                      attendance area (uniform per kid within the area).
       option       — kids weighted by exp(-d/decay_ft) from the school point
                      (decay fitted by fit_option_decay; district-wide tail).
-      hcc_pathway  — kids weighted uniformly over the union of ES attendance
-                     areas mapped to this site in hcc_pathways_es.csv.
+      hcc_pathway  — kids weighted uniformly over the union of attendance
+                     areas mapped to this site in hcc_pathways_<band>.csv
+                     (es and ms maps exist; no HS pathways post-2019).
     """
     if pop is None:
         pop = load_synth_pop()
@@ -351,15 +352,18 @@ def kernel_bg_weights(school_id: int, kind: str, band: str,
         d = _bg_centroids().distance(pts.loc[school_id])
         raw = kids * np.exp(-d.reindex(kids.index) / decay_ft)
     elif kind == "hcc_pathway":
-        pathways = pd.read_csv(_HERE / "hcc_pathways_es.csv")
+        if band not in ("es", "ms"):
+            raise ValueError(f"no HCC pathway map for band {band!r} (es/ms only)")
+        pathways = pd.read_csv(_HERE / f"hcc_pathways_{band}.csv")
         schools = load_schools()
         site_name = schools.set_index("school_id").loc[school_id, "name"]
-        member_areas = pathways.loc[pathways[hcc_era] == site_name, "es_name"]
-        att = parse_shapes.load_attendance_es()
+        member_areas = pathways.loc[pathways[hcc_era] == site_name, f"{band}_name"]
+        att = (parse_shapes.load_attendance_es() if band == "es"
+               else parse_shapes.load_attendance_ms())
         area_ids = att[att.name.isin(member_areas)].school_id.astype(int)
         if weights is None:
             weights = bg_area_weights()
-        w = weights[(weights.grade_band == "es") & (weights.area_id.isin(area_ids))]
+        w = weights[(weights.grade_band == band) & (weights.area_id.isin(area_ids))]
         ww = w.groupby("GEOID")["w"].sum()
         raw = ww * kids.reindex(ww.index)
     else:

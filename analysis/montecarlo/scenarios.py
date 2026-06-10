@@ -184,12 +184,14 @@ class World:
 _BASELINE: World | None = None
 
 
-def _hcc_member_area_ids(site_name: str, era: str = HCC_ERA) -> list[int]:
-    """ES attendance-area school_ids feeding an HCC pathway site (exact
-    replica of the lookup in assignment.kernel_bg_weights)."""
-    pathways = pd.read_csv(_HERE / "hcc_pathways_es.csv")
-    member_areas = pathways.loc[pathways[era] == site_name, "es_name"]
-    att = parse_shapes.load_attendance_es()
+def _hcc_member_area_ids(site_name: str, era: str = HCC_ERA,
+                         band: str = "es") -> list[int]:
+    """Attendance-area school_ids feeding an HCC pathway site (exact replica
+    of the lookup in assignment.kernel_bg_weights; es and ms maps exist)."""
+    pathways = pd.read_csv(_HERE / f"hcc_pathways_{band}.csv")
+    member_areas = pathways.loc[pathways[era] == site_name, f"{band}_name"]
+    att = (parse_shapes.load_attendance_es() if band == "es"
+           else parse_shapes.load_attendance_ms())
     return att[att.name.isin(member_areas)].school_id.astype(int).tolist()
 
 
@@ -202,14 +204,10 @@ def _baseline_gifted(schools: pd.DataFrame, year: int = BASE_YEAR) -> pd.DataFra
     hc = se[se.year == year].set_index("school_id")["highly_capable"]
     rows = []
     for sid in sorted(g.school_id.unique()):
-        level = sn.loc[sid, "level"]
-        if level == "ES":
-            kernel, band = "hcc_pathway", "es"
-            members = _hcc_member_area_ids(sn.loc[sid, "name"])
-        else:
-            kernel, band = "od_column", "ms"
-            members = []
-        rows.append({"school_id": int(sid), "grade_band": band, "kernel": kernel,
+        band = "es" if sn.loc[sid, "level"] == "ES" else "ms"
+        members = _hcc_member_area_ids(sn.loc[sid, "name"], band=band)
+        rows.append({"school_id": int(sid), "grade_band": band,
+                     "kernel": "hcc_pathway",
                      "n_hc": float(hc.get(sid, 0) or 0), "member_area_ids": members})
     return pd.DataFrame(rows)
 
@@ -436,7 +434,7 @@ def op_close_school(world: World, school_id: int,
             gif = pd.concat([gif, pd.DataFrame([{
                 "school_id": hcc_receiver,
                 "grade_band": "es" if rec_level == "ES" else "ms",
-                "kernel": "hcc_pathway" if rec_level == "ES" else "od_column",
+                "kernel": "hcc_pathway",
                 "n_hc": row["n_hc"],
                 "member_area_ids": list(row["member_area_ids"]),
             }])], ignore_index=True)
@@ -702,8 +700,8 @@ def scenario_gifted_pool(world: World, assignment: pd.DataFrame,
         sid = int(r.school_id)
         wsub = walk[walk.school_id == sid].set_index("GEOID")["walk_frac"]
         if r.kernel == "hcc_pathway":
-            kids = _pop_column(pop, "es")
-            w = world.weights[(world.weights.grade_band == "es")
+            kids = _pop_column(pop, r.grade_band)
+            w = world.weights[(world.weights.grade_band == r.grade_band)
                               & world.weights.area_id.isin(r.member_area_ids)]
             ww = w.groupby("GEOID")["w"].sum()
             raw = (ww * kids.reindex(ww.index)).dropna()

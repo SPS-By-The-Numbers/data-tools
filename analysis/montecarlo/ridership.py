@@ -18,9 +18,9 @@ Model (per assignment-matrix cell, ES+MS bands at basic-route schools):
 θ = (ρ, decay_mi, β…) is fit by grid search + refinement against the SOFT
 target: per-school route-implied riders (STARS basic routes × riders/route).
 The gifted program gets its own pool — HC enrollment at the gifted-route
-sites, spread via the HCC pathway kernel (ES sites) or the school's
-assignment column (MS sites; open question 4b) — and a single propensity
-solved against the gifted rider target (1,316 in 2024-25).
+sites, spread via the HCC pathway kernel (union of feeder attendance areas:
+hcc_pathways_es.csv for ES sites, hcc_pathways_ms.csv for MS sites) — and a
+single propensity solved against the gifted rider target (1,316 in 2024-25).
 
 Riders map to route/bus-ish outputs via district riders-per-route by program.
 
@@ -263,13 +263,9 @@ def gifted_pool(assignment: pd.DataFrame | None = None,
     """Bus-eligible HC pool per gifted-route site.
 
     HC enrollment (RC ``highly_capable``) at each school with gifted routes,
-    spread over block groups by:
-      ES sites (Cascadia, Decatur, Thurgood Marshall) — the HCC pathway
-        kernel (exact union of feeder attendance areas, era 2023-2025);
-      MS sites — the school's own assignment column, i.e. HC kids assumed
-        spatially distributed like the rest of the school's draw. This
-        UNDERSTATES their bus eligibility (HC kids skew distant) — open
-        question 4b (MS pathway map) would fix it.
+    spread over block groups by the HCC pathway kernel — the exact union of
+    feeder attendance areas, era 2023-2025 (hcc_pathways_es.csv for ES sites,
+    hcc_pathways_ms.csv for MS sites — open question 4b resolved s9).
     Walk-zone exclusion applied per block group as for basic.
     """
     if assignment is None:
@@ -286,21 +282,13 @@ def gifted_pool(assignment: pd.DataFrame | None = None,
 
     rows = []
     for sid in sorted(g.school_id):
-        level = schools.loc[sid, "level"]
+        band = "es" if schools.loc[sid, "level"] == "ES" else "ms"
         n_hc = float(hc.get(sid, 0) or 0)
         wsub = walk[walk.school_id == sid].set_index("GEOID")["walk_frac"]
-        if level == "ES":
-            pbg = kernel_bg_weights(sid, "hcc_pathway", "es", weights=weights)
-            band = "es"
-        else:
-            col = assignment[(assignment.school_id == sid) & (assignment.grade_band == "ms")]
-            pbg = col.set_index("GEOID")["n_expected"]
-            pbg = pbg / pbg.sum()
-            band = "ms"
+        pbg = kernel_bg_weights(sid, "hcc_pathway", band, weights=weights)
         elig_frac = float((pbg * (1.0 - wsub.reindex(pbg.index).fillna(0.0))).sum())
-        rows.append({"school_id": sid, "grade_band": band, "kernel": "hcc_pathway"
-                     if level == "ES" else "od_column", "n_hc": n_hc,
-                     "n_bus_eligible": n_hc * elig_frac})
+        rows.append({"school_id": sid, "grade_band": band, "kernel": "hcc_pathway",
+                     "n_hc": n_hc, "n_bus_eligible": n_hc * elig_frac})
     return pd.DataFrame(rows)
 
 

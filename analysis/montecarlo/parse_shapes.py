@@ -113,13 +113,22 @@ def load_locations() -> gpd.GeoDataFrame:
     return g[cols]
 
 
-def load_walkzones(drop_unidentified: bool = True) -> gpd.GeoDataFrame:
+def load_walkzones(drop_unidentified: bool = True,
+                   k8_full_union: bool = False) -> gpd.GeoDataFrame:
     """Walk-zone polygons, one (multi)polygon per school.
 
     The raw layer stores disjoint walk-zone pieces for some schools as separate
     rows; those are dissolved so each ``school_id`` has a single geometry.
     Rows with ``school_id == 0`` are unidentified program sites (e.g. "Svi 1418
     Prog") with no walk-zone name and are dropped by default.
+
+    K-8 rule: the SPS transportation page (verified 2026-06-10) says
+    "Elementary and K-8 schools have a 1-mile walk boundary", but the raw GIS
+    layer carries separate ~1-mile and ~2-mile pieces for most K-8 sites. The
+    website is taken as authoritative: for K-8/PK-8 zones with multiple
+    pieces, only the piece closest to the school point (the 1-mile core) is
+    kept. Pass ``k8_full_union=True`` for the old union-of-all-pieces
+    behavior.
 
     Columns: ``school_id, school_code, name, walkzone, grades, status, region,
     source, geometry``.
@@ -137,6 +146,32 @@ def load_walkzones(drop_unidentified: bool = True) -> gpd.GeoDataFrame:
     g["school_id"] = _as_int_id(g["school_id"])
     if drop_unidentified:
         g = g[g["school_id"] != 0]
+
+    if not k8_full_union:
+        pts = load_locations().dropna(subset=["school_id"])
+        pts = pts.set_index(pts.school_id.astype(int))["geometry"]
+        keep = []
+        for idx, row in g.iterrows():
+            if row["grades"] not in ("K-8", "PK-8"):
+                keep.append(idx)
+                continue
+            sid = int(row["school_id"])
+            sub = g[(g["school_id"] == sid) & g["grades"].isin(("K-8", "PK-8"))]
+            if len(sub) == 1:
+                keep.append(idx)
+                continue
+            # multiple pieces: keep only the 1-mile core — the piece whose
+            # boundary stays closest to the school point (min max-reach);
+            # fall back to smallest area when the school has no point.
+            if sid in pts.index:
+                p = pts.loc[sid]
+                reach = sub.geometry.apply(lambda geom: geom.boundary.hausdorff_distance(p))
+                core = reach.idxmin()
+            else:
+                core = sub.geometry.area.idxmin()
+            if idx == core:
+                keep.append(idx)
+        g = g.loc[keep]
 
     # Dissolve disjoint pieces of the same school into one geometry. Attribute
     # columns are taken from the first piece (they are identical per school).
