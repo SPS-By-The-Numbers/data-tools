@@ -1,13 +1,41 @@
-fastavro
-google-cloud-bigquery
-google-cloud-storage
-inflection
-openpyxl
-pandas
-pdfplumber
-pytest
-pytest-mock
-python-docx
-python-poppler
-researchpy
-zstandard
+# Pinned to the known-working venv (2026-06-10). Note pandas 3.x / numpy 2.x:
+# the geo stack (added for analysis/montecarlo/) pulled these forward and the
+# SAFS pipeline + tests run against them.
+
+# Core pipeline (SAFS ETL: ingest -> Postgres -> AVRO -> GCS/BigQuery)
+fastavro==1.10.0
+google-cloud-bigquery==3.31.0
+google-cloud-storage==3.1.0
+inflection==0.5.1
+numpy==2.4.6
+openpyxl==3.1.5
+pandas==3.0.3
+psycopg2-binary==2.9.10
+python-dateutil==2.9.0.post0
+SQLAlchemy==2.0.41
+zstandard==0.23.0
+
+# Extractors (PDF / docx / email / HTTP sources)
+extract-msg==0.55.0
+pdfplumber==0.11.9
+python-docx==1.2.0
+python-poppler==0.4.1
+requests==2.32.3
+
+# Geo stack (analysis/montecarlo/ ridership Monte Carlo)
+geopandas==1.1.3
+pyogrio==0.12.1
+pyproj==3.7.2
+shapely==2.1.2
+
+# Ad-hoc analysis / plotting scripts
+matplotlib==3.10.7
+mizani==0.14.2
+plotnine==0.15.0
+researchpy==0.3.6
+scipy==1.16.2
+statsmodels==0.14.5
+
+# Dev / test
+pytest==8.4.1
+pytest-mock==3.14.1
