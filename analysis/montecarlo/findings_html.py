@@ -502,6 +502,67 @@ def td_signed(v: float, fmt: str = "+,.0f", flip: bool = False) -> str:
     return f'<td class="{cls}">{v:{fmt}}</td>'
 
 
+def rules_of_thumb() -> str:
+    """Marginal-value cheat sheet, derived live from the model constants
+    (EXAL coefficients at the official SY2024-25 inputs; bus-cost model)."""
+    B, C = rpt.EXAL_BASE, rpt.EXAL_COEF
+    exal0 = float(_exal_np(B["basic"], B["special"], B["dest"], B["avgdist"]))
+    m_basic = C["b_basic"] * exal0 / (B["basic"] + 1)     # $/boarding-yr
+    m_special = C["b_special"] * exal0 / (B["special"] + 1)
+    es_route = rpt.COST_PER_BUS_YEAR                       # new bus (ES shift binds)
+    mshs_route = rpt.OVERAGE_COST_PER_ROUTE_YEAR           # overage hours only
+
+    def dest_money(n):  # funding change for ±n served destinations (exact, not linearized)
+        import math
+        return exal0 * (math.exp(C["b_dest"] * n) - 1.0)
+
+    rows = []
+
+    def row(lever, value, note):
+        rows.append(f"<tr><td>{lever}</td><td>{value}</td><td>{note}</td></tr>")
+
+    row("State funding per basic ride/day", f"≈ ${m_basic:,.0f}/yr",
+        "one boarding-count; a student riding both ways is worth ≈ "
+        f"${2 * m_basic:,.0f}/yr")
+    row("State funding per special ride/day", f"≈ ${m_special:,.0f}/yr",
+        "special programs (incl. gifted) reimburse at ≈ ⅓ the basic rate")
+    row("Closing 1 / 5 / 10 served schools",
+        f"−${-dest_money(-1)/1e6:.2f}M / −${-dest_money(-5)/1e6:.2f}M / "
+        f"−${-dest_money(-10)/1e6:.2f}M per yr",
+        "the Destinations term — lost even if the school had few riders")
+    row("Opening 1 / 5 / 10 new served schools",
+        f"+${dest_money(1)/1e6:.2f}M / +${dest_money(5)/1e6:.2f}M / "
+        f"+${dest_money(10)/1e6:.2f}M per yr",
+        "only schools with NO existing service count (most already run "
+        "special-ed routes)")
+    row("Cost of a new elementary-shift route", f"≈ ${es_route/1e3:,.0f}k/yr",
+        "needs a bus — the ES shift sets the fleet size")
+    row("Cost of a new MS/HS-shift route", f"≈ ${mshs_route/1e3:,.1f}k/yr",
+        "rides an existing bus; assumed 2.0 overage hrs/day × $61.50 × 175 d")
+    row("Break-even basic rides for a new ES route",
+        f"≈ {es_route/m_basic:,.0f} rides/day",
+        f"the average basic route carries {rpt.rid.district_targets()['on_bus']/rpt.rid.district_targets()['routes_basic']:.0f} — "
+        "a typically-loaded new ES route roughly pays for its bus")
+    row("Break-even basic rides for a new MS/HS route",
+        f"≈ {mshs_route/m_basic:,.0f} rides/day",
+        "almost any viable route clears this")
+    row("Break-even special rides for a new route",
+        f"≈ {es_route/m_special:,.0f} (ES) / {mshs_route/m_special:,.0f} (MS/HS) rides/day",
+        "an ES-shift special route can't break even on the formula alone "
+        "(a bus tops out near ~100 rides/day)")
+    return ("<div class='tw'><table><caption>Marginal values at the current "
+            "SY2024-25 formula inputs (they diminish as the inputs grow — "
+            "the rider terms are logarithmic; assumes the allocation cap "
+            "does not bind)</caption><tr><th>Lever</th><th>Rule of thumb</th>"
+            f"<th>Why / caveat</th></tr>{''.join(rows)}</table></div>")
+
+
+def _exal_np(basic, special, dest, avgdist):
+    import numpy as np
+    return rpt._exal(np.array([basic]), np.array([special]),
+                     np.array([dest]), np.array([avgdist]))[0]
+
+
 _NUM_WORDS = {10: "ten", 11: "eleven", 12: "twelve", 13: "thirteen",
               14: "fourteen", 15: "fifteen", 16: "sixteen"}
 
@@ -511,6 +572,7 @@ def build(rows: list[dict]) -> str:
     n_draws = rows[0]["n_draws"]
     seed = rows[0]["seed"]
     n_word = _NUM_WORDS.get(len(rows), str(len(rows)))
+    rules_table = rules_of_thumb()
 
     riders_svg = bar_chart(rows, "riders", "riders_lo", "riders_hi",
                            fmt_riders, "rides/day")
@@ -614,7 +676,13 @@ buses the elementary shift already pays for — while school closures lose
 state funding (≈$550k per closed served school) far faster than they save
 bus costs.</p></div>
 
-<h2><span class="no">§2</span>Ridership: who gains, who loses</h2>
+<h2><span class="no">§2</span>Rules of thumb: marginal values</h2>
+<p>Before the scenario detail, the unit economics that drive every result.
+These are the model’s marginal values — what one more ride, route, or
+served school is worth at today’s levels:</p>
+{rules_table}
+
+<h2><span class="no">§3</span>Ridership: who gains, who loses</h2>
 <figure>
 {riders_svg}
 <figcaption><b>Fig. 1 — Change in basic yellow-bus rides per day.</b>
@@ -629,7 +697,7 @@ consolidations (fab-4) <i>add</i> rides — ex-walkers usually live outside
 the named receiver’s walk zone.</figcaption>
 </figure>
 
-<h2><span class="no">§3</span>Routes need not mean buses</h2>
+<h2><span class="no">§4</span>Routes need not mean buses</h2>
 <figure>
 <div class="legend"><span><span class="sw" style="background:none;border-style:dashed"></span>Δ routes (dashed outline)</span>
 <span><span class="sw" style="background:var(--yellow)"></span>Δ buses (solid)</span></div>
@@ -650,7 +718,7 @@ cannot be broken down (fleet-only figures are shown alongside as the lower
 bound).</figcaption>
 </figure>
 
-<h2><span class="no">§4</span>The money: funding formula vs bus costs</h2>
+<h2><span class="no">§5</span>The money: funding formula vs bus costs</h2>
 <p>Washington reimburses districts through the STARS “Expected Allocation”
 formula. It pays for <i>more riders</i>, <i>more served schools</i>, and
 <i>longer average routes</i> — at the current margin roughly
@@ -670,7 +738,7 @@ $25–31M in the district’s plans) are <i>outside</i> this model — these bar
 are the transportation offset against those savings.</figcaption>
 </figure>
 
-<h2><span class="no">§5</span>All {n_word} scenarios</h2>
+<h2><span class="no">§6</span>All {n_word} scenarios</h2>
 {table}
 <div class="cards">
 {''.join(cards)}
@@ -681,7 +749,7 @@ re-assigns students to, who becomes bus-eligible, and how the per-school
 numbers add up to the district delta — expand its breakdown:</p>
 {''.join(details_blocks)}
 
-<h2><span class="no">§6</span>Key findings</h2>
+<h2><span class="no">§7</span>Key findings</h2>
 <ol class="findings">
 <li><b>Service expansion pays for itself under the funding formula.</b>
 Shrinking middle-school walk zones to 1 mile adds ≈2,070 rides/day, zero

@@ -1260,6 +1260,17 @@ Still genuinely open for the user:
   factors dominate the uncertainty, as they should for an uncalibrated
   assumption. OVERVIEW.md ridership section, MC distribution table, and
   assumption 2 updated.
+- **2026-06-11 (s10)** Rules-of-thumb table added to findings.html (user
+  request) as new §2 (later sections renumbered §3-§7), computed LIVE
+  from the model constants in `findings_html.rules_of_thumb()` so it
+  cannot drift: $/basic ride-yr ≈ $2,652 (×2 for a both-ways student),
+  $/special ride-yr ≈ $948; closing 1/5/10 served schools −$0.55/−2.69/
+  −5.18M-yr (exact exponential, not linearized — losses sub-linear,
+  gains super-linear: openings +$0.56/+2.90/+6.03M); new ES-shift route
+  ≈ $149k-yr (new bus), MS/HS-shift ≈ $21.5k (overage hours); break-even
+  rides/day for a new route: basic 56 (ES — avg route carries 50, so a
+  typically-loaded ES route ~pays for its bus) / 8 (MS/HS); special 157
+  (ES — infeasible) / 23 (MS/HS).
 - **2026-06-11 (s10)** dissolve_hcc CORRECTED (user: leaving Cascadia/
   Decatur draw-less was "a fairly big error"): pure pathway sites now
   become TRUE neighborhood schools competing for local students via an
