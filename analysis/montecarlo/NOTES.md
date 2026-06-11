@@ -306,26 +306,30 @@ revenue − with-overage cost (fleet-only NET in parens where it differs):
 | scenario | Δ EXAL revenue $M/yr | Δ bus cost $M/yr (fleet-only) | **NET $M/yr** (fleet-only) |
 |---|---|---|---|
 | `ms_walk_1mi` | +5.33 [+4.90, +5.71] | +1.01 (0.00) | **+4.33** (+5.33) |
-| `hs_bussing` | +13.56 [+11.92, +15.74] | +0.72 (0.00) | **+12.84** (+13.56) |
-| `hs_bussing_1mi` | +18.94 [+15.60, +22.94] (≈$55.6M total — under the $59.8M cap) | +1.53 (0.00) | **+17.40** (+18.94) |
-| `hs_ms_bussing_1mi` | +24.90 [+21.50, +28.91] (CROSSES the $59.8M cap: ~$61.6M total ⇒ capped ≈ +23.1) | +3.37 (+0.97) | **+21.53** (+23.93); capped ≈ +19.7 |
-| `close_option_a` | −7.03 [−7.22, −6.86] | +2.55 (+2.55) | **−9.58** |
-| `close_option_b` | −4.09 [−4.22, −3.98] | +3.42 (+3.42) | **−7.51** |
-| `close_option_b_dearborn` | −4.58 [−4.71, −4.48] | +3.40 (+3.40) | **−7.99** |
-| `close_fab4` | −1.20 [−1.28, −1.12] | +0.52 (+0.52) | **−1.72** |
+| `hs_bussing` | +5.17 [+3.81, +6.98] | +0.72 (0.00) | **+4.45** (+5.17) |
+| `hs_bussing_1mi` | +9.65 [+6.87, +12.98] | +1.53 (0.00) | **+8.11** (+9.65) |
+| `hs_ms_bussing_1mi` | +14.62 [+11.78, +17.96] (≈$51.3M total — under the cap) | +3.37 (+0.97) | **+11.24** (+13.65) |
+| `close_option_a` | −8.36 [−8.54, −8.19] | +2.55 (+2.55) | **−10.91** |
+| `close_option_b` | −6.01 [−6.14, −5.91] | +3.42 (+3.42) | **−9.44** |
+| `close_option_b_dearborn` | −6.02 [−6.14, −5.91] | +3.40 (+3.40) | **−9.42** |
+| `close_fab4` | −1.73 [−1.82, −1.66] | +0.52 (+0.52) | **−2.26** |
 | `convert_optA_rand1` | +0.77 [+0.67, +0.88] | +1.07 (+1.12) | **−0.30** (−0.35) |
 | `convert_optA_rand2` | +0.77 [+0.69, +0.86] | +1.11 (+1.18) | **−0.34** (−0.41) |
 | `close_sacajawea` | −0.57 | −0.02 (−0.02) | **−0.55** |
 | `es_walk_1p5mi` | −6.74 [−7.15, −6.39] | −7.97 (−7.97) | **+1.24** |
 
-Headline reversals: the KUOW closure plans LOSE ~$7.5-9.6M/yr of state
+(Destinations CORRECTED s10 — counted vs the any-program served set; see
+the decision-log entry. No scenario crosses the $59.8M cap any more.)
+Headline reversals: the KUOW closure plans LOSE ~$9.4-10.9M/yr of state
 transportation funding net (the Destinations term: each closed served
 school −0.01523 in the exponent ≈ −$0.55M at current levels — dwarfs the
-extra-rider revenue), on top of which their building-operations savings
-($31.5M/$25.5M) are outside this model. Expanding service is revenue-
-POSITIVE under the formula (more boardings + for HS, +13 destinations);
-`hs_bussing` nets +$17M/yr. es_walk_1p5mi (service cut) loses revenue but
-saves more in buses → net +$1.2M.
+extra-rider revenue; ALL closed schools count, incl. special-ed-only
+sites), on top of which their building-operations savings ($31.5M/$25.5M)
+are outside this model. Expanding service is still revenue-POSITIVE on
+boardings alone (`hs_bussing` nets +$4.5M/yr; only Nova is a NEW
+destination — the other HS sites already run special-ed routes).
+es_walk_1p5mi (service cut) loses revenue but saves more in buses →
+net +$1.2M.
 
 Notes: `ms_walk_1mi` also adds +162 gifted riders (MS HCC pathway sites'
 walk zones shrink); K-8s are level "ES" so the MS op leaves them alone.
@@ -1252,6 +1256,41 @@ Still genuinely open for the user:
   factors dominate the uncertainty, as they should for an uncalibrated
   assumption. OVERVIEW.md ridership section, MC distribution table, and
   assumption 2 updated.
+- **2026-06-11 (s10)** EXAL Destinations CORRECTED (user caught the
+  +$21.5M hs_ms_bussing_1mi net looking wrong): the old logic counted any
+  school gaining/losing MODELED rides as a destination change, but the
+  formula's 105.75 input counts schools served by ANY STARS program —
+  and 12 of the 13 HS sites already run special-ed routes (only Nova is
+  service-free). New basis in `funding_summary`: destination deltas vs
+  the any-program 2024-25 served set — additions only for never-served
+  schools; closures count even when the model carries no rides there
+  (Sanislo). Effects: HS-scenario revenue drops sharply (hs_bussing
+  +13.56 → **+5.17**, net +4.45; hs_bussing_1mi +18.94 → **+9.65**;
+  hs_ms_bussing_1mi +24.90 → **+14.62**, net +11.24 — and no longer
+  crosses the cap, retiring that flag); closures get WORSE (Option A dest
+  −18 → −21, net −9.58 → **−10.91**; B −13/−14 → −17 both, nets
+  **−9.44/−9.42** — the old B-vs-Dearborn gap was a counting artifact;
+  fab4 −3 → −4, net −2.26); walk/conversion scenarios unchanged. All
+  reports, findings.html (incl. §6 key findings), and this file updated.
+- **2026-06-11 (s10)** EXAL change table added to every scenario breakdown
+  (user request): `breakdown._exal_terms` decomposes the reimbursement
+  change per formula term (input base→scen, multiplicative factor) — the
+  factors multiply exactly to scenario EXAL at mean-draw inputs, with the
+  MC mean Δ alongside. Rendered in both `simulate/<name>/breakdown.md`
+  and the expandable sections of findings.html.
+- **2026-06-11 (s10)** Uptake annotation added (user request): reports now
+  show the district Δ bus-eligible pool + **marginal uptake** = Δrides ÷
+  Δeligible (rides/day per newly-eligible student, theoretical max 2 since
+  both-ways riders count twice); breakdown tables (md + HTML) gained a
+  per-school "propensity base→scen (marginal)" column; findings cards show
+  "bus-eligible Δ · uptake" where meaningful (|Δeligible| > 50). Values
+  confirm the model's structure: `ms_walk_1mi` uptake **0.67** [0.62,
+  0.73] (≈ the 0.65 system average — newly eligible MS kids behave like
+  existing riders), `hs_bussing` **0.27** [0.18, 0.38] (the 0.525 HS
+  discount + long distances), `hs_ms_bussing_1mi` 0.37 (blend). CAVEAT:
+  for closures the district ratio mixes additions and removals (e.g.
+  close_sacajawea Δeligible +34 net, ratio −0.21 — not meaningful); use
+  the per-school marginal column there instead.
 - **2026-06-11 (s10)** Fleet-scope clarification (user catch): the model's
   "≈180 buses" is the MODELED basic+gifted subset (STARS 2024-25 actual
   162; bell-shift rule estimates ~171-180), NOT the district fleet — SPS

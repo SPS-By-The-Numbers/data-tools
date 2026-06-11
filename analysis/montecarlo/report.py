@@ -50,7 +50,9 @@ import pandas as pd
 
 from analysis.montecarlo import parse_shapes
 from analysis.montecarlo import ridership as rid
+from analysis.montecarlo import scenarios as scn
 from analysis.montecarlo import simulate as sim
+from analysis.montecarlo.baseline_ridership import load_school_routes
 from analysis.montecarlo.school_directory import load_schools
 
 CI_LO, CI_HI = 0.025, 0.975
@@ -118,6 +120,13 @@ EXAL_BASE = {               # official SY2024-25 SPS inputs
     "landarea": 85.50,      # "special" program in STARS; 4,256 ≈ gifted
     "nonhigh": 0.0,         # 1,316 + special_ed 2,506 + early_ed/etc.)
 }
+# Destinations basis (corrected s10, user catch): the 105.75 input counts
+# schools served by ANY STARS program, so a school gaining MODELED (basic)
+# service only adds a destination if it had no service at all (e.g. Nova —
+# the other 12 HS sites already run special-ed routes), and a CLOSED school
+# loses its destination even if the model carried no rides there (e.g.
+# Sanislo, special-ed only). Deltas are computed against the set of schools
+# with any 2024-25 STARS routes.
 
 
 def _exal(basic: np.ndarray, special: np.ndarray, dest: np.ndarray,
@@ -212,11 +221,23 @@ def funding_summary(run: dict) -> pd.DataFrame:
     else:
         d_dist = pd.Series(0.0, index=d_basic.index)
 
+    # Destinations: vs the any-program served set (see EXAL_BASE note) —
+    # closures drop served schools; only never-served schools can be added.
+    routes = load_school_routes()
+    served0 = set(int(s) for s in routes[routes.year == 2024].school_id)
+    closed: set = set()
+    try:
+        spec = scn.load_scenario(run["meta"]["scenario"])
+        closed = {op["school_id"] for op in spec.ops if op["op"] == "close_school"}
+    except FileNotFoundError:
+        pass
+    n_closed = len(closed & served0)
     sc = run["school"]
-    served = sc.groupby(["draw", "school_id"])[["base_riders", "scen_riders"]].sum()
-    n_base = served.groupby(level="draw").agg(n=("base_riders", lambda s: (s > 0.5).sum()))["n"]
-    n_scen = served.groupby(level="draw").agg(n=("scen_riders", lambda s: (s > 0.5).sum()))["n"]
-    d_dest = (n_scen - n_base).reindex(d_basic.index).fillna(0.0)
+    nv = sc[~sc.school_id.isin(served0 | closed)]
+    n_new = (nv.groupby(["draw", "school_id"])["scen_riders"].sum()
+             .gt(0.5).groupby(level="draw").sum()) if len(nv) else None
+    d_dest = (pd.Series(0.0, index=d_basic.index) if n_new is None
+              else n_new.reindex(d_basic.index).fillna(0.0)) - n_closed
 
     B = EXAL_BASE
     base_rev = _exal(np.full(len(d_basic), B["basic"]), np.full(len(d_basic), B["special"]),
@@ -339,6 +360,21 @@ def report(name: str, top: int = 10, save: bool = False) -> str:
           f"[{r['d_riders_lo']:+.1f}, {r['d_riders_hi']:+.1f}]"
           f"   est routes Δ {r['d_routes_mean']:+5.2f} "
           f"[{r['d_routes_lo']:+.2f}, {r['d_routes_hi']:+.2f}]\n")
+
+    sch = run["school"]
+    sb = sch[sch.program == "basic"]
+    per_draw = sb.groupby("draw")[["base_eligible", "scen_eligible",
+                                   "base_riders", "scen_riders"]].sum()
+    d_el = per_draw["scen_eligible"] - per_draw["base_eligible"]
+    if d_el.abs().mean() > 1.0:
+        uptake = ((per_draw["scen_riders"] - per_draw["base_riders"])
+                  / d_el.where(d_el.abs() > 1.0))
+        w(f"\nBus-eligible pool (basic): {per_draw['base_eligible'].mean():,.0f} → "
+          f"{per_draw['scen_eligible'].mean():,.0f}   Δ {_fmt_ci(d_el, '+,.0f')}\n")
+        w(f"  marginal uptake (Δrides ÷ Δeligible): {_fmt_ci(uptake.dropna(), '.2f')} "
+          "rides/day per newly-eligible student\n"
+          "  (a both-ways rider counts 2, so e.g. 0.60 ≈ between 30% riding "
+          "both ways and 60% riding one way)\n")
 
     bc = bus_cost_summary(run)
     w("\nBus fleet + annual cost (2 bell shifts: fleet = busier of ES vs "

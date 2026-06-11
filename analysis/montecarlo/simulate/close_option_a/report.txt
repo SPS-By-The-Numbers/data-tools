@@ -7,6 +7,10 @@ District (means over draws; deltas show 95% CI). NOTE: 'riders' = STARS rides/da
   basic : riders  10,008.5 →  10,858.8   Δ  +850.3 [+757.9, +936.8]   est routes Δ +17.16 [+15.30, +18.91]
   gifted: riders   1,315.5 →   1,313.8   Δ    -1.7 [-1.9, -1.6]   est routes Δ -0.05 [-0.06, -0.05]
 
+Bus-eligible pool (basic): 15,504 → 17,432   Δ +1,928 [+1,893, +1,965]
+  marginal uptake (Δrides ÷ Δeligible): 0.44 [0.40, 0.48] rides/day per newly-eligible student
+  (a both-ways rider counts 2, so e.g. 0.60 ≈ between 30% riding both ways and 60% riding one way)
+
 Bus fleet + annual cost (2 bell shifts: fleet = busier of ES vs MS/HS shift;
   $148.9k per bus-year, SY2024-25 all-in vendor cost — see report.py constants):
   buses:  179.7 →  196.9   Δ +17.1 [+15.2, +18.9]   (routes Δ +17.1)
@@ -18,10 +22,10 @@ Bus fleet + annual cost (2 bell shifts: fleet = busier of ES vs MS/HS shift;
 
 State funding (STARS EXAL reimbursement, 2025-26 formula; baseline $36.68M,
   assumed below cap; Δinputs: basic/gifted ride deltas, served-school count, avg distance):
-  Δ inputs (means): BasicRiders +850, SpecialRiders -2, Destinations -18.0, AvgDistance +0.057 mi
-  revenue Δ: -7.03 [-7.22, -6.86] $M/yr
-  NET fiscal Δ (rev − cost), with overage: -9.58 [-9.67, -9.49] $M/yr
-  NET fiscal Δ (rev − cost), fleet only:   -9.58 [-9.67, -9.49] $M/yr
+  Δ inputs (means): BasicRiders +850, SpecialRiders -2, Destinations -21.0, AvgDistance +0.057 mi
+  revenue Δ: -8.36 [-8.54, -8.19] $M/yr
+  NET fiscal Δ (rev − cost), with overage: -10.91 [-11.00, -10.81] $M/yr
+  NET fiscal Δ (rev − cost), fleet only:   -10.91 [-11.01, -10.81] $M/yr
 
 Avg stop→school distance, rider-weighted (basic, miles; STARS calls this 'average_distance'):
    mean:  1.56 →  1.62   Δ +0.057 [+0.053, +0.062]

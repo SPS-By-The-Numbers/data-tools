@@ -7,6 +7,10 @@ District (means over draws; deltas show 95% CI). NOTE: 'riders' = STARS rides/da
   basic : riders  10,008.5 →  12,081.1   Δ +2072.6 [+1901.1, +2227.5]   est routes Δ +41.83 [+38.37, +44.96]
   gifted: riders   1,315.5 →   1,477.4   Δ  +161.9 [+156.5, +168.8]   est routes Δ +4.92 [+4.76, +5.13]
 
+Bus-eligible pool (basic): 15,504 → 18,582   Δ +3,079 [+3,032, +3,137]
+  marginal uptake (Δrides ÷ Δeligible): 0.67 [0.62, 0.73] rides/day per newly-eligible student
+  (a both-ways rider counts 2, so e.g. 0.60 ≈ between 30% riding both ways and 60% riding one way)
+
 Bus fleet + annual cost (2 bell shifts: fleet = busier of ES vs MS/HS shift;
   $148.9k per bus-year, SY2024-25 all-in vendor cost — see report.py constants):
   buses:  179.7 →  179.7   Δ +0.0 [+0.0, +0.0]   (routes Δ +46.8)

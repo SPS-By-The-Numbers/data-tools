@@ -30,6 +30,39 @@ def _baseline_eval(params):
     return _EVAL_CACHE["base"]
 
 
+def _exal_terms(run: dict) -> dict:
+    """Per-term EXAL decomposition at the mean-draw inputs.
+
+    Each formula term contributes a multiplicative factor exp(coef·Δterm);
+    the factors multiply exactly to scenario/baseline EXAL at the mean
+    inputs. The MC mean Δrevenue is reported alongside (it differs
+    slightly because EXAL is nonlinear in the draws).
+    """
+    import numpy as np
+    fs = rpt.funding_summary(run)
+    B, C = rpt.EXAL_BASE, rpt.EXAL_COEF
+    d = {k: float(fs[f"d_{k}"].mean())
+         for k in ("basic", "special", "dest", "avgdist")}
+    terms = []
+    for label, key, coef, logged in (
+            ("BasicRiders", "basic", "b_basic", True),
+            ("SpecialRiders", "special", "b_special", True),
+            ("Destinations", "dest", "b_dest", False),
+            ("AvgDistance (mi)", "avgdist", "b_avgdist", False)):
+        b, s = B[key], B[key] + d[key]
+        dterm = (C[coef] * (np.log(s + 1) - np.log(b + 1)) if logged
+                 else C[coef] * (s - b))
+        terms.append({"label": label, "base": b, "scen": s, "logged": logged,
+                      "factor": float(np.exp(dterm))})
+    base_rev = float(fs["base_revenue"].mean())
+    prod = float(np.prod([t["factor"] for t in terms]))
+    return {"terms": terms, "base_rev": base_rev,
+            "scen_rev": base_rev * prod,
+            "d_mc": (float(fs["d_revenue"].mean()),
+                     float(fs["d_revenue"].quantile(0.025)),
+                     float(fs["d_revenue"].quantile(0.975)))}
+
+
 def compute(name: str) -> dict:
     """Structured per-school breakdown for one scenario (EV + saved MC)."""
     scenario = scn.load_scenario(name)
@@ -52,12 +85,15 @@ def compute(name: str) -> dict:
     rb, rs = riders(base, "basic"), riders(scen, "basic")
     gb, gs = riders(base, "gifted"), riders(scen, "gifted")
 
-    mc = None
+    mc, exal = None, None
     try:
-        mc = rpt.school_summary(sim.load_run(name))
-        mc = mc[mc.program == "basic"].set_index("school_id")
+        run = sim.load_run(name)
     except FileNotFoundError:
-        pass
+        run = None
+    if run is not None:
+        mc = rpt.school_summary(run)
+        mc = mc[mc.program == "basic"].set_index("school_id")
+        exal = _exal_terms(run)
 
     closed = {op["school_id"] for op in scenario.ops if op["op"] == "close_school"}
     converted = {op["school_id"] for op in scenario.ops
@@ -90,6 +126,13 @@ def compute(name: str) -> dict:
                "elig_b": float(el_b.get(sid, 0.0)), "elig_s": float(el_s.get(sid, 0.0)),
                "ev_b": float(rb.get(sid, 0.0)), "ev_s": float(rs.get(sid, 0.0)),
                "mc": None}
+        # propensity = rides/day per eligible student; marginal = the rate
+        # at which the CHANGE in the eligible pool converts to rides
+        row["prop_b"] = row["ev_b"] / row["elig_b"] if row["elig_b"] > 1 else None
+        row["prop_s"] = row["ev_s"] / row["elig_s"] if row["elig_s"] > 1 else None
+        d_el = row["elig_s"] - row["elig_b"]
+        row["marg"] = ((row["ev_s"] - row["ev_b"]) / d_el
+                       if abs(d_el) > 1 else None)
         if mc is not None and sid in mc.index:
             m = mc.loc[sid]
             row["mc"] = (float(m["d_mean"]), float(m["d_lo"]), float(m["d_hi"]))
@@ -120,7 +163,7 @@ def compute(name: str) -> dict:
     return {"name": name, "description": scenario.description, "ops": ops,
             "receivers": receivers, "rows": rows, "gifted_rows": gifted_rows,
             "district": (float(rb.sum()), float(rs.sum())),
-            "has_mc": mc is not None}
+            "has_mc": mc is not None, "exal": exal}
 
 
 INVARIANTS = (
@@ -142,9 +185,22 @@ COLUMN_NOTES = (
     ("EV rides/day", "expected rides at the baseline-calibrated propensity; "
      "“affected” rows move because the propensity tilt re-centers "
      "as the eligible pool shifts."),
+    ("propensity", "rides/day per bus-eligible student (school level, "
+     "base → scen); the parenthesized marginal rate is Δrides ÷ Δeligible — "
+     "the expected uptake of the NEWLY eligible (or newly ineligible) "
+     "students at this school. A both-ways rider counts 2, so 0.60 ≈ "
+     "between 30% riding both ways and 60% riding one way; the theoretical "
+     "max is 2."),
     ("MC Δ", "mean and 95% interval over the paired Monte Carlo draws "
      "(population + behavioral-parameter uncertainty)."),
 )
+
+
+def _prop_txt(r: dict) -> str:
+    """'0.65 → 0.66 (marg 0.72)' — rides/day per eligible student."""
+    fmt = lambda v: "—" if v is None else f"{v:.2f}"
+    marg = "" if r["marg"] is None else f" (marg {r['marg']:.2f})"
+    return f"{fmt(r['prop_b'])} → {fmt(r['prop_s'])}{marg}"
 
 
 def render_md(d: dict) -> str:
@@ -177,8 +233,9 @@ def render_md(d: dict) -> str:
 
     w("## Per-school deltas (basic program)\n\n")
     w("| school | role | enrolled base→scen (Δ) | bus-eligible base→scen (Δ) "
-      "| EV rides/day base→scen (Δ) | MC Δ rides [95% CI] |\n")
-    w("|---|---|---|---|---|---|\n")
+      "| EV rides/day base→scen (Δ) | propensity base→scen (marginal) "
+      "| MC Δ rides [95% CI] |\n")
+    w("|---|---|---|---|---|---|---|\n")
     for r in d["rows"]:
         mc_txt = "—" if r["mc"] is None else \
             f"{r['mc'][0]:+.1f} [{r['mc'][1]:+.1f}, {r['mc'][2]:+.1f}]"
@@ -188,9 +245,9 @@ def render_md(d: dict) -> str:
           f"| {r['elig_b']:,.0f} → {r['elig_s']:,.0f} "
           f"({r['elig_s'] - r['elig_b']:+,.0f}) "
           f"| {r['ev_b']:,.1f} → {r['ev_s']:,.1f} "
-          f"({r['ev_s'] - r['ev_b']:+,.1f}) | {mc_txt} |\n")
+          f"({r['ev_s'] - r['ev_b']:+,.1f}) | {_prop_txt(r)} | {mc_txt} |\n")
     b, s = d["district"]
-    w(f"| **district total** | | | | **{b:,.1f} → {s:,.1f} ({s - b:+,.1f})** | |\n\n")
+    w(f"| **district total** | | | | **{b:,.1f} → {s:,.1f} ({s - b:+,.1f})** | | |\n\n")
 
     if d["gifted_rows"]:
         w("## Per-school deltas (gifted program)\n\n"
@@ -201,6 +258,26 @@ def render_md(d: dict) -> str:
         w("\n")
     else:
         w("Gifted program: unchanged (no HCC pathway site is touched).\n\n")
+
+    if d["exal"]:
+        e = d["exal"]
+        w("## State funding (EXAL) change\n\n")
+        w("Each term of the STARS Expected Allocation formula contributes a "
+          "multiplicative factor; the factors multiply exactly to the "
+          "scenario reimbursement at the mean-draw inputs.\n\n")
+        w("| term | input base → scen | factor on EXAL |\n|---|---|---|\n")
+        for t in e["terms"]:
+            fmt = ",.2f" if not t["logged"] else ",.0f"
+            w(f"| {t['label']} | {t['base']:{fmt}} → {t['scen']:{fmt}} "
+              f"| ×{t['factor']:.4f} |\n")
+        w(f"| **EXAL** | **${e['base_rev']/1e6:,.2f}M → "
+          f"${e['scen_rev']/1e6:,.2f}M** | **×{e['scen_rev']/e['base_rev']:.4f}** |\n\n")
+        w(f"MC mean Δ revenue: {e['d_mc'][0]/1e6:+,.2f} "
+          f"[{e['d_mc'][1]/1e6:+,.2f}, {e['d_mc'][2]/1e6:+,.2f}] $M/yr "
+          "(differs slightly from the factor product — EXAL is nonlinear "
+          "across draws). Destinations deltas are vs the any-program served "
+          "set: only never-served schools count as additions; closures count "
+          "even if the model carried no rides there.\n\n")
 
     w("## Reading the table\n\n")
     for term, note in COLUMN_NOTES:

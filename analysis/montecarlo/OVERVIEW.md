@@ -339,13 +339,18 @@ EXAL = exp( 0.66498·ln(BasicRiders+1) + 0.11·ln(SpecialRiders+1)
 Scenario deltas are applied on top of the official SY2024-25 inputs
 (BasicRiders 9,194.75; SpecialRiders 4,256.25; Destinations 105.75;
 AvgDistance 2.16; LandArea 85.5; NonHighDist 0): basic ride deltas →
-BasicRiders, gifted → SpecialRiders, change in served-school count
-(rides > 0.5/day) → Destinations, rider-weighted basic distance delta →
-AvgDistance. Implementation reproduces the official worked example
-(baseline $36.68M; marginal ≈ $2,653/boarding). The allocation cap
-(min(EXAL, $59.8M)) and the legislative salary adjustment are *not*
-modeled per instruction; one scenario (`hs_bussing_1mi`) would cross the
-cap — flagged in NOTES.
+BasicRiders, gifted → SpecialRiders, rider-weighted basic distance delta →
+AvgDistance. **Destinations** deltas are computed against the set of
+schools served by *any* STARS program at baseline (105.75 counts all
+programs): a closure drops a destination even if the model carried no
+rides there (special-ed-only service still ends), and a school gaining
+modeled service only adds one if it had no service at all — e.g. of the
+13 HS sites in the HS-bussing scenarios, 12 already run special-ed routes,
+so only Nova is a new destination. Implementation reproduces the official
+worked example (baseline $36.68M; marginal ≈ $2,653/boarding). The
+allocation cap (min(EXAL, $59.8M)) and the legislative salary adjustment
+are *not* modeled per instruction; cap proximity is flagged per scenario
+in NOTES.
 
 ## Calibration & validation summary <a id="validation"></a>
 
@@ -397,8 +402,8 @@ Roughly ordered by how much they could move a result.
 7. **Routes and buses are derived, not routed.** Routes = rides ÷ a
    constant district rides-per-route; the fleet rule ignores deadheading,
    bell-time tiers within a shift, and capacity. EXAL Destinations deltas
-   only see modeled programs (a closure's special-ed destination loss is
-   not counted, so closure revenue losses are understated).
+   use the any-program served set (closures count their special-ed
+   destination loss; service additions only count never-served schools).
 8. **Special-ed (2,506 rides/day), early-ed, bilingual, homeless programs
    are not modeled**; β_swd is a demographic proxy on the basic program,
    not a special-ed transportation model.

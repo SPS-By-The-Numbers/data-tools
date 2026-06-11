@@ -53,7 +53,7 @@ SCENARIOS = [
      "scenario, included as a reference point."),
     ("close_option_a", "KUOW Option A: close 21 schools", "Closures",
      "The “well-resourced schools” plan — eliminates most option/K-8 "
-     "programs. Displaced riders go to the remaining schools; 18 served "
+     "programs. Displaced riders go to the remaining schools; 21 served "
      "destinations disappear from the funding formula."),
     ("close_option_b", "KUOW Option B: close 17 schools", "Closures",
      "The “choice” plan — keeps more option schools but closes Thurgood "
@@ -85,6 +85,11 @@ def collect() -> list[dict]:
         b = ds.loc["basic"]
         db = run["district"][run["district"].program == "basic"]
         d_dist = (db["scen_dist_mean"] - db["base_dist_mean"]).mean()
+        sb = run["school"]
+        sb = sb[sb.program == "basic"]
+        pdsum = sb.groupby("draw")[["base_eligible", "scen_eligible"]].sum()
+        d_elig = (pdsum["scen_eligible"] - pdsum["base_eligible"]).mean()
+        uptake = (b["d_riders_mean"] / d_elig) if abs(d_elig) > 50 else None
         net = (fs.set_index("draw")["d_revenue"]
                - bc.set_index("draw")["d_cost"]) / 1e6
         rows.append({
@@ -101,7 +106,7 @@ def collect() -> list[dict]:
             "rev_hi": fs["d_revenue"].quantile(0.975) / 1e6,
             "net": net.mean(), "net_lo": net.quantile(0.025),
             "net_hi": net.quantile(0.975),
-            "dist": d_dist,
+            "dist": d_dist, "d_elig": d_elig, "uptake": uptake,
             "n_draws": run["meta"]["n_draws"], "seed": run["meta"]["seed"],
         })
     return rows
@@ -403,13 +408,16 @@ def breakdown_details(label: str, d: dict) -> str:
             f"<td>{r['elig_b']:,.0f} → {r['elig_s']:,.0f} "
             f"({r['elig_s'] - r['elig_b']:+,.0f})</td>"
             f"<td>{r['ev_b']:,.1f} → {r['ev_s']:,.1f} "
-            f"({r['ev_s'] - r['ev_b']:+,.1f})</td><td>{mc}</td></tr>")
+            f"({r['ev_s'] - r['ev_b']:+,.1f})</td>"
+            f"<td>{esc(bdn._prop_txt(r))}</td><td>{mc}</td></tr>")
     b, s = d["district"]
     trs.append(f"<tr><td><b>district total</b></td><td></td><td></td><td></td>"
-               f"<td><b>{b:,.1f} → {s:,.1f} ({s - b:+,.1f})</b></td><td></td></tr>")
+               f"<td><b>{b:,.1f} → {s:,.1f} ({s - b:+,.1f})</b></td>"
+               f"<td></td><td></td></tr>")
     table = ('<div class="tw"><table><tr><th>School</th><th>Role</th>'
              "<th>Enrolled base→scen (Δ)</th><th>Bus-eligible base→scen (Δ)</th>"
-             "<th>EV rides/day base→scen (Δ)</th><th>MC Δ rides [95% CI]</th>"
+             "<th>EV rides/day base→scen (Δ)</th>"
+             "<th>Propensity base→scen (marginal)</th><th>MC Δ rides [95% CI]</th>"
              f"</tr>{''.join(trs)}</table></div>")
 
     if d["gifted_rows"]:
@@ -424,6 +432,32 @@ def breakdown_details(label: str, d: dict) -> str:
     else:
         gift = "<p class='bnote'>Gifted program: unchanged.</p>"
 
+    exal_html = ""
+    if d["exal"]:
+        e = d["exal"]
+        ers = []
+        for t in e["terms"]:
+            fmt = ",.2f" if not t["logged"] else ",.0f"
+            ers.append(f"<tr><td>{esc(t['label'])}</td>"
+                       f"<td>{t['base']:{fmt}} → {t['scen']:{fmt}}</td>"
+                       f"<td>×{t['factor']:.4f}</td></tr>")
+        ers.append(f"<tr><td><b>EXAL</b></td>"
+                   f"<td><b>${e['base_rev']/1e6:,.2f}M → "
+                   f"${e['scen_rev']/1e6:,.2f}M</b></td>"
+                   f"<td><b>×{e['scen_rev']/e['base_rev']:.4f}</b></td></tr>")
+        exal_html = (
+            '<div class="tw"><table><caption>State funding (EXAL) change — '
+            "each term contributes a multiplicative factor; factors multiply "
+            "exactly to the scenario reimbursement at mean-draw inputs"
+            "</caption><tr><th>Term</th><th>Input base → scen</th>"
+            f"<th>Factor on EXAL</th></tr>{''.join(ers)}</table></div>"
+            f"<p class='bnote'>MC mean Δ revenue {e['d_mc'][0]/1e6:+,.2f} "
+            f"[{e['d_mc'][1]/1e6:+,.2f}, {e['d_mc'][2]/1e6:+,.2f}] $M/yr "
+            "(differs slightly from the factor product — EXAL is nonlinear "
+            "across draws). Destinations are counted against the any-program "
+            "served set: only never-served schools count as additions; "
+            "closures count even when the model carried no rides there.</p>")
+
     notes = "".join(f"<li><b>{esc(t)}</b> — {esc(n)}</li>"
                     for t, n in bdn.COLUMN_NOTES)
     return (f'<details class="bd" id="bd-{esc(d["name"])}">'
@@ -431,7 +465,7 @@ def breakdown_details(label: str, d: dict) -> str:
             "resolved assumptions</span></summary>"
             f'<div class="bdc">{ops_html}{recv_html}'
             f"<p class='bnote'>{esc(bdn.INVARIANTS)}</p>{table}{gift}"
-            f"<ul class='bnote'>{notes}</ul></div></details>")
+            f"{exal_html}<ul class='bnote'>{notes}</ul></div></details>")
 
 
 def td_signed(v: float, fmt: str = "+,.0f", flip: bool = False) -> str:
@@ -502,7 +536,10 @@ def build(rows: list[dict]) -> str:
                 '<div class="nums">'
                 f'rides/day {fmt_riders(r["riders"])} '
                 f'[{r["riders_lo"]:+,.0f}, {r["riders_hi"]:+,.0f}]{gift}<br>'
-                f'routes {r["routes"]:+.1f} &nbsp;·&nbsp; buses {r["buses"]:+.1f} '
+                + (f'bus-eligible {r["d_elig"]:+,.0f} &nbsp;·&nbsp; uptake '
+                   f'≈ {r["uptake"]:.2f} rides/day each<br>'
+                   if r["uptake"] is not None else '')
+                + f'routes {r["routes"]:+.1f} &nbsp;·&nbsp; buses {r["buses"]:+.1f} '
                 f'&nbsp;·&nbsp; avg dist {r["dist"]:+.2f} mi<br>'
                 f'<b>net fiscal {fmt_money(r["net"])} '
                 f'[{fmt_money(r["net_lo"])}, {fmt_money(r["net_hi"])}] $M/yr</b>'
@@ -537,7 +574,12 @@ day” counts boardings the way the state does: morning and afternoon each
 count once, so a student riding both ways counts as 2. Brackets are 95%
 intervals over a few hundred simulated worlds that vary <i>where students
 live</i> (census uncertainty) and <i>how readily families use the bus</i>
-(behavioral-parameter uncertainty) — they are not year-to-year noise.</p>
+(behavioral-parameter uncertainty) — they are not year-to-year noise.
+Where a scenario changes who is bus-eligible, <b>uptake</b> = Δrides ÷
+Δeligible: the expected rides/day per newly-eligible student. Its
+theoretical max is 2 (a both-ways rider counts twice), so e.g. 0.60 means
+somewhere between 30% of the new students riding both ways and 60% riding
+one way.</p>
 <div class="callout"><p><b>The one-sentence summary:</b> expanding service
 <i>earns</i> the district money — added riders raise the state’s funding
 formula faster than they raise costs, and middle/high-school routes reuse
@@ -612,12 +654,16 @@ numbers add up to the district delta — expand its breakdown:</p>
 <ol class="findings">
 <li><b>Service expansion pays for itself under the funding formula.</b>
 Shrinking middle-school walk zones to 1 mile adds ≈2,070 rides/day, zero
-buses, and ≈+$5.3M/yr net. Restoring high-school yellow bus adds
-≈+$13.6M/yr net even at heavily discounted HS ridership.</li>
+buses, and ≈+$4.3M/yr net. Restoring high-school yellow bus adds
+≈+$4.5M/yr net even at heavily discounted HS ridership — and nearly all
+HS sites already receive special-ed service, so only one new destination
+(Nova) enters the funding formula.</li>
 <li><b>Closures cost transportation money from both directions.</b> The
 21-school Option A plan: +850 rides/day to carry (+$2.6M bus cost) and
-−$7.0M/yr in state funding — net ≈ <b>−$9.6M/yr</b>, an offset of roughly a
-third of its claimed $31.5M building savings. Option B nets ≈ −$7.5M/yr.</li>
+−$8.4M/yr in state funding (every closed school is a served destination,
+even where the model carries no rides) — net ≈ <b>−$10.9M/yr</b>, an
+offset of roughly a third of its claimed $31.5M building savings. Option
+B nets ≈ −$9.4M/yr.</li>
 <li><b>Every consolidation receiver gains more riders than its closed
 partner had.</b> Walkers at the closed school become bus riders at the
 receiver — e.g. Sanislo has ≈0 riders today, yet closing it adds ~74
