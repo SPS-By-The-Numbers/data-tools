@@ -14,6 +14,7 @@ import datetime
 import html
 from pathlib import Path
 
+from analysis.montecarlo import breakdown as bdn
 from analysis.montecarlo import report as rpt
 from analysis.montecarlo import simulate as sim
 
@@ -329,6 +330,20 @@ tr.grp td{border-bottom:none; padding-top:16px;
 .card p{font-size:14.5px; line-height:1.5; margin:.5em 0; color:#3d382e}
 .card .nums{font:13px/1.7 ui-monospace,Menlo,Consolas,monospace;
   border-top:1px solid var(--rule); padding-top:7px}
+details.bd{border:1.5px solid var(--ink); background:#fffdf6; margin:10px 0}
+details.bd summary{cursor:pointer; padding:11px 16px;
+  font:700 14px/1.3 Avenir,"Avenir Next",Seravek,Verdana,sans-serif;
+  list-style-position:outside}
+details.bd summary span{font-weight:400; color:var(--muted)}
+details.bd summary::marker{color:#b8930a}
+details.bd[open] summary{border-bottom:1.5px solid var(--ink);
+  background:var(--paper2)}
+.bdc{padding:2px 18px 14px}
+.bdc table{font-size:13px; margin:1em 0}
+.bdc p{font-size:14.5px; max-width:90ch}
+.bnote{font:12.5px/1.55 Avenir,"Avenir Next",Seravek,Verdana,sans-serif;
+  color:#4a4438; max-width:95ch}
+ul.bnote{padding-left:1.2em}
 ol.findings{max-width:74ch; padding-left:1.3em}
 ol.findings li{margin:.7em 0}
 .foot{margin-top:3em; border-top:4px double var(--ink); padding-top:14px;
@@ -339,6 +354,77 @@ code{font:.92em ui-monospace,Menlo,Consolas,monospace; background:var(--paper2);
   padding:0 4px}
 @media print{body{box-shadow:none; max-width:none} figure{box-shadow:none}}
 """
+
+
+def breakdown_details(label: str, d: dict) -> str:
+    """One expandable per-school breakdown section (resolved assumptions +
+    enrollment/eligible/rides deltas per affected school)."""
+    p = []
+    for i, op in enumerate(d["ops"]):
+        if op["kind"] == "close_school":
+            how = ("receivers <b>named in the spec</b>" if op["named_receivers"]
+                   else "the <b>engine-default receivers</b> (3 nearest open "
+                        "same-level neighborhood schools, split per residence "
+                        "area in proportion to existing draw)")
+            p.append(f"<b>op[{i}] <code>close_school</code></b> — close "
+                     f"<b>{esc(op['school'])}</b> ({op['sid']}); its "
+                     f"{op['kids_out']:.0f} assigned students stay where they "
+                     f"live and re-assign to {how}.")
+        else:
+            p.append(f"<b>op[{i}] <code>{esc(op['kind'])}</code></b> — "
+                     f"<code>{esc(str(op['params']))}</code>")
+    ops_html = "<p>" + "<br>".join(p) + "</p>"
+
+    recv_html = ""
+    if d["receivers"]:
+        rws = "".join(
+            f"<tr><td>{esc(r['name'])} ({r['sid']})</td>"
+            f"<td>{r['kids']:,.1f}</td><td>{r['share']:.0%}</td></tr>"
+            for r in d["receivers"])
+        recv_html = ("<table><caption>Receiving schools (all displacements "
+                     "combined)</caption><tr><th>Receiver</th>"
+                     f"<th>Kids received</th><th>Share</th></tr>{rws}</table>")
+
+    trs = []
+    for r in d["rows"]:
+        mc = "—" if r["mc"] is None else \
+            f"{r['mc'][0]:+.1f} [{r['mc'][1]:+.1f}, {r['mc'][2]:+.1f}]"
+        trs.append(
+            f"<tr><td>{esc(r['name'])} ({r['sid']})</td><td>{r['role']}</td>"
+            f"<td>{r['enroll_b']:,.0f} → {r['enroll_s']:,.0f} "
+            f"({r['enroll_s'] - r['enroll_b']:+,.0f})</td>"
+            f"<td>{r['elig_b']:,.0f} → {r['elig_s']:,.0f} "
+            f"({r['elig_s'] - r['elig_b']:+,.0f})</td>"
+            f"<td>{r['ev_b']:,.1f} → {r['ev_s']:,.1f} "
+            f"({r['ev_s'] - r['ev_b']:+,.1f})</td><td>{mc}</td></tr>")
+    b, s = d["district"]
+    trs.append(f"<tr><td><b>district total</b></td><td></td><td></td><td></td>"
+               f"<td><b>{b:,.1f} → {s:,.1f} ({s - b:+,.1f})</b></td><td></td></tr>")
+    table = ("<table><tr><th>School</th><th>Role</th>"
+             "<th>Enrolled base→scen (Δ)</th><th>Bus-eligible base→scen (Δ)</th>"
+             "<th>EV rides/day base→scen (Δ)</th><th>MC Δ rides [95% CI]</th>"
+             f"</tr>{''.join(trs)}</table>")
+
+    if d["gifted_rows"]:
+        grs = "".join(
+            f"<tr><td>{esc(r['name'])} ({r['sid']})</td>"
+            f"<td>{r['ev_b']:,.1f} → {r['ev_s']:,.1f} "
+            f"({r['ev_s'] - r['ev_b']:+,.1f})</td></tr>"
+            for r in d["gifted_rows"])
+        gift = ("<table><caption>Gifted program (HCC pathway touched)"
+                "</caption><tr><th>School</th>"
+                f"<th>EV rides/day base→scen (Δ)</th></tr>{grs}</table>")
+    else:
+        gift = "<p class='bnote'>Gifted program: unchanged.</p>"
+
+    notes = "".join(f"<li><b>{esc(t)}</b> — {esc(n)}</li>"
+                    for t, n in bdn.COLUMN_NOTES)
+    return (f'<details class="bd" id="bd-{esc(d["name"])}">'
+            f"<summary>{esc(label)} <span>per-school breakdown &amp; "
+            "resolved assumptions</span></summary>"
+            f'<div class="bdc">{ops_html}{recv_html}'
+            f"<p class='bnote'>{esc(bdn.INVARIANTS)}</p>{table}{gift}"
+            f"<ul class='bnote'>{notes}</ul></div></details>")
 
 
 def td_signed(v: float, fmt: str = "+,.0f", flip: bool = False) -> str:
@@ -357,6 +443,8 @@ def build(rows: list[dict]) -> str:
                            fmt_riders, "rides/day")
     fiscal_svg = fiscal_chart(rows)
     rb_svg = routes_buses_chart(rows)
+    details_blocks = [breakdown_details(r["label"], bdn.compute(r["name"]))
+                      for r in rows]
 
     # summary table grouped
     trows = []
@@ -490,6 +578,11 @@ those savings.</figcaption>
 <div class="cards">
 {''.join(cards)}
 </div>
+
+<p>To examine the arithmetic behind any scenario — which schools the model
+re-assigns students to, who becomes bus-eligible, and how the per-school
+numbers add up to the district delta — expand its breakdown:</p>
+{''.join(details_blocks)}
 
 <h2><span class="no">§6</span>Key findings</h2>
 <ol class="findings">

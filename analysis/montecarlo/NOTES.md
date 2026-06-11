@@ -49,6 +49,17 @@ we also model **converting option schools to neighborhood schools** and
   saved `simulate/<name>/` runs via the report-stage summary functions, so
   it always matches the tracked outputs; editorial blurbs live in the
   script's SCENARIOS list — update them when adding scenarios).
+- **`breakdown.py`** — NEW (s10): per-school assumption + delta breakdown
+  for one scenario → `simulate/<name>/breakdown.md`. Shows the RESOLVED
+  assumptions (e.g. closure receivers with kids-received shares, engine
+  default vs spec-named), the evaluation invariants, and a per-school
+  table: enrolled / bus-eligible / EV rides baseline→scenario with the MC
+  Δ + 95% CI from the saved run. Run:
+  `python3 -m analysis.montecarlo.breakdown <scenario>`. First use:
+  close_sacajawea (Olympic View 74% / Wedgwood 20% / Rogers 6% of the 196
+  displaced kids). `compute()` returns the structured data;
+  `findings_html.py` embeds the same breakdown as an expandable
+  `<details>` per scenario in the published findings page (§5).
 - **`OVERVIEW.md`** — NEW (s10): technical documentation of the simulation
   (pipeline construction, variables + sampling distributions, fitted θ,
   fiscal models, calibration/validation table, enumerated assumptions and
