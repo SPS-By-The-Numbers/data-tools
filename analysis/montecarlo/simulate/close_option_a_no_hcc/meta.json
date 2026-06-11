@@ -1,11 +1,20 @@
 {
-  "name": "close_option_b_dearborn",
-  "description": "SPS 'choice' plan (Option B, KUOW): close 17 schools ($25.5M claimed savings), keeping more option/K-8 sites than Option A but closing Thurgood Marshall (a mixed neighborhood + HCC-pathway site). Per the plan, TM's HCC service relocates to Dearborn Park (251) \u2014 the alternative receiver the plan names; see close_option_b for the Beacon Hill International variant. Other displaced students redistribute anywhere pro-rata to their area's existing draw (no enrollment caps); sequential NW-to-SW op order as close_option_a.",
+  "scenario": "close_option_a_no_hcc",
+  "description": "SPS 'well-resourced schools' plan (Option A, KUOW): close 21 schools incl. most option/K-8 sites ($31.5M claimed savings). Default closure semantics: displaced students may enroll anywhere with no enrollment cap - each residence area's students redistribute across all open schools pro-rata to the area's existing draw (revealed choice, dominated by distance); HCC pathways (Decatur) relocate intact to the nearest gifted site. VARIANT: the HCC program is dissolved FIRST (all HCC schools become neighborhood schools; HC students redistribute to their areas' choice mix; gifted transportation ends), then the closures run. Sequential NW-to-SW op order.",
   "ops": [
+    {
+      "op": "dissolve_hcc",
+      "comment": "HCC program ends; HC students redistribute to their areas' choice mix"
+    },
     {
       "op": "close_school",
       "school_id": 955,
       "comment": "Licton Springs K-8 (NW)"
+    },
+    {
+      "op": "close_school",
+      "school_id": 949,
+      "comment": "Salmon Bay K-8 (NW)"
     },
     {
       "op": "close_school",
@@ -29,6 +38,11 @@
     },
     {
       "op": "close_school",
+      "school_id": 268,
+      "comment": "Sacajawea ES (NE)"
+    },
+    {
+      "op": "close_school",
       "school_id": 210,
       "comment": "Cedar Park ES (NE, option)"
     },
@@ -41,6 +55,11 @@
       "op": "close_school",
       "school_id": 289,
       "comment": "Catharine Blaine K-8 (Central)"
+    },
+    {
+      "op": "close_school",
+      "school_id": 935,
+      "comment": "TOPS K-8 (Central)"
     },
     {
       "op": "close_school",
@@ -59,12 +78,6 @@
     },
     {
       "op": "close_school",
-      "school_id": 212,
-      "hcc_receiver": 251,
-      "comment": "Thurgood Marshall ES (Central, HCC pathway site) -> HCC to Dearborn Park per the plan"
-    },
-    {
-      "op": "close_school",
       "school_id": 939,
       "comment": "Orca K-8 (SE)"
     },
@@ -72,6 +85,11 @@
       "op": "close_school",
       "school_id": 220,
       "comment": "Graham Hill ES (SE)"
+    },
+    {
+      "op": "close_school",
+      "school_id": 219,
+      "comment": "Dunlap ES (SE)"
     },
     {
       "op": "close_school",
@@ -85,8 +103,18 @@
     },
     {
       "op": "close_school",
+      "school_id": 239,
+      "comment": "Lafayette ES (SW)"
+    },
+    {
+      "op": "close_school",
       "school_id": 273,
       "comment": "Sanislo ES (SW)"
     }
-  ]
+  ],
+  "n_draws": 200,
+  "seed": 20260610,
+  "sample_theta": true,
+  "sample_pop": true,
+  "runtime_s": 43.1
 }

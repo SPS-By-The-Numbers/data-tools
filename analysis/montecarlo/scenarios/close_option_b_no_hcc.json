@@ -1,7 +1,11 @@
 {
-  "name": "close_option_b_dearborn",
-  "description": "SPS 'choice' plan (Option B, KUOW): close 17 schools ($25.5M claimed savings), keeping more option/K-8 sites than Option A but closing Thurgood Marshall (a mixed neighborhood + HCC-pathway site). Per the plan, TM's HCC service relocates to Dearborn Park (251) \u2014 the alternative receiver the plan names; see close_option_b for the Beacon Hill International variant. Other displaced students redistribute anywhere pro-rata to their area's existing draw (no enrollment caps); sequential NW-to-SW op order as close_option_a.",
+  "name": "close_option_b_no_hcc",
+  "description": "SPS 'choice' plan (Option B, KUOW): close 17 schools ($25.5M claimed savings), keeping more option/K-8 sites than Option A but closing Thurgood Marshall (a mixed neighborhood + HCC-pathway site). Displaced students redistribute anywhere pro-rata to their area's existing draw (no enrollment caps); VARIANT: the HCC program is dissolved FIRST (all HCC schools become neighborhood schools; HC students redistribute to their areas' choice mix; gifted transportation ends), then the closures run. Sequential NW-to-SW op order.",
   "ops": [
+    {
+      "op": "dissolve_hcc",
+      "comment": "HCC program ends; HC students redistribute to their areas' choice mix"
+    },
     {
       "op": "close_school",
       "school_id": 955,
@@ -60,8 +64,7 @@
     {
       "op": "close_school",
       "school_id": 212,
-      "hcc_receiver": 251,
-      "comment": "Thurgood Marshall ES (Central, HCC pathway site) -> HCC to Dearborn Park per the plan"
+      "comment": "Thurgood Marshall ES (Central, HCC pathway site)"
     },
     {
       "op": "close_school",

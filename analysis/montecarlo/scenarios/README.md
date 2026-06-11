@@ -20,10 +20,11 @@ Ops (see `scenarios.py` module docstring for semantics and defaults):
 |---|---|
 | `set_walk_threshold` | `level` (ES/MS/HS), `miles` |
 | `scale_walkzone` | `school_id`, exactly one of `factor` / `miles` |
-| `close_school` | `school_id`, optional `receivers` (list), `hcc_receiver` |
+| `close_school` | `school_id`, optional `receivers` (list — a designated consolidation; default: displaced students redistribute to ANY open school pro-rata to their area's existing draw, no enrollment caps), `hcc_receiver` |
 | `convert_option_to_neighborhood` | `school_id` (option school w/ geozone), optional `stay_rate` |
 | `move_school` | `school_id`, `new_location` (`[x_ft, y_ft]` EPSG:2926 or `{lat, lon}`), optional `move_geozone` |
 | `add_basic_service` | exactly one of `level` (ES/MS/HS — every open school of that level) / `school_ids`; grants basic yellow-bus service, walk zones untouched (compose with the walk ops) |
+| `dissolve_hcc` | no params — the HCC program ends: pure pathway sites lose their draw, mixed sites lose their HC cohort, students redistribute to their areas' choice mix, gifted transportation → 0 |
 
 `school_id` everywhere is the 3-digit SPS site number (parse_shapes locations).
 
@@ -58,9 +59,14 @@ Files:
   additive).
 - `close_fab4.json` — the "fab-4" plan: close North Beach, Sacajawea,
   Stevens, Sanislo, each consolidating into one named receiver (Viewlands,
-  John Rogers, Montlake, Highland Park) instead of the 3-nearest default
-  (user scenario, s10).
-- `convert_optA_rand1.json` / `convert_optA_rand2.json` — convert 5 of the
-  6 option schools on the Option A list to neighborhood schools, two random
-  combos (seed 20260610; user scenario, s10). rand1 keeps Boren option,
-  rand2 keeps Salmon Bay.
+  John Rogers, Montlake, Highland Park) rather than the default
+  everywhere-rule (user scenario, s10).
+- `dissolve_hcc.json` — convert ALL HCC schools to neighborhood schools:
+  the program dissolves, HC students redistribute (user scenario, s10).
+- `close_option_a_no_hcc.json` / `close_option_b_no_hcc.json` — the KUOW
+  plans with the HCC program dissolved first (user scenario, s10).
+- `convert_optA_5.json` — convert the 5 option schools on the Option A
+  list to neighborhood schools, with Licton Springs excluded by user
+  direction ("too different"); replaces the earlier convert_optA_rand1/2
+  random pair, which collapses to this single set once LS is out (user
+  scenario, s10).

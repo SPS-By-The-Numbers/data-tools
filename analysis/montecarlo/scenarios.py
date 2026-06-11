@@ -20,6 +20,7 @@ Operations (see NOTES.md "Architecture (LOCKED)"):
   move_school                    {school_id, new_location: [x_ft, y_ft] (EPSG:2926)
                                   | {lat, lon}, move_geozone?: bool}
   add_basic_service              {level: ES|MS|HS | school_ids: [ids]}
+  dissolve_hcc                   {} — HCC program ends; HC kids redistribute
 
 Key modeling choices:
 
@@ -33,17 +34,19 @@ Key modeling choices:
     (ES 1 mi, MS/HS 2 mi); scenario thresholds reuse m. The empty scenario
     keeps the official polygons (buffers only replace zones an op touches).
   * Closure: the closed school's flow column moves to receiving schools —
-    kids stay where they live, only their destination changes. Attendance
-    kids → receiving neighborhood school(s) (default: 3 nearest open
-    same-level neighborhood schools, split per residence area in proportion
-    to the receivers' existing draw from that area, nearest receiver as
-    fallback); option kids → next option site (default: nearest open
-    same-level option school); HCC pathway relocates INTACT to hcc_receiver
-    (default: nearest other gifted site of the same band) — its member
-    feeder areas and HC enrollment move with it (user default, NOTES open
-    question 3). Caveat: a mixed site (e.g. Thurgood Marshall) moves its HC
-    enrollment via the gifted table but its full basic flow column via the
-    neighborhood rule.
+    kids stay where they live, only their destination changes. DEFAULT
+    (USER, s10): displaced students may enroll ANYWHERE with no enrollment
+    cap — each residence area's students redistribute across all open
+    schools pro-rata to that area's existing draw (revealed choice,
+    dominated by distance; nearest school as fallback for areas with no
+    other draw). Explicit ``receivers`` model a designated consolidation
+    instead (kids split per area ∝ the named receivers' existing draw, and
+    basic service follows the kids to ES/MS receivers). HCC pathway
+    relocates INTACT to hcc_receiver (default: nearest other gifted site of
+    the same band) — its member feeder areas and HC enrollment move with it
+    (user default, NOTES open question 3). Caveat: a mixed site (e.g.
+    Thurgood Marshall) moves its HC enrollment via the gifted table but its
+    full basic flow column via the everywhere-rule.
   * Conversion (option → neighborhood): the school's draw becomes
     attendance-style — residents of its geozone attend it at the band's
     observed stay-rate; its previous (distance-decay) enrollees return to
@@ -128,7 +131,8 @@ WALK_THRESHOLD_MI = {"ES": 1.0, "MS": 2.0, "HS": 2.0}
 HCC_ERA = "pathway_2023_2025"
 
 _OPS = ("set_walk_threshold", "scale_walkzone", "close_school",
-        "convert_option_to_neighborhood", "move_school", "add_basic_service")
+        "convert_option_to_neighborhood", "move_school", "add_basic_service",
+        "dissolve_hcc")
 
 
 # ---------------------------------------------------------------------------
@@ -387,6 +391,82 @@ def op_add_basic_service(world: World, level: str | None = None,
         world.bus_bands |= set(band_of[sn.loc[sid, "level"]])
 
 
+def op_dissolve_hcc(world: World) -> None:
+    """Dissolve the HCC program: pathway sites become plain neighborhood
+    schools and HC students redistribute like everyone else (USER, s10).
+
+    Per gifted site: a PURE pathway site (classification ``hcc_pathway`` —
+    its whole draw is the HC cohort) loses its entire flow column, which
+    returns to each residence area's other destinations pro-rata (the
+    closure everywhere-rule); it then becomes a true neighborhood school
+    competing for local students via an **artificial 1-mile catchment**
+    (USER, s10): residents of a 1-mile circle around the school point
+    attend at the band's observed stay-rate (the conversion semantics,
+    with the circle standing in for an attendance area), its walk zone
+    becomes the calibrated 1-mile buffer, and it joins the basic service
+    set. A MIXED site (Thurgood Marshall, the 4 MS pathway sites) loses
+    only its HC enrollment, apportioned to its member feeder areas by
+    their grade-band population and returned to each area's other
+    destinations pro-rata (option and neighborhood schools alike — the
+    area's observed choice mix). The gifted table empties, so gifted
+    transportation goes to zero; band enrollment totals are conserved.
+    """
+    if world.gifted.empty:
+        raise ValueError("dissolve_hcc: the gifted program is already empty")
+    flows_before = world.flows
+    cls = world.schools.set_index("school_id")["classification"]
+    for r in world.gifted.itertuples():
+        sid = int(r.school_id)
+        if cls.get(sid) == "hcc_pathway":
+            receivers = [s for s in _open_ids(world) if s != sid]
+            _move_flow_column(world, sid, receivers)
+            # ...then compete for local students as a neighborhood school
+            catchment = world.points.loc[sid].buffer(1.0 * FEET_PER_MILE)
+            _carve_local_draw(world, sid, catchment, [r.grade_band])
+            _buffer_zone(world, sid,
+                         world.walk_mult.loc[sid] * 1.0 * FEET_PER_MILE)
+            world.basic_ids.add(sid)
+        else:
+            _remove_hc_from_column(world, sid, r.grade_band,
+                                   float(r.n_hc), list(r.member_area_ids))
+    world.schools.loc[world.schools.classification == "hcc_pathway",
+                      "classification"] = "neighborhood"
+    world.gifted = world.gifted.iloc[0:0]
+    _rescale_col_marg(world, flows_before)
+
+
+def _remove_hc_from_column(world: World, school_id: int, band: str,
+                           n_hc: float, member_areas: list[int]) -> None:
+    """Pull a mixed site's HC cohort out of its flow column.
+
+    The cohort is apportioned to the pathway's member feeder areas by each
+    area's total grade-band enrollment, capped by the site's actual draw
+    from that area, and returned to the area's other destinations pro-rata.
+    """
+    flows = world.flows.copy()
+    band_n = flows[flows.grade_band == band].groupby("area_id")["n"].sum()
+    wts = band_n.reindex(member_areas).fillna(0.0)
+    if wts.sum() <= 0:
+        return
+    wts = wts / wts.sum()
+    for a, wa in wts.items():
+        hc_a = n_hc * wa
+        if hc_a <= 0:
+            continue
+        sel = (flows.grade_band == band) & (flows.area_id == a)
+        col = sel & (flows.school_id == school_id)
+        have = float(flows.loc[col, "n"].sum())
+        take = min(hc_a, have)
+        if take <= 0:
+            continue
+        flows.loc[col, "n"] -= take * flows.loc[col, "n"] / have
+        others = sel & (flows.school_id != school_id)
+        tot = float(flows.loc[others, "n"].sum())
+        if tot > 0:
+            flows.loc[others, "n"] += take * flows.loc[others, "n"] / tot
+    world.flows = _recompute_p(flows)
+
+
 def op_scale_walkzone(world: World, school_id: int,
                       factor: float | None = None,
                       miles: float | None = None) -> None:
@@ -468,15 +548,17 @@ def op_close_school(world: World, school_id: int,
         world.gifted = gif
 
     # --- the flow column moves to the receivers
+    explicit = receivers is not None
     if receivers is None:
-        if cls == "option":
-            cands = _open_ids(world, "option", level)
-            receivers = _nearest(world, school_id, cands, k=1)
-        elif cls == "hcc_pathway":
+        if cls == "hcc_pathway":
             receivers = [hcc_receiver]
         else:
-            cands = _open_ids(world, "neighborhood", level)
-            receivers = _nearest(world, school_id, cands, k=3)
+            # Displaced students may enroll ANYWHERE (USER, s10) — there is
+            # no designated receiver and no enrollment cap. Each residence
+            # area's students redistribute across ALL open schools pro-rata
+            # to the area's existing draw (revealed choice, dominated by
+            # distance); receiving schools grow via _rescale_col_marg.
+            receivers = [s for s in _open_ids(world) if s != school_id]
     if not receivers or any(r is None for r in receivers):
         raise ValueError(f"close_school({school_id}): no receivers resolved")
     _move_flow_column(world, school_id, [int(r) for r in receivers])
@@ -485,8 +567,11 @@ def op_close_school(world: World, school_id: int,
     world.walkzones = world.walkzones[world.walkzones.school_id != school_id]
     was_basic = school_id in world.basic_ids
     world.basic_ids.discard(school_id)
-    if was_basic:
-        # service follows the kids: receivers of a basic-served school get service
+    if was_basic and explicit:
+        # named consolidation: service follows the kids to the designated
+        # receivers. (Under the default everywhere-rule, schools keep their
+        # existing service set — a school without basic routes does not
+        # gain them from spillover enrollment.)
         world.basic_ids |= {int(r) for r in receivers
                             if world.level(int(r)) in ("ES", "MS")}
     world.closed.add(school_id)
@@ -508,9 +593,27 @@ def op_convert_option_to_neighborhood(world: World, school_id: int,
         raise ValueError(f"convert: school {school_id} has no geozone polygon")
     geo = gz.geometry.union_all()
     flows_before = world.flows
+    bands = sorted(world.flows.loc[world.flows.school_id == school_id,
+                                   "grade_band"].unique())
+    _carve_local_draw(world, school_id, geo, bands, stay_rate)
+    _rescale_col_marg(world, flows_before)
 
+    world.schools.loc[world.schools.school_id == school_id, "classification"] = "neighborhood"
+    if world.level(school_id) in ("ES", "MS"):
+        world.basic_ids.add(school_id)
+
+
+def _carve_local_draw(world: World, school_id: int, geo, bands,
+                      stay_rate: float | None = None) -> None:
+    """Give a school an attendance-style local draw from polygon ``geo``.
+
+    Per band: residents of ``geo`` (area-overlap fractions of the attendance
+    layer) attend at the band's observed stay-rate; the school's previous
+    enrollees (if any) return to their areas' other destinations pro-rata.
+    Caller is responsible for ``_rescale_col_marg``.
+    """
     flows = world.flows.copy()
-    for band in sorted(flows.loc[flows.school_id == school_id, "grade_band"].unique()):
+    for band in bands:
         f = flows[flows.grade_band == band]
         stay = stay_rate if stay_rate is not None else world.stay_rates[band]
         att = world.att_layers[band]
@@ -531,11 +634,6 @@ def op_convert_option_to_neighborhood(world: World, school_id: int,
                     "grade_band": band, "area_id": a, "school_id": school_id,
                     "n": new_n, "p": 0.0}])], ignore_index=True)
     world.flows = _recompute_p(flows)
-    _rescale_col_marg(world, flows_before)
-
-    world.schools.loc[world.schools.school_id == school_id, "classification"] = "neighborhood"
-    if world.level(school_id) in ("ES", "MS"):
-        world.basic_ids.add(school_id)
 
 
 def op_move_school(world: World, school_id: int, new_location,
@@ -595,6 +693,7 @@ _OP_FNS = {
     "convert_option_to_neighborhood": op_convert_option_to_neighborhood,
     "move_school": op_move_school,
     "add_basic_service": op_add_basic_service,
+    "dissolve_hcc": op_dissolve_hcc,
 }
 
 
@@ -631,6 +730,7 @@ _REQUIRED = {
     "convert_option_to_neighborhood": {"school_id"},
     "move_school": {"school_id", "new_location"},
     "add_basic_service": set(),
+    "dissolve_hcc": set(),
 }
 
 
@@ -733,6 +833,9 @@ def scenario_gifted_pool(world: World, assignment: pd.DataFrame,
     """
     if pop is None:
         pop = world.pop if world.pop is not None else load_synth_pop()
+    cols = ["school_id", "grade_band", "kernel", "n_hc", "n_bus_eligible"]
+    if world.gifted.empty:  # dissolved HCC program → no gifted pool
+        return pd.DataFrame(columns=cols)
     rows = []
     for r in world.gifted.itertuples():
         sid = int(r.school_id)

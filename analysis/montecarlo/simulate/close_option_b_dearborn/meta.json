@@ -1,6 +1,6 @@
 {
   "scenario": "close_option_b_dearborn",
-  "description": "SPS 'choice' plan (Option B, KUOW): close 17 schools ($25.5M claimed savings), keeping more option/K-8 sites than Option A but closing Thurgood Marshall (a mixed neighborhood + HCC-pathway site). Per the plan, TM's HCC service relocates to Dearborn Park (251) \u2014 the alternative receiver the plan names; see close_option_b for the Beacon Hill International variant. Other relocations are engine defaults; sequential NW-to-SW op order as close_option_a.",
+  "description": "SPS 'choice' plan (Option B, KUOW): close 17 schools ($25.5M claimed savings), keeping more option/K-8 sites than Option A but closing Thurgood Marshall (a mixed neighborhood + HCC-pathway site). Per the plan, TM's HCC service relocates to Dearborn Park (251) \u2014 the alternative receiver the plan names; see close_option_b for the Beacon Hill International variant. Other displaced students redistribute anywhere pro-rata to their area's existing draw (no enrollment caps); sequential NW-to-SW op order as close_option_a.",
   "ops": [
     {
       "op": "close_school",
@@ -93,5 +93,5 @@
   "seed": 20260610,
   "sample_theta": true,
   "sample_pop": true,
-  "runtime_s": 41.3
+  "runtime_s": 40.6
 }

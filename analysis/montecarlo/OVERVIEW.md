@@ -210,11 +210,14 @@ service set). Six ops: `set_walk_threshold`, `scale_walkzone`,
   *area* at the current threshold `T`; a scenario threshold `T'` yields a
   circle of radius `m·T'·5280` ft. The empty scenario keeps the official
   polygons — buffers only replace zones an op touches.
-- **Closure defaults**: attendance school → 3 nearest open same-level
-  neighborhood schools, split per residence area ∝ the receivers' existing
-  draw from that area; option school → nearest open option site; an HCC
-  pathway relocates *intact* (member areas + HC enrollment) to
-  `hcc_receiver`. Explicit `receivers`/`hcc_receiver` override all of this.
+- **Closure default**: displaced students may enroll *anywhere*, with no
+  enrollment cap — each residence area's students redistribute across all
+  open schools pro-rata to that area's existing draw (revealed choice,
+  dominated by distance; receiving schools' enrollment marginals grow).
+  An HCC pathway relocates *intact* (member areas + HC enrollment) to
+  `hcc_receiver`. Explicit `receivers` model a designated consolidation
+  instead (split ∝ the named receivers' draw; basic service follows the
+  kids).
 - **Conversion is steady-state**: geozone residents attend at the band's
   observed stay-rate; former lottery enrollees return to their areas' other
   destinations pro-rata. No transition-year grandfathering.

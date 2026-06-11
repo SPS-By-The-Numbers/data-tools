@@ -1,0 +1,65 @@
+=== MC report: close_option_a_no_hcc (200 draws, seed 20260610) ===
+  SPS 'well-resourced schools' plan (Option A, KUOW): close 21 schools incl. most option/K-8 sites ($31.5M claimed savings). Default closure semantics: displaced students may enroll anywhere with no enrollment cap - each residence area's students redistribute across all open schools pro-rata to the area's existing draw (revealed choice, dominated by distance); HCC pathways (Decatur) relocate intact to the nearest gifted site. VARIANT: the HCC program is dissolved FIRST (all HCC schools become neighborhood schools; HC students redistribute to their areas' choice mix; gifted transportation ends), then the closures run. Sequential NW-to-SW op order.
+
+District (means over draws; deltas show 95% CI). NOTE: 'riders' = STARS rides/day —
+  AM and PM boardings each count, so a both-ways student counts as 2; unique
+  students are between half and all of the figure (long-route kids often ride AM only):
+  basic : riders  10,008.5 →  10,346.7   Δ  +338.2 [+215.6, +461.7]   est routes Δ +6.83 [+4.35, +9.32]
+  gifted: riders   1,315.5 →       0.0   Δ -1315.5 [-1315.5, -1315.5]   est routes Δ -40.00 [-40.00, -40.00]
+
+Bus-eligible pool (basic): 15,504 → 16,750   Δ +1,246 [+1,198, +1,291]
+  marginal uptake (Δrides ÷ Δeligible): 0.27 [0.18, 0.37] rides/day per newly-eligible student
+  (a both-ways rider counts 2, so e.g. 0.60 ≈ between 30% riding both ways and 60% riding one way)
+
+Bus fleet + annual cost (2 bell shifts: fleet = busier of ES vs MS/HS shift;
+  $148.9k per bus-year, SY2024-25 all-in vendor cost — see report.py constants):
+  buses:  179.7 →  158.4   Δ -21.3 [-23.5, -18.9]   (routes Δ -33.2)
+  NOTE: bus counts cover the MODELED programs only (basic+gifted; STARS 2024-25 actual 162);
+  the district fleet is ≈382 buses incl. special-ed, early-ed, and McKinney-Vento, which
+  this model does not touch.
+  annual cost Δ, fleet only:    -3.17 [-3.50, -2.81] $M/yr (lower bound)
+  annual cost Δ, with overage:  -3.43 [-3.75, -3.07] $M/yr (ASSUMES 2.0 hr/route/day × $61.5/hr × 175 days ≈ $21.5k/route-yr for routes on existing buses)
+
+State funding (STARS EXAL reimbursement, 2025-26 formula; baseline $36.68M,
+  assumed below cap; Δinputs: basic/gifted ride deltas, served-school count, avg distance):
+  Δ inputs (means): BasicRiders +338, SpecialRiders -1,316, Destinations -21.0, AvgDistance +0.036 mi
+  revenue Δ: -10.44 [-10.66, -10.22] $M/yr
+  NET fiscal Δ (rev − cost), with overage: -7.01 [-7.15, -6.88] $M/yr
+  NET fiscal Δ (rev − cost), fleet only:   -7.27 [-7.40, -7.14] $M/yr
+
+Avg stop→school distance, rider-weighted (basic, miles; STARS calls this 'average_distance'):
+   mean:  1.56 →  1.59   Δ +0.036 [+0.029, +0.042]
+    p50:  1.26 →  1.34   Δ +0.081 [+0.062, +0.097]
+    p90:  2.79 →  2.82   Δ +0.029 [+0.002, +0.076]
+
+Per-school movers (|mean Δriders| > 0.5): 85
+  Cascadia                 gifted   473.6 →     0.0   Δ  -473.6 [-475.8, -471.4]   routes Δ -14.40
+  Salmon Bay               basic    314.6 →     0.0   Δ  -314.6 [-337.7, -283.0]   routes Δ -6.35
+  TOPS                     basic    306.0 →     0.0   Δ  -306.0 [-324.9, -287.3]   routes Δ -6.18
+  Green Lake               basic    205.6 →     0.0   Δ  -205.6 [-222.9, -189.1]   routes Δ -4.15
+  Boren                    basic    192.2 →     0.0   Δ  -192.2 [-206.5, -179.6]   routes Δ -3.88
+  Thurgood Marshall        gifted   188.9 →     0.0   Δ  -188.9 [-189.8, -188.1]   routes Δ -5.74
+  Decatur                  gifted   174.4 →     0.0   Δ  -174.4 [-175.2, -173.7]   routes Δ -5.30
+  Broadview-Thomson        basic    168.9 →     0.0   Δ  -168.9 [-178.5, -159.3]   routes Δ -3.41
+  Hamilton                 gifted   165.8 →     0.0   Δ  -165.8 [-169.9, -161.7]   routes Δ -5.04
+  Lafayette                basic    159.5 →     0.0   Δ  -159.5 [-170.2, -149.8]   routes Δ -3.22
+  Stanford                 basic    129.8 →   226.2   Δ   +96.4 [+81.6, +112.8]   routes Δ +1.95   dist 1.90→1.97mi
+  Lowell                   basic    275.6 →   374.8   Δ   +99.3 [+91.8, +105.7]   routes Δ +2.00   dist 1.24→1.25mi
+  McClure                  basic    140.8 →   247.3   Δ  +106.5 [+96.2, +117.5]   routes Δ +2.15   dist 2.12→2.13mi
+  Queen Anne               basic     78.0 →   185.2   Δ  +107.2 [+95.5, +113.4]   routes Δ +2.16   dist 1.23→1.28mi
+  McDonald                 basic    123.6 →   240.9   Δ  +117.3 [+96.9, +139.3]   routes Δ +2.37   dist 1.59→1.80mi
+  Thornton Creek           basic    178.6 →   322.4   Δ  +143.8 [+131.5, +157.0]   routes Δ +2.90   dist 1.31→1.44mi
+  Hazel Wolf               basic    325.7 →   518.1   Δ  +192.4 [+185.2, +199.5]   routes Δ +3.88   dist 1.50→1.63mi
+  South Shore              basic    259.4 →   467.5   Δ  +208.1 [+194.8, +223.7]   routes Δ +4.20   dist 2.31→1.94mi
+  Pathfinder               basic    352.3 →   737.5   Δ  +385.2 [+348.2, +395.2]   routes Δ +7.77   dist 2.36→1.98mi
+
+Equity cuts (basic program; Δriders summed per group per draw):
+  by school low-income share (RC 2024-25 terciles):
+    low (≤18%)             ( 29 schools,   3,293 base riders)  Δ  +709.1 [+612.2, +798.4]
+    mid (18%–48%)          ( 25 schools,   3,295 base riders)  Δ -1003.2 [-1046.3, -956.7]
+    high (>48%)            ( 24 schools,   3,421 base riders)  Δ  +632.3 [+599.2, +669.7]
+  by ES attendance-area poverty % (terciles; neighborhood ES only):
+    low (≤18)              ( 20 schools,   1,783 base riders)  Δ   -90.1 [-117.2, -57.8]
+    mid (18–46)            ( 18 schools,   1,768 base riders)  Δ  -412.8 [-440.7, -378.7]
+    high (>46)             ( 14 schools,   1,598 base riders)  Δ  +237.5 [+216.2, +259.5]
+    (no ES area)           ( 26 schools,   4,860 base riders)  Δ  +603.6 [+528.3, +677.2]

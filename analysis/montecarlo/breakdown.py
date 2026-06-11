@@ -217,10 +217,22 @@ def render_md(d: dict) -> str:
             w(f"**op[{i}] `close_school`** — close **{op['school']}** "
               f"({op['sid']}); its {op['kids_out']:.0f} assigned students "
               "stay where they live and re-assign to "
-              + ("receivers **named in the spec**." if op["named_receivers"]
-                 else "the **engine-default receivers** (3 nearest open "
-                      "same-level neighborhood schools, split per residence "
-                      "area in proportion to existing draw).") + "\n\n")
+              + ("receivers **named in the spec** (designated consolidation; "
+                 "basic service follows the kids)."
+                 if op["named_receivers"] else
+                 "**any open school, pro-rata to their residence area's "
+                 "existing draw** (revealed choice, dominated by distance; "
+                 "no enrollment caps).") + "\n\n")
+        elif op["kind"] == "dissolve_hcc":
+            w(f"**op[{i}] `dissolve_hcc`** — the HCC program ends: pure "
+              "pathway sites (Cascadia, Decatur) lose their whole draw and "
+              "become neighborhood schools competing for local students via "
+              "an artificial 1-mile catchment (residents attend at the "
+              "band's stay-rate; 1-mile calibrated walk zone; basic "
+              "service); mixed sites lose their HC cohort. Displaced "
+              "students return to their home areas and redistribute "
+              "pro-rata to each area's other destinations. Gifted "
+              "transportation goes to zero.\n\n")
         else:
             w(f"**op[{i}] `{op['kind']}`** — `{op['params']}`\n\n")
     if d["receivers"]:

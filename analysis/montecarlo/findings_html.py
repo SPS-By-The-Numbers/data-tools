@@ -49,8 +49,10 @@ SCENARIOS = [
      "Sanislo→Highland Park. Every receiver gains more riders than its "
      "partner lost: ex-walkers convert to riders."),
     ("close_sacajawea", "Close Sacajawea ES only", "Closures",
-     "Single closure with default (3-nearest) receivers; the smallest "
-     "scenario, included as a reference point."),
+     "Single closure under the default everywhere-rule: displaced students "
+     "redistribute to any open school pro-rata to their area's existing "
+     "draw — a third go to Hazel Wolf K-8, already the area's most popular "
+     "alternative. The smallest scenario, included as a reference point."),
     ("close_option_a", "KUOW Option A: close 21 schools", "Closures",
      "The “well-resourced schools” plan — eliminates most option/K-8 "
      "programs. Displaced riders go to the remaining schools; 21 served "
@@ -59,17 +61,30 @@ SCENARIOS = [
      "The “choice” plan — keeps more option schools but closes Thurgood "
      "Marshall; its HCC pathway moves to Beacon Hill International per the "
      "plan."),
+    ("close_option_a_no_hcc", "Option A + dissolve HCC", "Closures",
+     "Option A's 21 closures, but the HCC program is dissolved first: all "
+     "pathway sites become neighborhood schools, HC students redistribute "
+     "to their areas' choice mix, and gifted transportation ends."),
+    ("close_option_b_no_hcc", "Option B + dissolve HCC", "Closures",
+     "Option B's 17 closures with the HCC program dissolved first — no "
+     "pathway relocation question remains (Thurgood Marshall's HC cohort "
+     "has already redistributed when it closes)."),
     ("close_option_b_dearborn", "Option B, HCC → Dearborn Park", "Closures",
      "Identical to Option B except Thurgood Marshall’s HCC service lands at "
      "Dearborn Park — the other receiver the plan names. District deltas "
      "are essentially unchanged."),
-    ("convert_optA_rand1", "Convert 5 option schools (combo 1)", "Conversions",
-     "Cedar Park, TOPS, Orca, Salmon Bay, Licton Springs become neighborhood "
-     "schools. Lottery riders become walkers, but displaced enrollees "
-     "scatter to non-walkable seats — the effects nearly cancel."),
-    ("convert_optA_rand2", "Convert 5 option schools (combo 2)", "Conversions",
-     "Same experiment with Boren swapped in for Salmon Bay. The near-equal "
-     "result shows WHICH five barely matters."),
+    ("dissolve_hcc", "All HCC schools → neighborhood", "Conversions",
+     "The HCC program dissolves district-wide: HC students redistribute to "
+     "their home areas' option/neighborhood mix, mixed pathway sites lose "
+     "their HC cohorts, and Cascadia and Decatur become true neighborhood "
+     "schools competing for local students via an artificial 1-mile "
+     "catchment. All 40 gifted routes end; some ex-HCC students become "
+     "ordinary basic riders where they land."),
+    ("convert_optA_5", "5 option schools → neighborhood", "Conversions",
+     "Cedar Park, TOPS, Orca, Salmon Bay, and Boren STEM become neighborhood "
+     "schools (Licton Springs excluded — too different from the others). "
+     "Big lottery ridersheds become walker populations; displaced lottery "
+     "enrollees scatter back to their areas' other choices."),
 ]
 
 GROUP_ORDER = ["Expand service", "Reduce service", "Closures", "Conversions"]
@@ -374,14 +389,26 @@ def breakdown_details(label: str, d: dict) -> str:
     p = []
     for i, op in enumerate(d["ops"]):
         if op["kind"] == "close_school":
-            how = ("receivers <b>named in the spec</b>" if op["named_receivers"]
-                   else "the <b>engine-default receivers</b> (3 nearest open "
-                        "same-level neighborhood schools, split per residence "
-                        "area in proportion to existing draw)")
+            how = ("receivers <b>named in the spec</b> (designated "
+                   "consolidation; basic service follows the kids)"
+                   if op["named_receivers"] else
+                   "<b>any open school, pro-rata to their residence area's "
+                   "existing draw</b> (revealed choice, dominated by "
+                   "distance; no enrollment caps)")
             p.append(f"<b>op[{i}] <code>close_school</code></b> — close "
                      f"<b>{esc(op['school'])}</b> ({op['sid']}); its "
                      f"{op['kids_out']:.0f} assigned students stay where they "
                      f"live and re-assign to {how}.")
+        elif op["kind"] == "dissolve_hcc":
+            p.append(f"<b>op[{i}] <code>dissolve_hcc</code></b> — the HCC "
+                     "program ends: pure pathway sites lose their whole "
+                     "draw and become neighborhood schools competing for "
+                     "local students via an artificial 1-mile catchment "
+                     "(residents attend at the band's stay-rate; 1-mile "
+                     "calibrated walk zone; basic service); mixed sites "
+                     "lose their HC cohort. Students return to their home "
+                     "areas and redistribute pro-rata to each area's other "
+                     "destinations. Gifted transportation goes to zero.")
         else:
             p.append(f"<b>op[{i}] <code>{esc(op['kind'])}</code></b> — "
                      f"<code>{esc(str(op['params']))}</code>")
@@ -583,8 +610,9 @@ one way.</p>
 <div class="callout"><p><b>The one-sentence summary:</b> expanding service
 <i>earns</i> the district money — added riders raise the state’s funding
 formula faster than they raise costs, and middle/high-school routes reuse
-buses the elementary shift already pays for — while school closures
-<i>lose</i> transportation money from both directions at once.</p></div>
+buses the elementary shift already pays for — while school closures lose
+state funding (≈$550k per closed served school) far faster than they save
+bus costs.</p></div>
 
 <h2><span class="no">§2</span>Ridership: who gains, who loses</h2>
 <figure>
@@ -594,8 +622,11 @@ Bars are the mean across draws; whiskers are 95% intervals. Service
 expansions dominate; the wide whiskers on the two high-school scenarios
 reflect the untestable assumption about how many high-schoolers would
 actually ride (modeled as a discounted fraction of middle-school behavior).
-Closures <i>add</i> riders: students who walked to a closed school usually
-live outside the receiving school’s walk zone.</figcaption>
+Closure effects are mixed: under the default rule displaced students
+redistribute to their area’s existing choices (mostly nearby), so closing
+long-draw option K-8s <i>reduces</i> rides (Option A), while designated
+consolidations (fab-4) <i>add</i> rides — ex-walkers usually live outside
+the named receiver’s walk zone.</figcaption>
 </figure>
 
 <h2><span class="no">§3</span>Routes need not mean buses</h2>
@@ -631,12 +662,12 @@ formula. It pays for <i>more riders</i>, <i>more served schools</i>, and
 <span>◆ net, with 95% whisker</span></div>
 {fiscal_svg}
 <figcaption><b>Fig. 3 — Annual fiscal impact, $M/yr.</b> Net = funding change
-minus bus-cost change. Closures lose money twice over: displaced walkers
-become riders the district must carry, while every closed served school
-forfeits its Destinations term in the formula. Building-operations savings
-(the stated rationale for closures, $25–31M in the district’s plans) are
-<i>outside</i> this model — these bars are the transportation offset against
-those savings.</figcaption>
+minus bus-cost change. Closures are dominated by the funding side: every
+closed served school forfeits its Destinations term (≈$550k/yr), and the
+modest bus savings from dispersing long option-school routes nowhere near
+offset it. Building-operations savings (the stated rationale for closures,
+$25–31M in the district’s plans) are <i>outside</i> this model — these bars
+are the transportation offset against those savings.</figcaption>
 </figure>
 
 <h2><span class="no">§5</span>All {n_word} scenarios</h2>
@@ -658,26 +689,33 @@ buses, and ≈+$4.3M/yr net. Restoring high-school yellow bus adds
 ≈+$4.5M/yr net even at heavily discounted HS ridership — and nearly all
 HS sites already receive special-ed service, so only one new destination
 (Nova) enters the funding formula.</li>
-<li><b>Closures cost transportation money from both directions.</b> The
-21-school Option A plan: +850 rides/day to carry (+$2.6M bus cost) and
-−$8.4M/yr in state funding (every closed school is a served destination,
-even where the model carries no rides) — net ≈ <b>−$10.9M/yr</b>, an
-offset of roughly a third of its claimed $31.5M building savings. Option
-B nets ≈ −$9.4M/yr.</li>
-<li><b>Every consolidation receiver gains more riders than its closed
-partner had.</b> Walkers at the closed school become bus riders at the
-receiver — e.g. Sanislo has ≈0 riders today, yet closing it adds ~74
-rides/day at Highland Park.</li>
+<li><b>Closures lose state funding far faster than they save bus money.</b>
+The 21-school Option A plan trims ridership slightly (−147 rides/day —
+displaced students scatter to nearby existing choices) and saves ≈$1.1M
+of bus cost, but forfeits <b>−$10.3M/yr</b> of state funding (every
+closed school is a served destination, even where the model carries no
+rides) — net ≈ <b>−$9.2M/yr</b>, an offset of roughly a third of its
+claimed $31.5M building savings. Option B nets ≈ −$8.2M/yr.</li>
+<li><b>Designated consolidations behave differently from free choice.</b>
+When students are assigned to one named receiver (fab-4), ex-walkers
+usually land outside its walk zone and ridership <i>rises</i> (e.g.
+Sanislo has ≈0 riders today, yet closing it into Highland Park adds ~74
+rides/day). Under the default everywhere-rule they spread to their
+area’s existing — mostly nearby — choices instead: closing Sacajawea
+sends a third of its students to Hazel Wolf K-8, the area’s most popular
+alternative, and district rides <i>fall</i> 29/day.</li>
 <li><b>The bell-shift structure makes middle/high-school service nearly
 free in fleet terms</b> while the elementary shift remains larger — the
 cheapest capacity in the system is on the MS/HS shift.</li>
-<li><b>Option-school conversions are roughly transportation-neutral</b>
-(net ≈ −$0.4M/yr): lottery riders become walkers, but their replacement
-assignments scatter to non-walkable seats — and which five schools convert
-barely matters.</li>
-<li><b>Rider gains under closures skew toward higher-poverty schools</b> —
-the consolidation receivers sit in poorer attendance areas than the schools
-being closed (see per-run equity cuts in the full reports).</li>
+<li><b>Option-school conversions are fiscally a wash</b> (net ≈ $0.0M/yr):
+converting the five Option-A option schools cuts ≈170 rides/day and ≈3
+buses as big lottery ridersheds become walker populations, but the rider
+revenue lost in the funding formula (≈$0.5M) almost exactly offsets the
+bus savings.</li>
+<li><b>Closures shift riders toward higher-poverty schools</b> — even where
+the district total falls, the rider gains concentrate in the
+highest-low-income tercile (Option A: +525 there vs −901 in the middle
+tercile; see per-run equity cuts in the full reports).</li>
 </ol>
 
 <div class="foot">
@@ -695,9 +733,11 @@ cars. Both factors are sampled, which is why HS intervals are wide.</li>
 prior-year cap never binds (true for every scenario shown), and apply
 modeled deltas to the official SY2024-25 formula inputs.</li>
 <li>Closure scenarios use the district’s named receivers where published
-(fab-4, Thurgood Marshall’s HCC) and distance-based defaults elsewhere —
-not official boundary redraws. Building-operations savings are out of
-scope.</li>
+(fab-4, Thurgood Marshall’s HCC); elsewhere, displaced students
+redistribute to <i>any</i> open school pro-rata to their residence area’s
+existing draw (revealed choice, dominated by distance; no enrollment
+caps) — not official boundary redraws. Building-operations savings are
+out of scope.</li>
 <li>Bus cost = Δfleet × the all-in vendor average ($148.9k/bus-yr) plus an
 <b>assumed</b> 2.0 overage driver-hours/route/day ($61.50/hr × 175 days ≈
 $21.5k/route-yr) for routes riding existing buses. The hours figure is a

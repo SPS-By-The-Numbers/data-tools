@@ -285,11 +285,13 @@ between half and all of the figure — long-route kids often ride AM only).
 | `hs_bussing` | re-add HS yellow bus, walk zones as-is (2 mi) | **+1,659** [+1,143, +2,332] | +33.5 [+23.1, +47.1] | **+0.0 (+$0.00)** | +0.15 mi |
 | `hs_bussing_1mi` | HS yellow bus + HS walk zones 2 → 1 mi | **+3,532** [+2,411, +4,908] | +71.3 [+48.7, +99.1] | **+0.0 (+$0.00)** | +0.06 mi |
 | `hs_ms_bussing_1mi` | HS bus + 1-mi walk zones for MS *and* HS | **+5,615** [+4,417, +7,085] | +113.3 [+89.2, +143.0] | +6.5 [0, +35.5] (+$0.97) | −0.02 mi |
-| `close_option_a` | KUOW "well-resourced" plan: close 21 schools | **+850** [+758, +937] | +17.2 [+15.3, +18.9] | +17.1 (+$2.55) | +0.06 mi |
-| `close_option_b` | KUOW "choice" plan: close 17 schools incl. Thurgood Marshall | **+1,136** [+1,078, +1,188] | +22.9 [+21.8, +24.0] | +23.0 (+$3.42) | +0.06 mi |
+| `close_option_a` | KUOW "well-resourced" plan: close 21 schools | **−147** [−227, −63] | −3.0 [−4.6, −1.3] | −8.4 (−$1.25) | +0.04 mi |
+| `close_option_b` | KUOW "choice" plan: close 17 schools incl. Thurgood Marshall | **+279** [+233, +328] | +5.6 [+4.7, +6.6] | +2.7 (+$0.40) | +0.07 mi |
 | `close_fab4` | close North Beach, Sacajawea, Stevens, Sanislo → named single receivers | **+174** [+141, +206] | +3.5 [+2.8, +4.2] | +3.5 (+$0.52) | ±0.00 mi |
-| `convert_optA_rand1` | convert 5/6 Option-A option schools to neighborhood (keeps Boren option) | **+240** [+203, +280] | +4.8 [+4.1, +5.7] | +7.5 (+$1.12) | +0.09 mi |
-| `convert_optA_rand2` | same, other random combo (keeps Salmon Bay option) | **+238** [+208, +273] | +4.8 [+4.2, +5.5] | +7.9 (+$1.18) | +0.09 mi |
+| `dissolve_hcc` | ALL HCC schools → neighborhood (Cascadia/Decatur get 1-mi catchments); gifted Δ −1,315.5, −40 routes | **+339** [+290, +385] | +6.8 (basic) | −15.3 (−$2.28) | −0.00 mi |
+| `close_option_a_no_hcc` | Option A + dissolve HCC first (gifted −1,315.5) | **+338** [+216, +462] | +6.8 (basic) | −21.3 (−$3.17) | +0.04 mi |
+| `close_option_b_no_hcc` | Option B + dissolve HCC first (gifted −1,315.5) | **+739** [+668, +809] | +14.9 (basic) | −10.5 (−$1.56) | +0.07 mi |
+| `convert_optA_5` | 5 option schools → neighborhood (LS excluded by user) | **−171** [−195, −145] | −3.4 [−3.9, −2.9] | −3.3 (−$0.49) | +0.07 mi |
 
 Bus/cost column from the bell-shift fleet rule (s10, see below): MS/HS-shift
 route additions are FREE in fleet terms while the ES shift stays the busier
@@ -309,25 +311,27 @@ revenue − with-overage cost (fleet-only NET in parens where it differs):
 | `hs_bussing` | +5.17 [+3.81, +6.98] | +0.72 (0.00) | **+4.45** (+5.17) |
 | `hs_bussing_1mi` | +9.65 [+6.87, +12.98] | +1.53 (0.00) | **+8.11** (+9.65) |
 | `hs_ms_bussing_1mi` | +14.62 [+11.78, +17.96] (≈$51.3M total — under the cap) | +3.37 (+0.97) | **+11.24** (+13.65) |
-| `close_option_a` | −8.36 [−8.54, −8.19] | +2.55 (+2.55) | **−10.91** |
-| `close_option_b` | −6.01 [−6.14, −5.91] | +3.42 (+3.42) | **−9.44** |
-| `close_option_b_dearborn` | −6.02 [−6.14, −5.91] | +3.40 (+3.40) | **−9.42** |
+| `close_option_a` | −10.29 [−10.44, −10.12] | −1.14 (−1.25) | **−9.15** (−9.04) |
+| `close_option_b` | −7.71 [−7.81, −7.61] | +0.46 (+0.40) | **−8.17** (−8.11) |
+| `close_option_b_dearborn` | −7.71 [−7.81, −7.61] | +0.44 (+0.37) | **−8.15** (−8.08) |
 | `close_fab4` | −1.73 [−1.82, −1.66] | +0.52 (+0.52) | **−2.26** |
-| `convert_optA_rand1` | +0.77 [+0.67, +0.88] | +1.07 (+1.12) | **−0.30** (−0.35) |
-| `convert_optA_rand2` | +0.77 [+0.69, +0.86] | +1.11 (+1.18) | **−0.34** (−0.41) |
-| `close_sacajawea` | −0.57 | −0.02 (−0.02) | **−0.55** |
+| `dissolve_hcc` | −0.62 [−0.73, −0.51] | −2.66 (−2.28) | **+2.04** (+1.66) |
+| `close_option_a_no_hcc` | −10.44 [−10.66, −10.22] | −3.43 (−3.17) | **−7.01** (−7.27) |
+| `close_option_b_no_hcc` | −7.99 [−8.12, −7.85] | −1.88 (−1.56) | **−6.11** (−6.43) |
+| `convert_optA_5` | −0.50 [−0.57, −0.42] | −0.49 (−0.49) | **−0.00** [−0.02, +0.02] |
+| `close_sacajawea` | −0.62 [−0.64, −0.61] | −0.08 (−0.09) | **−0.54** (−0.53) |
 | `es_walk_1p5mi` | −6.74 [−7.15, −6.39] | −7.97 (−7.97) | **+1.24** |
 
-(Destinations CORRECTED s10 — counted vs the any-program served set; see
-the decision-log entry. No scenario crosses the $59.8M cap any more.)
-Headline reversals: the KUOW closure plans LOSE ~$9.4-10.9M/yr of state
-transportation funding net (the Destinations term: each closed served
-school −0.01523 in the exponent ≈ −$0.55M at current levels — dwarfs the
-extra-rider revenue; ALL closed schools count, incl. special-ed-only
-sites), on top of which their building-operations savings ($31.5M/$25.5M)
-are outside this model. Expanding service is still revenue-POSITIVE on
-boardings alone (`hs_bussing` nets +$4.5M/yr; only Nova is a NEW
-destination — the other HS sites already run special-ed routes).
+(Destinations CORRECTED s10 — counted vs the any-program served set;
+closure defaults CHANGED to the everywhere-rule s10 — see the decision-log
+entries. No scenario crosses the $59.8M cap.) Headline: the KUOW closure
+plans LOSE ~$8.2-9.2M/yr of state transportation funding net — the
+Destinations term (each closed served school −0.01523 in the exponent ≈
+−$0.55M at current levels) dominates; under the everywhere-rule the
+ridership side is now small (A even SAVES rides/buses by dispersing long
+option-K-8 draws). Building-operations savings ($31.5M/$25.5M) are
+outside this model. Expanding service is revenue-POSITIVE on boardings
+(`hs_bussing` nets +$4.5M/yr; only Nova is a NEW destination).
 es_walk_1p5mi (service cut) loses revenue but saves more in buses →
 net +$1.2M.
 
@@ -1256,6 +1260,72 @@ Still genuinely open for the user:
   factors dominate the uncertainty, as they should for an uncalibrated
   assumption. OVERVIEW.md ridership section, MC distribution table, and
   assumption 2 updated.
+- **2026-06-11 (s10)** dissolve_hcc CORRECTED (user: leaving Cascadia/
+  Decatur draw-less was "a fairly big error"): pure pathway sites now
+  become TRUE neighborhood schools competing for local students via an
+  **artificial 1-mile catchment** — a 1-mile circle at the school point
+  fed through the conversion stay-rate machinery (`_carve_local_draw`,
+  refactored out of op_convert; convert_optA_5 EV verified unchanged to
+  the decimal), a calibrated 1-mile-buffer walk zone, and membership in
+  the basic service set. Cascadia draws 711 students, Decatur 678 — large
+  because a 1-mile radius covers ~2 typical ES areas; band totals stay
+  conserved. Numbers moved little (dissolve_hcc NET +2.06 → **+2.04**;
+  A_no_hcc −6.99 → −7.01; B_no_hcc −6.09 → −6.11 — the catchment kids are
+  mostly walkers) but the structure is now right and the EXAL-destination
+  caveat is moot (the sites keep service). All three re-run + reports +
+  page regenerated.
+- **2026-06-11 (s10)** New 7th op `dissolve_hcc` + three scenarios (user:
+  "turn all HCC schools into neighborhood schools"). Op semantics: the
+  gifted table empties (gifted transportation → 0, all 40 routes); PURE
+  pathway sites (classification hcc_pathway: Cascadia, Decatur) lose their
+  entire flow column via the everywhere-rule; MIXED sites (TM + the 4 MS
+  pathway sites) lose their HC cohort — apportioned to member feeder areas
+  by band population, capped by actual draw, returned to each area's other
+  destinations pro-rata; classifications flip to neighborhood; band
+  enrollment conserved. CAVEATS: emptied pure sites stay open with ~no
+  draw (no attendance area is carved for them) and their lost service is
+  NOT counted as an EXAL destination change; the mixed-site HC apportion
+  uses band population, not true HC residence. Results (200 draws):
+  `dissolve_hcc` basic **+329** [+309, +346] (ex-HCC kids ride locally),
+  gifted −1,315.5, buses −15.5, EXAL −$0.63M (SpecialRiders term loss ≈
+  basic gain), **NET +$2.06M/yr** — ending HCC transportation saves ~$2M
+  net. Variants: `close_option_a_no_hcc` NET **−6.99** (vs A −9.15) and
+  `close_option_b_no_hcc` NET **−6.09** (vs B −8.17) — dissolution is
+  ~additive (+$2.1M each). scenario_gifted_pool gained an empty-table
+  guard; simulate's outer-join already handled a vanished program.
+- **2026-06-11 (s10)** Conversion scenarios REPLACED (user): Licton
+  Springs (955) excluded from consideration ("too different"), which
+  leaves exactly 5 candidates on the Option A list — so the two random
+  5-of-6 combos collapse into the single deterministic set
+  `convert_optA_5` (Cedar Park, TOPS, Orca, Salmon Bay, Boren); the
+  rand1/rand2 specs + runs are deleted. Label renamed to "5 option
+  schools → neighborhood". 200-draw MC: basic Δ **−171** rides/day
+  [−195, −145] — SIGN FLIP vs the old +240/+238, because this set
+  includes BOTH big-riddershed K-8s (Salmon Bay −141, Boren) while LS
+  contributed ~nothing; buses −3.3, EXAL −$0.50M, **NET −$0.00M**
+  [−0.02, +0.02] — conversions are now an almost exact fiscal wash.
+- **2026-06-11 (s10)** Closure default CHANGED to the "everywhere-rule"
+  (USER correction: "when a school closes, the students can go *anywhere*
+  ... probably choose by distance ... no hard-cap to enrollment"): the old
+  default (3 nearest open neighborhood schools; option→nearest option
+  site) is GONE. New default in `op_close_school`: each residence area's
+  displaced students redistribute across ALL open schools pro-rata to the
+  area's existing draw (revealed choice, dominated by distance — e.g. 32%
+  of Sacajawea-area kids already choose Hazel Wolf); receiving schools'
+  enrollment grows via `_rescale_col_marg` (no caps). IPF cannot do this
+  itself — column marginals pin school sizes, so the op must grow them.
+  Explicit `receivers` still model designated consolidations (split ∝
+  named receivers' draw; basic service follows the kids — under the
+  default, unserved schools do NOT gain service from spillover). HCC
+  pathways still relocate intact. Re-runs: `close_sacajawea` −7.6 →
+  **−29** rides/day [−35, −23] (Hazel Wolf top receiver +38); Option A
+  **+850 → −147** (sign flip — dispersing long option-K-8 draws to nearby
+  choices SAVES rides; buses −8.4, cost −$1.1M); Option B +1,136 →
+  **+279**; fab4 (named receivers) unchanged. Fiscal nets: A −9.15,
+  B −8.17, dearborn −8.15, sacajawea −0.54 — the Destinations funding
+  loss now utterly dominates the closure story. All affected reports,
+  breakdowns, findings.html (incl. §6 key findings + Fig 1/3 captions),
+  OVERVIEW, spec descriptions, and this file updated.
 - **2026-06-11 (s10)** EXAL Destinations CORRECTED (user caught the
   +$21.5M hs_ms_bussing_1mi net looking wrong): the old logic counted any
   school gaining/losing MODELED rides as a destination change, but the
