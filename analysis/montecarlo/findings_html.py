@@ -480,9 +480,10 @@ def build(rows: list[dict]) -> str:
                 + "</tr>")
     table = (
         '<div class="tw"><table><caption>All scenarios — district deltas vs '
-        "the 2024-25 baseline (10,008.5 basic rides/day; 202 routes; ~180 "
-        "buses). Bus cost shows with-overage-hours (fleet-only in "
-        "parentheses)</caption>"
+        "the 2024-25 baseline (10,008.5 basic rides/day; 202 routes; ≈180 "
+        "of the district's ≈382 buses — the rest serve special-ed and other "
+        "programs this model does not touch). Bus cost shows "
+        "with-overage-hours (fleet-only in parentheses)</caption>"
         "<tr><th>Scenario</th><th>Δ rides/day</th><th>95% CI</th>"
         "<th>Δ routes</th><th>Δ buses</th><th>Δ bus $M (fleet)</th>"
         "<th>Δ funding $M</th><th>Net $M/yr</th></tr>"
@@ -529,7 +530,9 @@ def build(rows: list[dict]) -> str:
 
 <h2><span class="no">§1</span>How to read this</h2>
 <p>Every number is a <b>change from the 2024-25 baseline</b> (10,008.5 basic
-rides/day, 202 routes, ≈180 buses, $36.7M state reimbursement). “Rides per
+rides/day, 202 routes, ≈180 buses on the modeled basic+gifted programs —
+the district’s full fleet is ≈382, the rest serving special-ed and other
+programs outside this model — and $36.7M state reimbursement). “Rides per
 day” counts boardings the way the state does: morning and afternoon each
 count once, so a student riding both ways counts as 2. Brackets are 95%
 intervals over a few hundred simulated worlds that vary <i>where students
@@ -558,10 +561,12 @@ live outside the receiving school’s walk zone.</figcaption>
 <div class="legend"><span><span class="sw" style="background:none;border-style:dashed"></span>Δ routes (dashed outline)</span>
 <span><span class="sw" style="background:var(--yellow)"></span>Δ buses (solid)</span></div>
 {rb_svg}
-<figcaption><b>Fig. 2 — Added routes vs added buses.</b> SPS runs two bell
-shifts: elementary rides at a different time from middle/high school, so one
-bus can serve a route on each shift and the fleet size is set by the
-<i>busier</i> shift — currently elementary. Middle- and high-school route
+<figcaption><b>Fig. 2 — Added routes vs added buses.</b> Bus counts here
+cover the modeled basic + gifted programs (≈180 of the district’s ≈382
+buses; the rest serve special-ed and other programs outside this model).
+SPS runs two bell shifts: elementary rides at a different time from
+middle/high school, so one bus can serve a route on each shift and the
+fleet size is set by the <i>busier</i> shift — currently elementary. Middle- and high-school route
 additions therefore need <b>zero new buses</b>, while closures and
 conversions add elementary-shift routes and pay full price (≈$149k per
 bus-year). A route on an existing bus is still not free: cost figures add

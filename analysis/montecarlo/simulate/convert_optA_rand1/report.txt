@@ -10,6 +10,9 @@ District (means over draws; deltas show 95% CI). NOTE: 'riders' = STARS rides/da
 Bus fleet + annual cost (2 bell shifts: fleet = busier of ES vs MS/HS shift;
   $148.9k per bus-year, SY2024-25 all-in vendor cost — see report.py constants):
   buses:  179.7 →  187.3   Δ +7.5 [+6.7, +8.4]   (routes Δ +4.8)
+  NOTE: bus counts cover the MODELED programs only (basic+gifted; STARS 2024-25 actual 162);
+  the district fleet is ≈382 buses incl. special-ed, early-ed, and McKinney-Vento, which
+  this model does not touch.
   annual cost Δ, fleet only:    +1.12 [+1.00, +1.26] $M/yr (lower bound)
   annual cost Δ, with overage:  +1.07 [+0.94, +1.19] $M/yr (ASSUMES 2.0 hr/route/day × $61.5/hr × 175 days ≈ $21.5k/route-yr for routes on existing buses)
 

@@ -347,7 +347,11 @@ def report(name: str, top: int = 10, save: bool = False) -> str:
       "vendor cost — see report.py constants):\n")
     w(f"  buses: {bc['base_buses'].mean():6.1f} → {bc['scen_buses'].mean():6.1f}"
       f"   Δ {_fmt_ci(bc['d_buses'], '+.1f')}   (routes Δ "
-      f"{bc['d_routes'].mean():+.1f})\n")
+      f"{bc['d_routes'].mean():+.1f})\n"
+      "  NOTE: bus counts cover the MODELED programs only (basic+gifted; "
+      "STARS 2024-25 actual 162);\n  the district fleet is ≈382 buses incl. "
+      "special-ed, early-ed, and McKinney-Vento, which\n  this model does "
+      "not touch.\n")
     w(f"  annual cost Δ, fleet only:    {_fmt_ci(bc['d_cost_fleet'] / 1e6, '+,.2f')}"
       " $M/yr (lower bound)\n")
     w(f"  annual cost Δ, with overage:  {_fmt_ci(bc['d_cost'] / 1e6, '+,.2f')}"

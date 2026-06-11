@@ -1252,6 +1252,15 @@ Still genuinely open for the user:
   factors dominate the uncertainty, as they should for an uncalibrated
   assumption. OVERVIEW.md ridership section, MC distribution table, and
   assumption 2 updated.
+- **2026-06-11 (s10)** Fleet-scope clarification (user catch): the model's
+  "≈180 buses" is the MODELED basic+gifted subset (STARS 2024-25 actual
+  162; bell-shift rule estimates ~171-180), NOT the district fleet — SPS
+  runs ≈382 buses total, the other ~220 serving special-ed (2,506
+  rides/day), early-ed, and McKinney-Vento, all outside the model. The
+  $148.9k/bus-yr cost is the all-fleet average ($56.89M ÷ 382) applied to
+  modeled deltas. Scope notes added to report.py output, findings.html
+  (§1 baseline, Fig 2 caption, §5 table caption), and OVERVIEW.md; all
+  reports + page regenerated.
 - **2026-06-11 (s10)** Overage-hours cost term ADDED (user-directed
   ASSUMPTION): bus cost = Δfleet × $148.9k + (Δroutes − Δbuses) ×
   **2.0 hr/route/day × $61.5/hr × 175 service days ≈ $21.5k/route-yr**

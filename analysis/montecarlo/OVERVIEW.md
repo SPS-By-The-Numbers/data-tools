@@ -317,7 +317,11 @@ one route per shift, so fleet = **max(ES-shift routes, MS/HS-shift
 routes)**, pooled across basic+gifted (`bus_cost_summary`; K-8s ride the ES
 shift). Validation: the rule gives 171 buses at baseline vs 162 actual
 basic+gifted STARS buses (+5.6%); per-program maxes do *not* reproduce
-STARS. Cost = Δbuses × **$148.9k/bus-year** (SY2024-25 all-in vendor:
+STARS. Scope note: these counts are the **modeled basic+gifted subset**
+of the district's ≈382-bus fleet — special-ed (2,506 rides/day), early-ed,
+and McKinney-Vento buses are outside the model (the $148.9k/bus-year
+figure, $56.89M ÷ 382, is the all-fleet average applied to the modeled
+deltas). Cost = Δbuses × **$148.9k/bus-year** (SY2024-25 all-in vendor:
 $56.89M purchased transportation ÷ 382 buses). Consequence: MS/HS-shift
 route additions are fleet-free while the ES shift stays the binding max;
 the $0 rows are a *lower bound* on marginal cost (a second route on an
