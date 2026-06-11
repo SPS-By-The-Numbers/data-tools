@@ -53,6 +53,9 @@ Files:
   default; same op order.
 - `close_option_b_dearborn.json` — Option B variant with TM's HCC going to
   Dearborn Park (251), the other receiver the plan names.
+- `hs_ms_bussing_1mi.json` — HS bussing + MS and HS walk thresholds
+  2.0 → 1.0 mi (user scenario, s10; effects of the components are
+  additive).
 - `close_fab4.json` — the "fab-4" plan: close North Beach, Sacajawea,
   Stevens, Sanislo, each consolidating into one named receiver (Viewlands,
   John Rogers, Montlake, Highland Park) instead of the 3-nearest default

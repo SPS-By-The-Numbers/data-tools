@@ -75,6 +75,23 @@ COST_PER_BUS_YEAR = 148_900  # all-in vendor cost, SY2024-25
 # max(144+27, 47+13) = 171 buses vs the actual basic+gifted 162 (+5.6%).
 _SHIFT = {"ES": "es", "MS": "ms_hs", "HS": "ms_hs"}
 
+# Overage-hours term (ASSUMPTION, user-ingested s10): a route that rides an
+# EXISTING bus (i.e. beyond the fleet change) is not free — it adds driver
+# hours past the standard 6-hour contract day. SPS spend data shows a
+# ~$9.8M/yr bucket (both 2023-24 and 2024-25) that plausibly contains
+# hourly overages at ~$61.5/hr, but it cannot be broken down further
+# (attributing ALL of it to MS/K-8 route overages implies an implausible
+# ~10 hr/route/day, so it must include other extras). We therefore ASSUME
+# 2.0 overage hours per route per day — roughly an AM+PM run pair — for
+# routes that do not change the fleet count, over 175 service days:
+# 2.0 × $61.5 × 175 ≈ $21.5k per route-year. Reports show the cost both
+# ways: fleet-only (lower bound) and fleet + overage hours.
+OVERAGE_RATE_HR = 61.5
+OVERAGE_HRS_PER_ROUTE_DAY = 2.0
+OVERAGE_SERVICE_DAYS = 175
+OVERAGE_COST_PER_ROUTE_YEAR = (OVERAGE_RATE_HR * OVERAGE_HRS_PER_ROUTE_DAY
+                               * OVERAGE_SERVICE_DAYS)
+
 # --- STARS pupil-transportation reimbursement (EXAL = Expected Allocation),
 # user-ingested s10 -----------------------------------------------------------
 # 2025-26 formula. Allocation = min(EXAL, D2 prior-year cap $59.8M) +
@@ -167,7 +184,13 @@ def bus_cost_summary(run: dict) -> pd.DataFrame:
     out = per_shift.groupby(level="draw").max()  # fleet = the busier shift
     out = out.rename(columns={"base_routes": "base_buses", "scen_routes": "scen_buses"})
     out["d_buses"] = out["scen_buses"] - out["base_buses"]
-    out["d_cost"] = out["d_buses"] * COST_PER_BUS_YEAR
+    totals = per_shift.groupby(level="draw").sum()
+    out["d_routes"] = totals["scen_routes"] - totals["base_routes"]
+    out["d_cost_fleet"] = out["d_buses"] * COST_PER_BUS_YEAR
+    # routes beyond the fleet change ride existing buses → overage hours
+    # (signed: removing routes from retained buses saves hours)
+    out["d_cost"] = (out["d_cost_fleet"]
+                     + (out["d_routes"] - out["d_buses"]) * OVERAGE_COST_PER_ROUTE_YEAR)
     return out.reset_index()
 
 
@@ -323,8 +346,15 @@ def report(name: str, top: int = 10, save: bool = False) -> str:
       f"  ${COST_PER_BUS_YEAR/1000:.1f}k per bus-year, SY2024-25 all-in "
       "vendor cost — see report.py constants):\n")
     w(f"  buses: {bc['base_buses'].mean():6.1f} → {bc['scen_buses'].mean():6.1f}"
-      f"   Δ {_fmt_ci(bc['d_buses'], '+.1f')}\n")
-    w(f"  annual cost Δ: {_fmt_ci(bc['d_cost'] / 1e6, '+,.2f')} $M/yr\n")
+      f"   Δ {_fmt_ci(bc['d_buses'], '+.1f')}   (routes Δ "
+      f"{bc['d_routes'].mean():+.1f})\n")
+    w(f"  annual cost Δ, fleet only:    {_fmt_ci(bc['d_cost_fleet'] / 1e6, '+,.2f')}"
+      " $M/yr (lower bound)\n")
+    w(f"  annual cost Δ, with overage:  {_fmt_ci(bc['d_cost'] / 1e6, '+,.2f')}"
+      f" $M/yr (ASSUMES {OVERAGE_HRS_PER_ROUTE_DAY:.1f} hr/route/day × "
+      f"${OVERAGE_RATE_HR}/hr × {OVERAGE_SERVICE_DAYS} days ≈ "
+      f"${OVERAGE_COST_PER_ROUTE_YEAR/1000:.1f}k/route-yr for routes on "
+      "existing buses)\n")
 
     fs = funding_summary(run)
     w("\nState funding (STARS EXAL reimbursement, 2025-26 formula; baseline "
@@ -336,8 +366,12 @@ def report(name: str, top: int = 10, save: bool = False) -> str:
       f"Destinations {fs['d_dest'].mean():+,.1f}, "
       f"AvgDistance {fs['d_avgdist'].mean():+.3f} mi\n")
     w(f"  revenue Δ: {_fmt_ci(fs['d_revenue'] / 1e6, '+,.2f')} $M/yr\n")
-    net = (fs.set_index("draw")["d_revenue"] - bc.set_index("draw")["d_cost"]) / 1e6
-    w(f"  NET fiscal Δ (revenue − bus cost): {_fmt_ci(net, '+,.2f')} $M/yr\n")
+    rev = fs.set_index("draw")["d_revenue"]
+    bci = bc.set_index("draw")
+    net = (rev - bci["d_cost"]) / 1e6
+    net_fleet = (rev - bci["d_cost_fleet"]) / 1e6
+    w(f"  NET fiscal Δ (rev − cost), with overage: {_fmt_ci(net, '+,.2f')} $M/yr\n")
+    w(f"  NET fiscal Δ (rev − cost), fleet only:   {_fmt_ci(net_fleet, '+,.2f')} $M/yr\n")
 
     d = run["district"]
     db = d[d.program == "basic"]

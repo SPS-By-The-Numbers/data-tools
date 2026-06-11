@@ -1,0 +1,25 @@
+{
+  "scenario": "hs_ms_bussing_1mi",
+  "description": "Re-add high-school basic yellow-bus service AND shrink both middle-school and high-school walk zones from the 2-mile rule to 1 mile (calibrated buffers). Combines ms_walk_1mi and hs_bussing_1mi: every secondary student more than a mile out becomes bus-eligible. Same HS-as-fraction-of-MS propensity model and caveat as hs_bussing (x0.7 independent transit, grades 11-12 additionally x0.5).",
+  "ops": [
+    {
+      "op": "add_basic_service",
+      "level": "HS"
+    },
+    {
+      "op": "set_walk_threshold",
+      "level": "MS",
+      "miles": 1.0
+    },
+    {
+      "op": "set_walk_threshold",
+      "level": "HS",
+      "miles": 1.0
+    }
+  ],
+  "n_draws": 200,
+  "seed": 20260610,
+  "sample_theta": true,
+  "sample_pop": true,
+  "runtime_s": 44.8
+}

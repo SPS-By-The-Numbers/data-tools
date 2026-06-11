@@ -37,6 +37,10 @@ SCENARIOS = [
     ("hs_bussing_1mi", "Re-add HS yellow bus + 1-mi walk zone", "Expand service",
      "Same HS service, but students 1–2 mi out are also eligible. Roughly "
      "doubles the HS rider gain; still fleet-free."),
+    ("hs_ms_bussing_1mi", "HS bus + 1-mi walk zones for MS and HS", "Expand service",
+     "The maximal secondary-service package: restore high-school yellow bus "
+     "and make every middle- and high-schooler beyond a mile bus-eligible. "
+     "Effects are additive — the component scenarios don't interact."),
     ("es_walk_1p5mi", "Expand ES walk zones to 1.5 miles", "Reduce service",
      "The reverse lever: ES students inside 1.5 mi lose bus eligibility. "
      "Big bus savings, big reimbursement loss — they nearly cancel."),
@@ -91,6 +95,7 @@ def collect() -> list[dict]:
             "routes": b["d_routes_mean"],
             "buses": bc["d_buses"].mean(),
             "cost": bc["d_cost"].mean() / 1e6,
+            "cost_fleet": bc["d_cost_fleet"].mean() / 1e6,
             "rev": fs["d_revenue"].mean() / 1e6,
             "rev_lo": fs["d_revenue"].quantile(0.025) / 1e6,
             "rev_hi": fs["d_revenue"].quantile(0.975) / 1e6,
@@ -304,6 +309,8 @@ svg{width:100%; height:auto; display:block}
 .callout{background:var(--paper2); border-left:6px solid var(--yellow);
   padding:14px 20px; margin:1.4em 0; max-width:78ch}
 .callout p{margin:.4em 0}
+.tw{overflow-x:auto; margin:1.4em 0; max-width:100%}
+.tw table{margin:0}
 table{border-collapse:collapse; width:100%; margin:1.4em 0;
   font:14px/1.45 ui-monospace,Menlo,Consolas,monospace}
 caption{caption-side:top; text-align:left;
@@ -381,9 +388,9 @@ def breakdown_details(label: str, d: dict) -> str:
             f"<tr><td>{esc(r['name'])} ({r['sid']})</td>"
             f"<td>{r['kids']:,.1f}</td><td>{r['share']:.0%}</td></tr>"
             for r in d["receivers"])
-        recv_html = ("<table><caption>Receiving schools (all displacements "
-                     "combined)</caption><tr><th>Receiver</th>"
-                     f"<th>Kids received</th><th>Share</th></tr>{rws}</table>")
+        recv_html = ('<div class="tw"><table><caption>Receiving schools (all '
+                     "displacements combined)</caption><tr><th>Receiver</th>"
+                     f"<th>Kids received</th><th>Share</th></tr>{rws}</table></div>")
 
     trs = []
     for r in d["rows"]:
@@ -400,10 +407,10 @@ def breakdown_details(label: str, d: dict) -> str:
     b, s = d["district"]
     trs.append(f"<tr><td><b>district total</b></td><td></td><td></td><td></td>"
                f"<td><b>{b:,.1f} → {s:,.1f} ({s - b:+,.1f})</b></td><td></td></tr>")
-    table = ("<table><tr><th>School</th><th>Role</th>"
+    table = ('<div class="tw"><table><tr><th>School</th><th>Role</th>'
              "<th>Enrolled base→scen (Δ)</th><th>Bus-eligible base→scen (Δ)</th>"
              "<th>EV rides/day base→scen (Δ)</th><th>MC Δ rides [95% CI]</th>"
-             f"</tr>{''.join(trs)}</table>")
+             f"</tr>{''.join(trs)}</table></div>")
 
     if d["gifted_rows"]:
         grs = "".join(
@@ -411,9 +418,9 @@ def breakdown_details(label: str, d: dict) -> str:
             f"<td>{r['ev_b']:,.1f} → {r['ev_s']:,.1f} "
             f"({r['ev_s'] - r['ev_b']:+,.1f})</td></tr>"
             for r in d["gifted_rows"])
-        gift = ("<table><caption>Gifted program (HCC pathway touched)"
-                "</caption><tr><th>School</th>"
-                f"<th>EV rides/day base→scen (Δ)</th></tr>{grs}</table>")
+        gift = ('<div class="tw"><table><caption>Gifted program (HCC pathway '
+                "touched)</caption><tr><th>School</th>"
+                f"<th>EV rides/day base→scen (Δ)</th></tr>{grs}</table></div>")
     else:
         gift = "<p class='bnote'>Gifted program: unchanged.</p>"
 
@@ -434,10 +441,15 @@ def td_signed(v: float, fmt: str = "+,.0f", flip: bool = False) -> str:
     return f'<td class="{cls}">{v:{fmt}}</td>'
 
 
+_NUM_WORDS = {10: "ten", 11: "eleven", 12: "twelve", 13: "thirteen",
+              14: "fourteen", 15: "fifteen", 16: "sixteen"}
+
+
 def build(rows: list[dict]) -> str:
     today = datetime.date.today().isoformat()
     n_draws = rows[0]["n_draws"]
     seed = rows[0]["seed"]
+    n_word = _NUM_WORDS.get(len(rows), str(len(rows)))
 
     riders_svg = bar_chart(rows, "riders", "riders_lo", "riders_hi",
                            fmt_riders, "rides/day")
@@ -461,17 +473,20 @@ def build(rows: list[dict]) -> str:
                 + f"<td>[{r['riders_lo']:+,.0f}, {r['riders_hi']:+,.0f}]</td>"
                 + td_signed(r["routes"], "+.1f")
                 + td_signed(r["buses"], "+.1f", flip=True)
-                + td_signed(-r["cost"], "+.2f")
+                + (f'<td class="{"pos" if r["cost"] < 0.005 else "neg"}">'
+                   f'{-r["cost"]:+.2f} ({-r["cost_fleet"]:+.2f})</td>')
                 + td_signed(r["rev"], "+.2f")
                 + td_signed(r["net"], "+.2f")
                 + "</tr>")
     table = (
-        "<table><caption>All scenarios — district deltas vs the 2024-25 "
-        "baseline (10,008.5 basic rides/day; 202 routes; ~180 buses)</caption>"
+        '<div class="tw"><table><caption>All scenarios — district deltas vs '
+        "the 2024-25 baseline (10,008.5 basic rides/day; 202 routes; ~180 "
+        "buses). Bus cost shows with-overage-hours (fleet-only in "
+        "parentheses)</caption>"
         "<tr><th>Scenario</th><th>Δ rides/day</th><th>95% CI</th>"
-        "<th>Δ routes</th><th>Δ buses</th><th>Δ bus $M</th>"
+        "<th>Δ routes</th><th>Δ buses</th><th>Δ bus $M (fleet)</th>"
         "<th>Δ funding $M</th><th>Net $M/yr</th></tr>"
-        + "".join(trows) + "</table>")
+        + "".join(trows) + "</table></div>")
 
     cards = []
     for g in GROUP_ORDER:
@@ -503,7 +518,7 @@ def build(rows: list[dict]) -> str:
 <header>
   <div class="kicker">SPS By The Numbers · Transportation Simulation Findings</div>
   <h1>What Would It Do to the Buses?</h1>
-  <p class="dek">Monte Carlo estimates of how eleven policy scenarios —
+  <p class="dek">Monte Carlo estimates of how {n_word} policy scenarios —
   walk-zone changes, restored high-school service, school closures, and
   option-school conversions — would change Seattle Public Schools yellow-bus
   ridership, fleet size, and state transportation funding.</p>
@@ -549,8 +564,12 @@ bus can serve a route on each shift and the fleet size is set by the
 <i>busier</i> shift — currently elementary. Middle- and high-school route
 additions therefore need <b>zero new buses</b>, while closures and
 conversions add elementary-shift routes and pay full price (≈$149k per
-bus-year). The $0 rows are a lower bound: a second route on an existing bus
-still adds driver-hours.</figcaption>
+bus-year). A route on an existing bus is still not free: cost figures add
+an <b>assumed 2.0 overage driver-hours per route per day</b> ($61.50/hr ×
+175 service days ≈ $21.5k per route-year) for every route beyond the fleet
+change — an assumption, since the district's ~$9.8M/yr extras bucket
+cannot be broken down (fleet-only figures are shown alongside as the lower
+bound).</figcaption>
 </figure>
 
 <h2><span class="no">§4</span>The money: funding formula vs bus costs</h2>
@@ -573,7 +592,7 @@ forfeits its Destinations term in the formula. Building-operations savings
 those savings.</figcaption>
 </figure>
 
-<h2><span class="no">§5</span>All eleven scenarios</h2>
+<h2><span class="no">§5</span>All {n_word} scenarios</h2>
 {table}
 <div class="cards">
 {''.join(cards)}
@@ -628,9 +647,12 @@ modeled deltas to the official SY2024-25 formula inputs.</li>
 (fab-4, Thurgood Marshall’s HCC) and distance-based defaults elsewhere —
 not official boundary redraws. Building-operations savings are out of
 scope.</li>
-<li>Bus cost uses the all-in vendor average ($148.9k/bus-yr); marginal
-route costs on an existing bus (driver-hours) are not priced, so “+0 bus”
-rows understate true marginal cost somewhat.</li>
+<li>Bus cost = Δfleet × the all-in vendor average ($148.9k/bus-yr) plus an
+<b>assumed</b> 2.0 overage driver-hours/route/day ($61.50/hr × 175 days ≈
+$21.5k/route-yr) for routes riding existing buses. The hours figure is a
+judgment call — the district’s ~$9.8M/yr “extras” bucket can’t be broken
+down — so the table shows the fleet-only cost alongside as the lower
+bound.</li>
 </ol>
 Source: <code>analysis/montecarlo/</code> in the
 <a href="https://github.com/SPS-By-The-Numbers/data-tools">SPS-By-The-Numbers/data-tools</a>

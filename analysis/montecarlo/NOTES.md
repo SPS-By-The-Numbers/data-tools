@@ -279,11 +279,12 @@ UNITS (user correction, s10): "riders" everywhere = STARS **rides/day**
 (AM + PM boardings each count; a both-ways student = 2; unique students are
 between half and all of the figure — long-route kids often ride AM only).
 
-| scenario | spec | Δ basic rides/day | Δ est routes | Δ buses (Δ$M/yr) | Δ avg stop→school dist |
+| scenario | spec | Δ basic rides/day | Δ est routes | Δ buses (fleet-only $M/yr; see fiscal table for with-overage) | Δ avg stop→school dist |
 |---|---|---|---|---|---|
 | `ms_walk_1mi` | MS walk zones 2 → 1 mi | **+2,073** [+1,901, +2,228] | +41.8 [+38.4, +45.0] | **+0.0 (+$0.00)** | −0.08 mi (district mean) |
 | `hs_bussing` | re-add HS yellow bus, walk zones as-is (2 mi) | **+1,659** [+1,143, +2,332] | +33.5 [+23.1, +47.1] | **+0.0 (+$0.00)** | +0.15 mi |
 | `hs_bussing_1mi` | HS yellow bus + HS walk zones 2 → 1 mi | **+3,532** [+2,411, +4,908] | +71.3 [+48.7, +99.1] | **+0.0 (+$0.00)** | +0.06 mi |
+| `hs_ms_bussing_1mi` | HS bus + 1-mi walk zones for MS *and* HS | **+5,615** [+4,417, +7,085] | +113.3 [+89.2, +143.0] | +6.5 [0, +35.5] (+$0.97) | −0.02 mi |
 | `close_option_a` | KUOW "well-resourced" plan: close 21 schools | **+850** [+758, +937] | +17.2 [+15.3, +18.9] | +17.1 (+$2.55) | +0.06 mi |
 | `close_option_b` | KUOW "choice" plan: close 17 schools incl. Thurgood Marshall | **+1,136** [+1,078, +1,188] | +22.9 [+21.8, +24.0] | +23.0 (+$3.42) | +0.06 mi |
 | `close_fab4` | close North Beach, Sacajawea, Stevens, Sanislo → named single receivers | **+174** [+141, +206] | +3.5 [+2.8, +4.2] | +3.5 (+$0.52) | ±0.00 mi |
@@ -297,21 +298,25 @@ one — which is why `ms_walk_1mi` and `hs_bussing` show +42/+56 routes but
 buses (+7.5) than their net route delta.
 
 Fiscal totals with the STARS EXAL funding formula (s10, 95% CIs; revenue =
-state reimbursement change, cost = bus fleet change, NET = revenue − cost):
+state reimbursement change; cost = fleet Δ × $148.9k + overage-hours
+ASSUMPTION (2.0 hr/route/day × $61.5 × 175 d ≈ $21.5k/route-yr for routes
+on existing buses, s10) — fleet-only lower bound in parentheses; NET =
+revenue − with-overage cost (fleet-only NET in parens where it differs):
 
-| scenario | Δ EXAL revenue $M/yr | Δ bus cost $M/yr | **NET $M/yr** |
+| scenario | Δ EXAL revenue $M/yr | Δ bus cost $M/yr (fleet-only) | **NET $M/yr** (fleet-only) |
 |---|---|---|---|
-| `ms_walk_1mi` | +5.33 [+4.90, +5.71] | 0.00 | **+5.33** |
-| `hs_bussing` | +13.56 [+11.92, +15.74] | 0.00 | **+13.56** |
-| `hs_bussing_1mi` | +18.94 [+15.60, +22.94] (≈$55.6M total — back under the $59.8M cap) | 0.00 | **+18.94** |
-| `close_option_a` | −7.03 [−7.22, −6.86] | +2.55 | **−9.58** |
-| `close_option_b` | −4.09 [−4.22, −3.98] | +3.42 | **−7.51** |
-| `close_option_b_dearborn` | −4.58 [−4.71, −4.48] | +3.40 | **−7.99** |
-| `close_fab4` | −1.20 [−1.28, −1.12] | +0.52 | **−1.72** |
-| `convert_optA_rand1` | +0.77 [+0.67, +0.88] | +1.12 | **−0.35** |
-| `convert_optA_rand2` | +0.77 [+0.69, +0.86] | +1.18 | **−0.41** |
-| `close_sacajawea` | −0.57 | −0.02 | **−0.55** |
-| `es_walk_1p5mi` | −6.74 [−7.15, −6.39] | −7.97 | **+1.24** |
+| `ms_walk_1mi` | +5.33 [+4.90, +5.71] | +1.01 (0.00) | **+4.33** (+5.33) |
+| `hs_bussing` | +13.56 [+11.92, +15.74] | +0.72 (0.00) | **+12.84** (+13.56) |
+| `hs_bussing_1mi` | +18.94 [+15.60, +22.94] (≈$55.6M total — under the $59.8M cap) | +1.53 (0.00) | **+17.40** (+18.94) |
+| `hs_ms_bussing_1mi` | +24.90 [+21.50, +28.91] (CROSSES the $59.8M cap: ~$61.6M total ⇒ capped ≈ +23.1) | +3.37 (+0.97) | **+21.53** (+23.93); capped ≈ +19.7 |
+| `close_option_a` | −7.03 [−7.22, −6.86] | +2.55 (+2.55) | **−9.58** |
+| `close_option_b` | −4.09 [−4.22, −3.98] | +3.42 (+3.42) | **−7.51** |
+| `close_option_b_dearborn` | −4.58 [−4.71, −4.48] | +3.40 (+3.40) | **−7.99** |
+| `close_fab4` | −1.20 [−1.28, −1.12] | +0.52 (+0.52) | **−1.72** |
+| `convert_optA_rand1` | +0.77 [+0.67, +0.88] | +1.07 (+1.12) | **−0.30** (−0.35) |
+| `convert_optA_rand2` | +0.77 [+0.69, +0.86] | +1.11 (+1.18) | **−0.34** (−0.41) |
+| `close_sacajawea` | −0.57 | −0.02 (−0.02) | **−0.55** |
+| `es_walk_1p5mi` | −6.74 [−7.15, −6.39] | −7.97 (−7.97) | **+1.24** |
 
 Headline reversals: the KUOW closure plans LOSE ~$7.5-9.6M/yr of state
 transportation funding net (the Destinations term: each closed served
@@ -1247,6 +1252,32 @@ Still genuinely open for the user:
   factors dominate the uncertainty, as they should for an uncalibrated
   assumption. OVERVIEW.md ridership section, MC distribution table, and
   assumption 2 updated.
+- **2026-06-11 (s10)** Overage-hours cost term ADDED (user-directed
+  ASSUMPTION): bus cost = Δfleet × $148.9k + (Δroutes − Δbuses) ×
+  **2.0 hr/route/day × $61.5/hr × 175 service days ≈ $21.5k/route-yr**
+  (signed — routes removed from retained buses save hours). Context: SPS
+  spend shows ~$9.8M/yr (both 2023-24 and 2024-25) that may be hourly
+  overages at ~$61.5/hr, but the bucket CANNOT be broken down; attributing
+  all of it to MS+K-8 route overages would imply ~9.6-10.1 hr/route/day
+  (95/90 such routes) — implausible vs a 6-hr contract day, so the 2.0
+  figure is a judgment call (≈ an AM+PM run pair), documented in report.py
+  constants. Reports + findings.html now show BOTH values (fleet-only
+  lower bound and with-overage). Effect: expansion nets trimmed ~5-10%
+  (hs_bussing +13.56 → +12.84; hs_ms_bussing_1mi +23.93 → +21.53);
+  closures unchanged (ΔroutesΔ≈Δbuses); conversions slightly LESS costly
+  (+7.5 buses vs +4.8 routes ⇒ retained buses shed hours). No headline
+  sign flips. Also: findings.html tables wrapped in horizontal-scroll
+  containers (were drawing off the right edge on narrow screens).
+- **2026-06-10 (s10)** Combined scenario `hs_ms_bussing_1mi` (user):
+  add_basic_service HS + set_walk_threshold MS 1.0 + HS 1.0. EV confirms
+  the components are exactly ADDITIVE (+5,603 = ms_walk_1mi +2,080 +
+  hs_bussing_1mi +3,523 — the ops touch disjoint cells). 200-draw MC:
+  basic **+5,615** rides/day [+4,417, +7,085], gifted +162, routes +113,
+  buses +6.5 [0, +35.5] (the MS/HS shift overtakes ES in the high-HS-
+  ridership draws), EXAL revenue +$24.9M, NET +$23.9M. CAP FLAG: mean
+  total EXAL ≈ $61.6M > the $59.8M prior-year cap — under a binding cap
+  revenue clips to ≈ +$23.1M (net ≈ +$22.1M). findings.html regenerated
+  (12 scenarios; scenario-count wording now derived from the list).
 - **2026-06-10 (s10)** "Fab-4" closure modeled (`close_fab4`): North Beach
   259→Viewlands 276, Sacajawea 268→Rogers 266, Stevens 272→Montlake 255,
   Sanislo 273→Highland Park 235 — explicit single receivers (the named
