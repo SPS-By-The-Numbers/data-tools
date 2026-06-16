@@ -40,8 +40,9 @@ Within `fiscal/`, the doc kinds with parsers today:
 | F-195 Budget Overview (SUMMARY OF X FUND pages, all 5 funds) | 3,959 | `fiscal_f195_budget` |
 | F-195 Budget (full -- SUMMARY OF X FUND pages, all 5 funds) | 3,961 | `fiscal_f195_budget` |
 | F-195 Four-year Budget Summary Plan           |  2,475 | `fiscal_f195_four_year` |
-| F-196 Annual Financial Statements Summary     |  1,277 | `fiscal_f196_summary` |
-| F-196 All Pages                               |  3,724 | (planned) |
+| F-196 Annual Financial Statements Summary     |  1,277 | (retired -- SUMMARY block is also page 2 of F-196 All Pages, which the All Pages parser covers across all years) |
+| F-196 All Pages -- page-2 SUMMARY block (Phase 1) | 3,724 | `fiscal_f196_summary` |
+| F-196 All Pages -- per-sub-fund Statement of Revenues/Expenditures, Balance Sheet, Long-Term Liabilities, Object/Activity/Program (Phase 2) | 3,724 | (planned) |
 
 `fiscal_f195_budget` is populated from BOTH F-195 Budget Overview and
 F-195 Budget (full) PDFs -- they share the SUMMARY OF X FUND BUDGET
@@ -77,7 +78,7 @@ Within `apportionment/`, the doc kinds with parsers today:
 | `fiscal_f195_overview.csv`      | 190,830 | (`school_year`, `ccddd`, `section`, `item_code`, `fund`) | Page-1 BUDGET AND EXCESS LEVY SUMMARY of Form F-195 -- 7 items in Section A + 3 items in Section B, each spread across 5 fund columns. |
 | `fiscal_f195_four_year.csv`     | 2,543,988 | (`school_year`, `ccddd`, `fund`, `section`, `item_code`, `data_year_offset`) | Form F-195F Four-year Budget Summary Plan -- enrollment + staff + per-fund revenues/expenditures/balances over a current + 3 forecast columns. |
 | `fiscal_f195_budget.csv`        | 5,723,796 | (`school_year`, `ccddd`, `sub_report`, `fund`, `section`, `item_code`, `data_year_offset`) | F-195 Budget SUMMARY OF X FUND BUDGET sub-reports, all 5 funds. One row per (item, data year). 3-column shape: Actual / Budget / Budget for years `-2 / -1 / 0` from the report's current school year. Parsed from both F-195 Budget (full) and F-195 Budget Overview source PDFs. |
-| `fiscal_f196_summary.csv`       | 62,531 | (`school_year`, `ccddd`, `item_code`, `fund`) | Page-2 REPORT F-196 SUMMARY -- 7 items x 7 fund columns of audited actual totals. Only 2021-22 through 2024-25 (OSPI introduced this doc in 2021-22). |
+| `fiscal_f196_summary.csv`       | 182,476 | (`school_year`, `ccddd`, `item_code`, `fund`) | Page-2 REPORT F-196 SUMMARY -- 7 items x 7 fund columns. Sourced from the SUMMARY page (page 2) of each `F-196 All Pages.pdf` -- covers 2013-14 through 2024-25 (3,724 files; 49 rows per file). Pre-2021-22 vintages are the unaudited mid-Dec filing; 2021-22+ are the audited final. Older vintages leave non-applicable cells blank (NULL `value`); newer vintages fill explicit 0.00. |
 | `fiscal_apportionment_monthly.csv` | 983,749 | (`school_year`, `ccddd`, `org_type`, `month`, `revenue_account`, `revenue_description`) | Page 1 of the monthly Statement of Apportionment -- one row per OSPI revenue account with the six summary columns (Annual Allotment, Adjustment, % Due, Allot Due, Paid Previously, Allotment for {Month}). 2013-14 through 2025-26 partial. Includes 24,876 rows for the 9 ESD-level apportionments (dedup'd from 45K replicated source files). |
 | `fiscal_f780_levy.csv` | 93,884 | (`school_year`, `ccddd`, `levy_year`, `status`, `section`, `item_code`) | Form F-780 Levy Authority / LEA Payable -- 4 sections (SUMMARY + SCHEDULE I/II/III), ~22 line items per file. Two `status` flavors per district per levy year: 'Initial' (~October before levy year) and 'Final' (~April of levy year). 2019-20 through 2025-26 (the form was introduced in 2019-20). |
 | `fiscal_1251_enrollment.csv` | 2,592,047 | (`school_year`, `ccddd`, `report_kind`, `section`, `grade`, `month`) | Monthly P-223 enrollment per district per grade per month, both as FTE (Report 1251) and headcount (Report 1251H). 7-8 sections per file (K-12 by grade + by grade span, ALE, Transition To Kindergarten, Running Start, Open Doors, TBIP). District-level only -- ESD-aggregate 1251 reports are deferred (see TODO). |
@@ -216,16 +217,43 @@ of districts as the rest of the `fiscal/<year>/` corpus (~310/year).
 
 ### `fiscal_f196_summary`
 
-7-fund x 7-item matrix from page 2 of F-196 Summary. Audited actual
-totals -- complements `fiscal_f195_overview`.
+7-fund x 7-item matrix from page 2 of every `F-196 All Pages.pdf`. The
+SUMMARY block is the headline cross-fund rollup: revenues, expenditures,
+other financing uses, beginning/ending fund balance, prior-year
+corrections. Complements `fiscal_f195_overview` (budget vs actuals).
 
 | column | meaning |
 |---|---|
-| `item_code` | positional canonical name (`total_revenues_and_other_financing_sources`, `total_expenditures`, ..., `ending_total_fund_balance`) |
+| `item_code` | positional canonical name (`total_revenues_and_other_financing_sources`, `total_expenditures`, `other_financing_uses`, `excess_of_revenues_over_expenditures`, `beginning_total_fund_balance`, `corrections_or_restatements`, `ending_total_fund_balance`). The printed label drifts -- e.g. `Prior Year(s) Corrections or Restatements` -> `Accounting Changes and Error Corrections` in later vintages -- but `item_code` is stable. |
 | `fund` | `general`, `asb`, `debt_service`, `capital_projects`, `transportation_vehicle`, `permanent`, or `total` (the `total` column is the printed cross-fund sum -- useful as a cross-check) |
+| `value` | Parsed decimal. **NULL when the form left the cell blank** -- older vintages (through ~2020-21) leave non-applicable cells truly blank (most commonly ASB / Permanent / Transportation Vehicle on `other_financing_uses`). 2021-22+ vintages fill those with explicit 0.00. The cross-fund invariant `total = sum(general..permanent over non-NULL values)` holds on every file. |
 
-**Coverage gap**: only 2021-22 through 2024-25 (OSPI introduced this
-split-out summary doc in 2021-22).
+**Coverage**: 2013-14 through 2024-25 (3,724 files, district-level
+only). Sourced from `F-196 All Pages.pdf` under `data/fiscal/fiscal/`.
+Note that this is "all pages" of the audited statement filing, but the
+audit status varies by vintage:
+
+- 2013-14, 2014-15: the All Pages doc is the mid-December unaudited
+  filing. OSPI also publishes a separate `F-196 Unaudited.pdf` under
+  `apportionment/` for these two years; the SUMMARY block is the same
+  content captured by `fiscal_f196_unaudited_summary` (see overlap note
+  below).
+- 2015-16 through 2020-21: SUMMARY data lives only in `F-196 All Pages.pdf`.
+  This range is the unique-coverage contribution of this parser -- the
+  previously-published `fiscal_f196_summary` started at 2021-22.
+- 2021-22 through 2024-25: OSPI introduced the split-out standalone
+  `F-196 Summary.pdf` doc (audited final). Its SUMMARY block is byte-
+  identical to page 2 of the same year's All Pages doc; the All Pages
+  parser populates `fiscal_f196_summary` and the standalone-Summary
+  parser was retired.
+
+**Overlap with `fiscal_f196_unaudited_summary`** (2013-14, 2014-15):
+both tables now hold rows for those two years from different physical
+source PDFs (apportionment-corpus Unaudited filing vs. fiscal-corpus
+All Pages filing). The two filings carry the same SUMMARY content;
+consumers wanting one continuous series can `UNION ALL` on
+`(school_year, ccddd, item_code, fund)` and dedupe by source preference,
+or just query `fiscal_f196_summary` alone (it covers the full range).
 
 ### `fiscal_apportionment_monthly`
 
@@ -460,7 +488,10 @@ combined series will run 2013-14 through 2024-25.
 **Coverage**: 2013-14 (295 files) and 2014-15 (299 files), district-level
 only. The F-196 Unaudited document was the year-end statement of record
 in those two years; from 2015-16 onward OSPI shifted to publishing
-'F-196 All Pages' (under `data/fiscal/fiscal/`) instead.
+'F-196 All Pages' (under `data/fiscal/fiscal/`) instead -- those are now
+captured in `fiscal_f196_summary`, which also back-fills 2013-14/14-15
+from the All Pages corpus (same SUMMARY content as Unaudited; both
+tables overlap in those two years).
 
 **Parser note**: Unlike `fiscal_f196_summary`, the older form leaves
 non-applicable cells truly blank instead of writing 0.00. The trailing-

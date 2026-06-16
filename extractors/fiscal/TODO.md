@@ -42,12 +42,29 @@ Outstanding:
   Allotment for {Month} number is already captured; pages 2+ would add
   derivation transparency but bulk up the schema substantially.
 
-Within `fiscal/` (17,101 files), one high-volume doc kind remains:
+Within `fiscal/` (17,101 files), one high-volume doc kind remains
+**partially parsed** (Phase 1 done):
 
-- **F-196 All Pages** -- 3,724 files. Compound multi-page actuals:
-  Balance Sheet, Statement of Revenues/Expenditures by sub-fund,
-  Budgetary Comparison, Long-Term Liabilities, Object/Activity/Program
-  reports.
+- **F-196 All Pages -- Phase 1 (page-2 SUMMARY block)**: DONE. Parser
+  populates `fiscal_f196_summary` across all 12 years (2013-14 through
+  2024-25, 3,724 files). Replaces the standalone F-196 Summary parser
+  (which only covered 2021-22+). Extends backward coverage to 2013-14.
+- **F-196 All Pages -- Phase 2 (deeper pages)**: planned. Each PDF is
+  70-90 pages of compound actuals -- not yet parsed:
+  - **Balance Sheet** (page 3) -- assets, liabilities, fund balance
+    per sub-fund.
+  - **Statement of Revenues, Expenditures, and Changes in Fund Balance**
+    -- per sub-fund, line-itemized to OSPI revenue/expenditure account
+    codes. The richest deferred data: lets us reconstruct the F-195
+    Budget vs F-196 Actuals comparison at line-item granularity instead
+    of just at the fund-summary level.
+  - **Budgetary Comparison Schedule** -- per-fund original / final /
+    actual columns with variance.
+  - **Schedule of Long-Term Liabilities** -- bonds, leases, OPEB.
+  - **Program Expenditure Schedule (Activity x Object)** -- the F-195
+    GF8 / GF10 / GF11 actual counterparts.
+  - **Notes to Financial Statements** -- free-text accounting policies
+    and disclosures; low analytical value as structured data.
 
 The **F-195 Budget (full)** parser landed (-> `fiscal_f195_budget`) but
 only captures the SUMMARY OF X FUND BUDGET sub-reports (Phase 1, all 5
@@ -119,13 +136,15 @@ Outside `fiscal/`, 6 report types remain (149,772 files):
   the Report 1800SUM Food Service Program Summary after that year. The
   data may have moved into a different report or into F-196 detail
   pages; verify when the F-196 All Pages parser lands.
-- **`fiscal_f196_summary`** starts at 2021-22. OSPI introduced the
-  split-out F-196 Summary doc in 2021-22 -- earlier years only have the
-  full F-196 All Pages report.
-- **6 files (0.07% of corpus) are missing the `ending_total_fund_balance`
-  row in `fiscal_f196_summary`** -- the value-line shape on those files
-  must differ from the rest. Sample and patch when the F-196 All Pages
-  parser is being built.
+- ~~**`fiscal_f196_summary`** starts at 2021-22.~~ RESOLVED: the F-196
+  All Pages parser now populates `fiscal_f196_summary` from 2013-14
+  onward, replacing the standalone F-196 Summary parser. The combined
+  table covers 2013-14 through 2024-25 (3,724 files).
+- ~~**6 files (0.07% of corpus) are missing the `ending_total_fund_balance`
+  row in `fiscal_f196_summary`**~~ may have been resolved by the parser
+  rewrite (the positional column-anchor approach handles cell-blanking
+  and value-wrap shapes the trailing-7-tokens heuristic missed).
+  Re-verify against the latest fact-table run.
 - **2,842 files (5.5%) in `fiscal_apportionment_monthly` produce 0 rows**
   -- they are OSPI cover-memo PDFs that share the filename
   `Apportionment for <Month>.pdf` but contain narrative text rather
@@ -258,13 +277,28 @@ listed here so a future debugger doesn't get surprised:
   truly blank -- consistently, ASB and Permanent columns are blank on
   the `Other Financing Uses` row. pdfplumber's text-flow extraction
   drops blanks entirely, so a row with 5 values lands in the wrong
-  columns under the trailing-7-tokens heuristic used by
-  `f196_summary.py`. The `f196_unaudited.py` parser switches to
-  positional extraction via `extract_words()` and bins each value by
+  columns under the trailing-7-tokens heuristic. The
+  `f196_unaudited.py` and `f196_all_pages.py` parsers switch to
+  positional extraction via `extract_words()` and bin each value by
   right-edge x1 against the column anchors derived from the first
   (always 7-column) value row. The 2021-22+ audited 'F-196 Summary'
   doc fills those cells with explicit 0.00 and so works under the
   simpler tokenizer.
+- **F-196 All Pages value-wrap fragments (trailing-digit overflow).**
+  On large districts (Seattle 2018-19 General Fund total revenues
+  `$1,164,926,695.83` etc), a 10-figure value overflows its printed
+  column width and the trailing digit(s) wrap to the next visual line
+  at the same x1. `f196_all_pages.py` post-merges by matching the
+  fragment's x1 to a column anchor with a truncated parent value (decimal
+  suffix shorter than 2 digits) and appending the fragment text.
+- **F-196 All Pages sign-placeholder wraps (full-body overflow).** When
+  a negative value is too wide (e.g. Everett 2020-21 debt_service
+  `-11,863,885.53` on Excess of Revenues), the leading `-` prints alone
+  at the column on the parent row and the entire digit body wraps to
+  the next line at the same x1. The parent column ends up with no value
+  and a lone-`-` placeholder; `f196_all_pages.py` records the sign and
+  consumes the next-line full value at the same x1, emitting `sign + body`
+  as the merged decimal.
 
 ## Filename / reorg quirks
 
