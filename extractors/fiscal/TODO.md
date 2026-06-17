@@ -49,22 +49,37 @@ Within `fiscal/` (17,101 files), one high-volume doc kind remains
   populates `fiscal_f196_summary` across all 12 years (2013-14 through
   2024-25, 3,724 files). Replaces the standalone F-196 Summary parser
   (which only covered 2021-22+). Extends backward coverage to 2013-14.
-- **F-196 All Pages -- Phase 2 (deeper pages)**: planned. Each PDF is
-  70-90 pages of compound actuals -- not yet parsed:
-  - **Balance Sheet** (page 3) -- assets, liabilities, fund balance
-    per sub-fund.
+- **F-196 All Pages -- Phase 2a (Report of Revenues and Other Financing
+  Sources)**: DONE. Parser populates `fiscal_f196_revenues` -- per-OSPI
+  4-digit revenue account code per fund (4 funds: general, debt_service,
+  capital_projects, transportation_vehicle). 7-9 pages per PDF (pp ~23-31
+  typical). 2013-14 through 2024-25. The actuals counterpart to F-195's
+  per-account budgeted revenue items; pairs with `fiscal_f195_budget`
+  at the SUMMARY level today and will pair at the per-account level
+  once the F-195 fund-revenue-detail parser ships.
+- **F-196 All Pages -- Phase 2b+ (deeper pages)**: planned. Each PDF is
+  70-90 pages of compound actuals; the remaining sub-reports are:
   - **Statement of Revenues, Expenditures, and Changes in Fund Balance**
-    -- per sub-fund, line-itemized to OSPI revenue/expenditure account
-    codes. The richest deferred data: lets us reconstruct the F-195
-    Budget vs F-196 Actuals comparison at line-item granularity instead
-    of just at the fund-summary level.
-  - **Budgetary Comparison Schedule** -- per-fund original / final /
-    actual columns with variance.
-  - **Schedule of Long-Term Liabilities** -- bonds, leases, OPEB.
-  - **Program Expenditure Schedule (Activity x Object)** -- the F-195
-    GF8 / GF10 / GF11 actual counterparts.
-  - **Notes to Financial Statements** -- free-text accounting policies
-    and disclosures; low analytical value as structured data.
+    (pp 5-6, 2 pages) -- intermediate-granularity rollup per fund x 7
+    funds. Headline P&L; complements the SUMMARY block.
+  - **Balance Sheet** (pp 3-4) -- assets, liabilities, fund balance
+    by G.L. code per fund x 7 funds.
+  - **Budgetary Comparison Schedule** (pp 7-16, ~2 pages per fund x 5
+    funds) -- original / final / actual / variance columns. Closes the
+    budget->actual loop with variance built in.
+  - **Schedule of Long-Term Liabilities** (pp 19-22) -- bonds, leases,
+    OPEB.
+  - **Statement of Fiduciary Net Position + Changes** (pp 17-18) --
+    ASB Trust / Permanent Fund accounting.
+  - **Program/Activity/Object Report + per-PROGRAM detail** (pp 30-65,
+    ~33 programs per district) -- expenditure detail by program x
+    activity x object. Heavy schema; pairs with eventual F-195 GF9-XX
+    per-program detail.
+  - **Federal Indirect Cost Rate / MOE / Resource-to-Program / NCES
+    schedules** (pp 66-80) -- supplemental schedules; some
+    overlap with State Recovery Rate calculations.
+  - **Financial Edit Report** (pp 82-84) -- OSPI-detected
+    inconsistencies; useful as a data-quality dimension but not core.
 
 The **F-195 Budget (full)** parser landed (-> `fiscal_f195_budget`) but
 only captures the SUMMARY OF X FUND BUDGET sub-reports (Phase 1, all 5
@@ -145,6 +160,13 @@ Outside `fiscal/`, 6 report types remain (149,772 files):
   rewrite (the positional column-anchor approach handles cell-blanking
   and value-wrap shapes the trailing-7-tokens heuristic missed).
   Re-verify against the latest fact-table run.
+- **3 source PDFs in `fiscal_f196_revenues` have a section subtotal
+  that does not reconcile with the section's own line items**
+  (Inchelium 2015-16 + Dieringer 2015-16, both `9000 TOTAL OTHER
+  FINANCING SOURCES capital_projects`; Central Kitsap 2019-20,
+  `6000 TOTAL FEDERAL, SPECIAL PURPOSE general`). These are OSPI
+  form-internal data-entry errors -- per-fund grand totals still
+  reconcile to `fiscal_f196_summary` to the cent. Not parser bugs.
 - **2,842 files (5.5%) in `fiscal_apportionment_monthly` produce 0 rows**
   -- they are OSPI cover-memo PDFs that share the filename
   `Apportionment for <Month>.pdf` but contain narrative text rather
@@ -299,6 +321,12 @@ listed here so a future debugger doesn't get surprised:
   and a lone-`-` placeholder; `f196_all_pages.py` records the sign and
   consumes the next-line full value at the same x1, emitting `sign + body`
   as the merged decimal.
+- **`E.S.D. SPI` banner for tribal compact schools.** ~44 tribal
+  compact schools (Quileute, Muckleshoot, Suquamish, Chief Leschi,
+  Wa He Lut, Lummi, Yakama Nation, etc -- CCDDD ending in 9XX) sit
+  under direct OSPI oversight and print `E.S.D. SPI` in place of an
+  ESD number on every sub-report banner. Parsers that anchor on the
+  banner use `\w+` instead of `\d+` to match either form.
 
 ## Filename / reorg quirks
 

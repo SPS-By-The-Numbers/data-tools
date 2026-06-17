@@ -42,7 +42,8 @@ Within `fiscal/`, the doc kinds with parsers today:
 | F-195 Four-year Budget Summary Plan           |  2,475 | `fiscal_f195_four_year` |
 | F-196 Annual Financial Statements Summary     |  1,277 | (retired -- SUMMARY block is also page 2 of F-196 All Pages, which the All Pages parser covers across all years) |
 | F-196 All Pages -- page-2 SUMMARY block (Phase 1) | 3,724 | `fiscal_f196_summary` |
-| F-196 All Pages -- per-sub-fund Statement of Revenues/Expenditures, Balance Sheet, Long-Term Liabilities, Object/Activity/Program (Phase 2) | 3,724 | (planned) |
+| F-196 All Pages -- Report of Revenues and Other Financing Sources (Phase 2a) | 3,724 | `fiscal_f196_revenues` |
+| F-196 All Pages -- Statement of Revenues/Expenditures, Budgetary Comparison, Balance Sheet, Long-Term Liabilities, Per-Program Activity x Object, etc (Phase 2b+) | 3,724 | (planned) |
 
 `fiscal_f195_budget` is populated from BOTH F-195 Budget Overview and
 F-195 Budget (full) PDFs -- they share the SUMMARY OF X FUND BUDGET
@@ -79,6 +80,7 @@ Within `apportionment/`, the doc kinds with parsers today:
 | `fiscal_f195_four_year.csv`     | 2,543,988 | (`school_year`, `ccddd`, `fund`, `section`, `item_code`, `data_year_offset`) | Form F-195F Four-year Budget Summary Plan -- enrollment + staff + per-fund revenues/expenditures/balances over a current + 3 forecast columns. |
 | `fiscal_f195_budget.csv`        | 5,723,796 | (`school_year`, `ccddd`, `sub_report`, `fund`, `section`, `item_code`, `data_year_offset`) | F-195 Budget SUMMARY OF X FUND BUDGET sub-reports, all 5 funds. One row per (item, data year). 3-column shape: Actual / Budget / Budget for years `-2 / -1 / 0` from the report's current school year. Parsed from both F-195 Budget (full) and F-195 Budget Overview source PDFs. |
 | `fiscal_f196_summary.csv`       | 182,476 | (`school_year`, `ccddd`, `item_code`, `fund`) | Page-2 REPORT F-196 SUMMARY -- 7 items x 7 fund columns. Sourced from the SUMMARY page (page 2) of each `F-196 All Pages.pdf` -- covers 2013-14 through 2024-25 (3,724 files; 49 rows per file). Pre-2021-22 vintages are the unaudited mid-Dec filing; 2021-22+ are the audited final. Older vintages leave non-applicable cells blank (NULL `value`); newer vintages fill explicit 0.00. |
+| `fiscal_f196_revenues.csv`      | 2,911,080 | (`school_year`, `ccddd`, `section`, `revenue_account`, `fund`) | Per-OSPI-4-digit-account-code revenue actuals. Sourced from the Report of Revenues and Other Financing Sources sub-report (~pp 23-29) of each `F-196 All Pages.pdf` -- covers 2013-14 through 2024-25 (3,724 files; ~780 rows/file). 4 fund columns (general / debt_service / capital_projects / transportation_vehicle); ASB and Permanent are not on this report. Most cells are NULL (accounts are fund-restricted). Per-fund grand totals match `fiscal_f196_summary.total_revenues_and_other_financing_sources` to the cent. |
 | `fiscal_apportionment_monthly.csv` | 983,749 | (`school_year`, `ccddd`, `org_type`, `month`, `revenue_account`, `revenue_description`) | Page 1 of the monthly Statement of Apportionment -- one row per OSPI revenue account with the six summary columns (Annual Allotment, Adjustment, % Due, Allot Due, Paid Previously, Allotment for {Month}). 2013-14 through 2025-26 partial. Includes 24,876 rows for the 9 ESD-level apportionments (dedup'd from 45K replicated source files). |
 | `fiscal_f780_levy.csv` | 93,884 | (`school_year`, `ccddd`, `levy_year`, `status`, `section`, `item_code`) | Form F-780 Levy Authority / LEA Payable -- 4 sections (SUMMARY + SCHEDULE I/II/III), ~22 line items per file. Two `status` flavors per district per levy year: 'Initial' (~October before levy year) and 'Final' (~April of levy year). 2019-20 through 2025-26 (the form was introduced in 2019-20). |
 | `fiscal_1251_enrollment.csv` | 2,592,047 | (`school_year`, `ccddd`, `report_kind`, `section`, `grade`, `month`) | Monthly P-223 enrollment per district per grade per month, both as FTE (Report 1251) and headcount (Report 1251H). 7-8 sections per file (K-12 by grade + by grade span, ALE, Transition To Kindergarten, Running Start, Open Doors, TBIP). District-level only -- ESD-aggregate 1251 reports are deferred (see TODO). |
@@ -254,6 +256,51 @@ All Pages filing). The two filings carry the same SUMMARY content;
 consumers wanting one continuous series can `UNION ALL` on
 `(school_year, ccddd, item_code, fund)` and dedupe by source preference,
 or just query `fiscal_f196_summary` alone (it covers the full range).
+
+### `fiscal_f196_revenues`
+
+Per-OSPI-4-digit-account-code revenue actuals from the Report of
+Revenues and Other Financing Sources sub-report (~pp 23-29) of each
+F-196 All Pages PDF. The actuals counterpart to F-195's per-account
+budgeted revenue items; complements the per-fund rollup in
+`fiscal_f196_summary` with line-item granularity.
+
+| column | meaning |
+|---|---|
+| `section` | Section slug: `local_taxes` (1xxx accounts), `local_support_nontax` (2xxx), `state_general_purpose` (3xxx), `state_special_purpose` (4xxx), `federal_general_purpose` (5xxx), `federal_special_purpose` (6xxx), `revenues_from_other_school_districts` (7xxx), `revenues_from_other_entities` (8xxx), `other_financing_sources` (9xxx), or `grand_total`. |
+| `revenue_account` | OSPI 4-digit revenue account code as printed (`1100` Local Property Tax, `3100` Apportionment, `4121` Special Education, `6151` ESEA Disadvantaged, etc). Section subtotal rows use the section anchor (`1000`, `2000`, ..., `9000`). The grand-total row uses the sentinel `GRAND_TOTAL`. |
+| `fund` | `general`, `debt_service`, `capital_projects`, or `transportation_vehicle`. **Only 4 funds** -- this sub-report omits ASB / Permanent (no tax-funded revenue) and prints no cross-fund Total. Cells are sparse: each account applies to only 1-3 of the 4 funds. |
+| `is_section_total` | True for the section anchor rows (e.g. `1000 TOTAL LOCAL TAXES`). |
+| `is_grand_total` | True for the single final `TOTAL REVENUES AND OTHER FINANCING SOURCES` row at the end of the sub-report. |
+| `item_label` | Label as printed. Multi-line labels are joined. **Labels drift across years** (e.g. account 2188 has been `Day Care Tuitions and Fees` -> `Child Care Tuitions and Fees` -> `Early Learning Tuitions and Fees`), so don't label-match for cross-year analysis -- use `revenue_account` (positional, stable). |
+| `value` | Parsed decimal. **NULL when the form left the cell blank** (the common case: ~70% of (account, fund) cells are blank because the form is fund-restricted at the account level). Parenthesized negatives parse to negative decimals. |
+| `value_text` | Raw value text before numeric parsing; empty for blank cells. |
+
+**Invariants** that hold across the entire corpus:
+- Per-fund section subtotal = sum of that section's non-anchor accounts:
+  `value(anchor='1000', fund=F) = sum(value(account in 1100..1900, fund=F))`
+  for every fund F where `value(anchor='1000', fund=F) IS NOT NULL`.
+- Per-fund grand total = sum of section subtotals:
+  `value(account='GRAND_TOTAL', fund=F) = sum(value(account in '1000','2000',...,'9000', fund=F))`.
+- Per-fund grand total = `fiscal_f196_summary.value(item_code='total_revenues_and_other_financing_sources', fund=F)` for the 4 funds (general / debt_service / capital_projects / transportation_vehicle).
+
+**Coverage**: 2013-14 through 2024-25 (3,724 files, district-level
+only). Same set of districts as the rest of `fiscal/<year>/`, **plus
+44 Tribal Compact schools** (CCDDD ending in 9XX -- Quileute, Muckleshoot,
+Suquamish, Chief Leschi, Wa He Lut, Lummi, Yakama Nation, etc) which
+sit under direct OSPI oversight rather than an ESD ('E.S.D. SPI' banner
+in the form).
+
+**Coverage caveats**:
+- 3 source PDFs have a printed section subtotal that does not reconcile
+  with its own line items in the same form (Inchelium 2015-16 and
+  Dieringer 2015-16 both have a `9000 TOTAL OTHER FINANCING SOURCES`
+  capital_projects value with no matching 9xxx item; Central Kitsap
+  2019-20 has a 6000 federal_special_purpose general discrepancy of
+  ~$174K). These are OSPI form-internal data-entry errors, not parser
+  bugs -- the per-fund grand totals still match
+  `fiscal_f196_summary` to the cent. Cross-check with the SUMMARY
+  total for high-stakes analysis.
 
 ### `fiscal_apportionment_monthly`
 
@@ -661,6 +708,49 @@ FROM fiscal_f196_summary
 WHERE item_code = 'total_revenues_and_other_financing_sources' AND fund = 'general'
 ORDER BY ccddd, school_year;
 
+-- Per-OSPI-account revenue actuals: what did Seattle actually receive
+-- in state special-purpose Special Education funding (account 4121) in
+-- General Fund last year?
+SELECT school_year, value AS sped_4121_received
+FROM fiscal_f196_revenues
+WHERE ccddd = 17001
+  AND section = 'state_special_purpose'
+  AND revenue_account = '4121'
+  AND fund = 'general'
+ORDER BY school_year;
+
+-- Section-level budget vs actual: for each fund, did the General Fund
+-- 'State Special Purpose' (4000-block) actual exceed the F-195 budget?
+-- (F-195 only carries section-anchor codes today; per-account budget vs
+-- actual will land once the F-195 fund-revenue-detail parser ships.)
+SELECT b.school_year, b.ccddd, b.fund,
+       b.value AS budget_4000_special_purpose,
+       a.value AS actual_4000_special_purpose
+FROM fiscal_f195_budget b
+JOIN fiscal_f196_revenues a
+  ON a.school_year = b.school_year
+ AND a.ccddd = b.ccddd
+ AND a.fund = b.fund
+ AND a.revenue_account = b.item_code
+WHERE b.sub_report = 'fund_summary'
+  AND b.section = 'revenues'
+  AND b.item_code = '4000'
+  AND b.column_kind = 'budget' AND b.data_year_offset = 0
+  AND a.is_section_total
+ORDER BY b.ccddd, b.school_year, b.fund;
+
+-- Cross-check: the per-fund grand total in fiscal_f196_revenues should
+-- match the SUMMARY's total_revenues for the 4 funds it covers.
+SELECT r.school_year, r.ccddd, r.fund,
+       r.value AS revenues_grand_total,
+       s.value AS summary_total_revenues
+FROM fiscal_f196_revenues r
+JOIN fiscal_f196_summary s
+  ON s.school_year = r.school_year AND s.ccddd = r.ccddd AND s.fund = r.fund
+WHERE r.is_grand_total
+  AND s.item_code = 'total_revenues_and_other_financing_sources'
+  AND r.fund IN ('general','debt_service','capital_projects','transportation_vehicle');
+
 -- Resolve source path for any row
 SELECT f.*, s.source_path
 FROM fiscal_f196_summary f
@@ -673,6 +763,11 @@ JOIN d_fiscal_source s ON s.source_id = f._source_id;
   tables.** The label text changes (e.g. `Prior Year(s) Corrections or
   Restatements` -> `Accounting Changes and Error Corrections` in F-196).
   Use `item_code` -- it's positional and stable.
+- **Don't slug-match `item_label` across years in `fiscal_f196_revenues`.**
+  Account labels drift -- account 2188 has been `Day Care Tuitions and
+  Fees` -> `Child Care Tuitions and Fees` -> `Early Learning Tuitions
+  and Fees`, and many other accounts have less visible label drift.
+  Use `revenue_account` (the 4-digit code, positional and stable).
 - **Don't assume Food Service exists past 2018-19** or **F-196 Summary
   exists before 2021-22**. Both have coverage gaps documented above.
 - **Don't union `fiscal_f195_overview` and `fiscal_f196_summary` directly**
