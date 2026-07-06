@@ -53,20 +53,23 @@ Within `fiscal/` (17,101 files), one high-volume doc kind remains
   Sources)**: DONE. Parser populates `fiscal_f196_revenues` -- per-OSPI
   4-digit revenue account code per fund (4 funds: general, debt_service,
   capital_projects, transportation_vehicle). 7-9 pages per PDF (pp ~23-31
-  typical). 2013-14 through 2024-25. The actuals counterpart to F-195's
-  per-account budgeted revenue items; pairs with `fiscal_f195_budget`
-  at the SUMMARY level today and will pair at the per-account level
-  once the F-195 fund-revenue-detail parser ships.
-- **F-196 All Pages -- Phase 2b+ (deeper pages)**: planned. Each PDF is
-  70-90 pages of compound actuals; the remaining sub-reports are:
+  typical). 2013-14 through 2024-25.
+- **F-196 All Pages -- Phase 2b (Budgetary Comparison Schedule)**: DONE.
+  Parser populates `fiscal_f196_budgetary_comparison` -- per-fund Final
+  Budget / Actual / Variance line items (5 funds: general, asb,
+  debt_service, capital_projects, transportation_vehicle). ~10 pages
+  per PDF (2 pages per fund). 2013-14 through 2024-25. **The Final
+  Budget column is the unique contribution -- the budget after mid-year
+  revisions, not captured anywhere else in the corpus.** Pairs with
+  fiscal_f195_budget to trace original -> final -> actual -> variance.
+- **F-196 All Pages -- Phase 2c+ (remaining sub-reports)**: planned.
   - **Statement of Revenues, Expenditures, and Changes in Fund Balance**
     (pp 5-6, 2 pages) -- intermediate-granularity rollup per fund x 7
-    funds. Headline P&L; complements the SUMMARY block.
+    funds. Mostly redundant with SUMMARY + Revenues; defer unless a
+    specific use case appears.
   - **Balance Sheet** (pp 3-4) -- assets, liabilities, fund balance
-    by G.L. code per fund x 7 funds.
-  - **Budgetary Comparison Schedule** (pp 7-16, ~2 pages per fund x 5
-    funds) -- original / final / actual / variance columns. Closes the
-    budget->actual loop with variance built in.
+    by G.L. code per fund x 7 funds. Solvency / working-capital
+    analysis; no current pair.
   - **Schedule of Long-Term Liabilities** (pp 19-22) -- bonds, leases,
     OPEB.
   - **Statement of Fiduciary Net Position + Changes** (pp 17-18) --
@@ -74,7 +77,7 @@ Within `fiscal/` (17,101 files), one high-volume doc kind remains
   - **Program/Activity/Object Report + per-PROGRAM detail** (pp 30-65,
     ~33 programs per district) -- expenditure detail by program x
     activity x object. Heavy schema; pairs with eventual F-195 GF9-XX
-    per-program detail.
+    per-program detail. Likely the highest-value Phase 2c target.
   - **Federal Indirect Cost Rate / MOE / Resource-to-Program / NCES
     schedules** (pp 66-80) -- supplemental schedules; some
     overlap with State Recovery Rate calculations.
@@ -327,6 +330,22 @@ listed here so a future debugger doesn't get surprised:
   under direct OSPI oversight and print `E.S.D. SPI` in place of an
   ESD number on every sub-report banner. Parsers that anchor on the
   banner use `\w+` instead of `\d+` to match either form.
+- **F-196 BC pdfplumber column-overlay bug.** On some pages of the
+  Budgetary Comparison Schedule, the `FINAL BUDGET` / `ACTUAL` /
+  `(NEGATIVE)` column-header row renders at the same y as a value row
+  and pdfplumber's default `extract_words()` merges them char-by-char
+  into garbage tokens (Seattle 2018-19 Capital Projects page 2:
+  `85,307,151.46` emerges as `F8i5n,a3l0 7B,u1d5g1e.t4 6`).
+  `f196_budgetary_comparison.py` uses `extract_words(use_text_flow=True)`
+  which follows the natural PDF content stream and keeps the two
+  text streams separate.
+- **F-196 BC favorable-variance sign convention.** The form's variance
+  column is NOT a fixed arithmetic of `final_budget - actual`: it
+  encodes 'favorable to the district' as positive. For revenues / OFS
+  / fund_balance rows variance = actual - final_budget; for
+  expenditures rows variance = final_budget - actual. Consumers must
+  apply the section-aware formula to re-derive variance; the parser
+  captures the printed value verbatim.
 
 ## Filename / reorg quirks
 

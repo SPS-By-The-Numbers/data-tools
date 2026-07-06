@@ -43,7 +43,8 @@ Within `fiscal/`, the doc kinds with parsers today:
 | F-196 Annual Financial Statements Summary     |  1,277 | (retired -- SUMMARY block is also page 2 of F-196 All Pages, which the All Pages parser covers across all years) |
 | F-196 All Pages -- page-2 SUMMARY block (Phase 1) | 3,724 | `fiscal_f196_summary` |
 | F-196 All Pages -- Report of Revenues and Other Financing Sources (Phase 2a) | 3,724 | `fiscal_f196_revenues` |
-| F-196 All Pages -- Statement of Revenues/Expenditures, Budgetary Comparison, Balance Sheet, Long-Term Liabilities, Per-Program Activity x Object, etc (Phase 2b+) | 3,724 | (planned) |
+| F-196 All Pages -- Budgetary Comparison Schedule (Phase 2b) | 3,724 | `fiscal_f196_budgetary_comparison` |
+| F-196 All Pages -- Statement of Revenues/Expenditures, Balance Sheet, Long-Term Liabilities, Per-Program Activity x Object, etc (Phase 2c+) | 3,724 | (planned) |
 
 `fiscal_f195_budget` is populated from BOTH F-195 Budget Overview and
 F-195 Budget (full) PDFs -- they share the SUMMARY OF X FUND BUDGET
@@ -81,6 +82,7 @@ Within `apportionment/`, the doc kinds with parsers today:
 | `fiscal_f195_budget.csv`        | 5,723,796 | (`school_year`, `ccddd`, `sub_report`, `fund`, `section`, `item_code`, `data_year_offset`) | F-195 Budget SUMMARY OF X FUND BUDGET sub-reports, all 5 funds. One row per (item, data year). 3-column shape: Actual / Budget / Budget for years `-2 / -1 / 0` from the report's current school year. Parsed from both F-195 Budget (full) and F-195 Budget Overview source PDFs. |
 | `fiscal_f196_summary.csv`       | 182,476 | (`school_year`, `ccddd`, `item_code`, `fund`) | Page-2 REPORT F-196 SUMMARY -- 7 items x 7 fund columns. Sourced from the SUMMARY page (page 2) of each `F-196 All Pages.pdf` -- covers 2013-14 through 2024-25 (3,724 files; 49 rows per file). Pre-2021-22 vintages are the unaudited mid-Dec filing; 2021-22+ are the audited final. Older vintages leave non-applicable cells blank (NULL `value`); newer vintages fill explicit 0.00. |
 | `fiscal_f196_revenues.csv`      | 2,911,080 | (`school_year`, `ccddd`, `section`, `revenue_account`, `fund`) | Per-OSPI-4-digit-account-code revenue actuals. Sourced from the Report of Revenues and Other Financing Sources sub-report (~pp 23-29) of each `F-196 All Pages.pdf` -- covers 2013-14 through 2024-25 (3,724 files; ~780 rows/file). 4 fund columns (general / debt_service / capital_projects / transportation_vehicle); ASB and Permanent are not on this report. Most cells are NULL (accounts are fund-restricted). Per-fund grand totals match `fiscal_f196_summary.total_revenues_and_other_financing_sources` to the cent. |
+| `fiscal_f196_budgetary_comparison.csv` | 1,189,764 | (`school_year`, `ccddd`, `fund`, `section`, `sub_section`, `item_code`, `column_kind`) | Per-fund Final Budget / Actual / Variance from the Budgetary Comparison Schedule sub-report (~pp 7-16) of each `F-196 All Pages.pdf`. 5 fund columns (general / asb / debt_service / capital_projects / transportation_vehicle); Permanent omitted. **Final Budget is the NEW datum** -- the budget after mid-year revisions, not captured anywhere else. `actual` matches `fiscal_f196_summary` to the cent. |
 | `fiscal_apportionment_monthly.csv` | 983,749 | (`school_year`, `ccddd`, `org_type`, `month`, `revenue_account`, `revenue_description`) | Page 1 of the monthly Statement of Apportionment -- one row per OSPI revenue account with the six summary columns (Annual Allotment, Adjustment, % Due, Allot Due, Paid Previously, Allotment for {Month}). 2013-14 through 2025-26 partial. Includes 24,876 rows for the 9 ESD-level apportionments (dedup'd from 45K replicated source files). |
 | `fiscal_f780_levy.csv` | 93,884 | (`school_year`, `ccddd`, `levy_year`, `status`, `section`, `item_code`) | Form F-780 Levy Authority / LEA Payable -- 4 sections (SUMMARY + SCHEDULE I/II/III), ~22 line items per file. Two `status` flavors per district per levy year: 'Initial' (~October before levy year) and 'Final' (~April of levy year). 2019-20 through 2025-26 (the form was introduced in 2019-20). |
 | `fiscal_1251_enrollment.csv` | 2,592,047 | (`school_year`, `ccddd`, `report_kind`, `section`, `grade`, `month`) | Monthly P-223 enrollment per district per grade per month, both as FTE (Report 1251) and headcount (Report 1251H). 7-8 sections per file (K-12 by grade + by grade span, ALE, Transition To Kindergarten, Running Start, Open Doors, TBIP). District-level only -- ESD-aggregate 1251 reports are deferred (see TODO). |
@@ -301,6 +303,60 @@ in the form).
   bugs -- the per-fund grand totals still match
   `fiscal_f196_summary` to the cent. Cross-check with the SUMMARY
   total for high-stakes analysis.
+
+### `fiscal_f196_budgetary_comparison`
+
+Per-fund Final Budget / Actual / Variance line items from the
+Budgetary Comparison Schedule sub-report (~pp 7-16) of each F-196 All
+Pages PDF. **The unique contribution of this table is the Final Budget
+column** -- the budget after mid-year revisions, which is not captured
+in F-195 (which has only the original budget) or in F-196 SUMMARY /
+Revenues (which have only actuals).
+
+Long-form: one row per (school_year, ccddd, fund, section, sub_section,
+item_code, column_kind). column_kind cycles through 'final_budget',
+'actual', 'variance' for every line item.
+
+| column | meaning |
+|---|---|
+| `fund` | `general`, `asb`, `debt_service`, `capital_projects`, or `transportation_vehicle`. **5 funds** -- Permanent Fund is covered by the Statement of Fiduciary Net Position sub-report instead (deferred). |
+| `section` | `revenues`, `expenditures`, `other_financing_sources_uses`, `summary` (for grand-total rows like `total_revenues`, `total_expenditures`, `revenues_over_under_expenditures`, `excess_over_under`, etc), or `fund_balance` (beginning / corrections / ending). |
+| `sub_section` | Sub-grouping within `section='expenditures'`: `current`, `capital_outlay`, or `debt_service`. Empty string otherwise. |
+| `item_code` | Semantic slug for the line item. **The form does not print OSPI account codes** -- only labels -- so the slug is derived from the label and stable across vintages (e.g. `regular_instruction`, `special_education`, `transfers_in`, `total_revenues`). |
+| `column_kind` | `final_budget` / `actual` / `variance`. |
+| `is_section_total` | True for TOTAL REVENUES / TOTAL EXPENDITURES / TOTAL OTHER FINANCING SOURCES (USES) rows. |
+| `value` | Parsed decimal. NULL for blanks; most items don't apply to every fund (e.g. ASB has only `student_activities_other`; the `corrections_or_restatements` row consistently omits the variance column). |
+
+**Important variance-sign convention**: The form prints variance with a
+**favorable** sign, not a fixed arithmetic. Consumers re-deriving
+variance must apply the section-aware formula:
+- Revenues / OFS / fund_balance: `variance = actual - final_budget`
+  (more inflow = favorable / positive).
+- Expenditures (detail + TOTAL): `variance = final_budget - actual`
+  (less spent = favorable / positive).
+
+**Invariants** that hold corpus-wide:
+- `actual` matches `fiscal_f196_summary.value` to the cent for the 4
+  comparable items (`total_expenditures`, `beginning_total_fund_balance`,
+  `corrections_or_restatements`, `ending_total_fund_balance`) across all
+  5 funds. **Zero mismatches on 74,480 cross-checks.**
+- The section-aware variance formula holds on **>99.5%** of file x item
+  cells where all 3 columns are non-NULL.
+
+**Coverage caveats**:
+- ~1,459 (cell-level) variance check failures (0.4%) across the corpus
+  reflect OSPI form data-entry errors where the printed variance does
+  not match the printed `final_budget`/`actual` per the favorable
+  convention. The most common shape: a revenue row prints the variance
+  cell equal to the actual cell (e.g. Dayton 2013-14 Capital Projects
+  Federal: budget=$250, actual=$12.06, variance printed as $12.06
+  instead of -$237.94). Parser captures the form values verbatim --
+  cross-check with `fiscal_f196_revenues` / `fiscal_f196_summary` for
+  high-stakes analysis.
+- 5 funds only (Permanent omitted) -- the `actual` totals across these
+  5 funds match the sum of the 5 corresponding funds in
+  `fiscal_f196_summary` (which has 7 fund columns including Permanent
+  and Total).
 
 ### `fiscal_apportionment_monthly`
 
@@ -750,6 +806,42 @@ JOIN fiscal_f196_summary s
 WHERE r.is_grand_total
   AND s.item_code = 'total_revenues_and_other_financing_sources'
   AND r.fund IN ('general','debt_service','capital_projects','transportation_vehicle');
+
+-- Closed budget->actual loop for Seattle 2018-19 General Fund Special Ed:
+-- the original budget (from F-195), the final budget after mid-year
+-- revisions (from BC), the actual (from BC), and the form's variance.
+-- Note: F-195 expenditures use OSPI activity codes, not the F-196 BC
+-- intermediate labels, so the F-195 join is at the fund-summary level.
+SELECT
+  bc.school_year, bc.ccddd, bc.fund, bc.item_code,
+  bc.value FILTER (WHERE bc.column_kind = 'final_budget') AS final_budget,
+  bc.value FILTER (WHERE bc.column_kind = 'actual')       AS actual,
+  bc.value FILTER (WHERE bc.column_kind = 'variance')     AS variance
+FROM fiscal_f196_budgetary_comparison bc
+WHERE bc.school_year = '2018-2019' AND bc.ccddd = 17001
+  AND bc.fund = 'general'
+  AND bc.section = 'expenditures' AND bc.sub_section = 'current'
+GROUP BY bc.school_year, bc.ccddd, bc.fund, bc.item_code
+ORDER BY bc.item_code;
+
+-- Mid-year budget revision magnitude per district per year: how much
+-- did the General Fund expenditure budget change between Original
+-- (F-195) and Final (F-196 BC)?
+SELECT
+  b.school_year, b.ccddd,
+  b.value AS original_budget,
+  bc.value AS final_budget,
+  bc.value - b.value AS budget_revision
+FROM fiscal_f195_budget b
+JOIN fiscal_f196_budgetary_comparison bc
+  ON bc.school_year = b.school_year AND bc.ccddd = b.ccddd
+ AND bc.fund = 'general' AND bc.column_kind = 'final_budget'
+ AND bc.section = 'summary' AND bc.item_code = 'total_expenditures'
+WHERE b.sub_report = 'fund_summary'
+  AND b.fund = 'general'
+  AND b.section = 'summary' AND b.item_code = 'B'  -- B. TOTAL EXPENDITURES
+  AND b.column_kind = 'budget' AND b.data_year_offset = 0
+ORDER BY b.school_year, b.ccddd;
 
 -- Resolve source path for any row
 SELECT f.*, s.source_path
