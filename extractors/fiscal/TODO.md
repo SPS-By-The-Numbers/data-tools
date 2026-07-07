@@ -62,7 +62,23 @@ Within `fiscal/` (17,101 files), one high-volume doc kind remains
   Budget column is the unique contribution -- the budget after mid-year
   revisions, not captured anywhere else in the corpus.** Pairs with
   fiscal_f195_budget to trace original -> final -> actual -> variance.
-- **F-196 All Pages -- Phase 2c+ (remaining sub-reports)**: planned.
+- **F-196 All Pages -- Phase 2c-i (Program/Activity/Object Report
+  roll-up)**: DONE. Parser populates
+  `fiscal_f196_program_activity_object` -- three side-by-side General
+  Fund expenditure breakdowns (per program, per activity, per object)
+  per district. 2 pages per PDF (pp 30-31). 2013-14 through 2024-25.
+  Delivers the **per-Object breakdown** (Cert Salaries / Class Salaries
+  / Employee Benefits / Supplies / Purchased Services / etc) that is
+  not available in any other captured sub-report.
+- **F-196 All Pages -- Phase 2c-ii+ (remaining sub-reports)**: planned.
+  - **Per-PROGRAM cross-tab detail** (pp 33-65, ~33 pages per file --
+    one per program) -- activity x object cross-tab per program.
+    Massive schema (~10K cells per file x 3,724 files = ~37M rows).
+    This is the deepest expenditure detail in the entire OSPI corpus;
+    pairs with eventual F-195 GF9-XX per-program budget detail. **Note:
+    Phase 2c-ii parser will produce far more rows than any table
+    so far -- check whether it's worth landing before eventual F-195
+    GF9-XX ships.**
   - **Statement of Revenues, Expenditures, and Changes in Fund Balance**
     (pp 5-6, 2 pages) -- intermediate-granularity rollup per fund x 7
     funds. Mostly redundant with SUMMARY + Revenues; defer unless a
@@ -74,10 +90,6 @@ Within `fiscal/` (17,101 files), one high-volume doc kind remains
     OPEB.
   - **Statement of Fiduciary Net Position + Changes** (pp 17-18) --
     ASB Trust / Permanent Fund accounting.
-  - **Program/Activity/Object Report + per-PROGRAM detail** (pp 30-65,
-    ~33 programs per district) -- expenditure detail by program x
-    activity x object. Heavy schema; pairs with eventual F-195 GF9-XX
-    per-program detail. Likely the highest-value Phase 2c target.
   - **Federal Indirect Cost Rate / MOE / Resource-to-Program / NCES
     schedules** (pp 66-80) -- supplemental schedules; some
     overlap with State Recovery Rate calculations.

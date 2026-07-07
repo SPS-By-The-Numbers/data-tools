@@ -44,7 +44,8 @@ Within `fiscal/`, the doc kinds with parsers today:
 | F-196 All Pages -- page-2 SUMMARY block (Phase 1) | 3,724 | `fiscal_f196_summary` |
 | F-196 All Pages -- Report of Revenues and Other Financing Sources (Phase 2a) | 3,724 | `fiscal_f196_revenues` |
 | F-196 All Pages -- Budgetary Comparison Schedule (Phase 2b) | 3,724 | `fiscal_f196_budgetary_comparison` |
-| F-196 All Pages -- Statement of Revenues/Expenditures, Balance Sheet, Long-Term Liabilities, Per-Program Activity x Object, etc (Phase 2c+) | 3,724 | (planned) |
+| F-196 All Pages -- Program/Activity/Object Report roll-up (Phase 2c-i) | 3,724 | `fiscal_f196_program_activity_object` |
+| F-196 All Pages -- Statement of Revenues/Expenditures, Balance Sheet, Long-Term Liabilities, Per-PROGRAM cross-tab detail, etc (Phase 2c-ii+) | 3,724 | (planned) |
 
 `fiscal_f195_budget` is populated from BOTH F-195 Budget Overview and
 F-195 Budget (full) PDFs -- they share the SUMMARY OF X FUND BUDGET
@@ -83,6 +84,7 @@ Within `apportionment/`, the doc kinds with parsers today:
 | `fiscal_f196_summary.csv`       | 182,476 | (`school_year`, `ccddd`, `item_code`, `fund`) | Page-2 REPORT F-196 SUMMARY -- 7 items x 7 fund columns. Sourced from the SUMMARY page (page 2) of each `F-196 All Pages.pdf` -- covers 2013-14 through 2024-25 (3,724 files; 49 rows per file). Pre-2021-22 vintages are the unaudited mid-Dec filing; 2021-22+ are the audited final. Older vintages leave non-applicable cells blank (NULL `value`); newer vintages fill explicit 0.00. |
 | `fiscal_f196_revenues.csv`      | 2,911,080 | (`school_year`, `ccddd`, `section`, `revenue_account`, `fund`) | Per-OSPI-4-digit-account-code revenue actuals. Sourced from the Report of Revenues and Other Financing Sources sub-report (~pp 23-29) of each `F-196 All Pages.pdf` -- covers 2013-14 through 2024-25 (3,724 files; ~780 rows/file). 4 fund columns (general / debt_service / capital_projects / transportation_vehicle); ASB and Permanent are not on this report. Most cells are NULL (accounts are fund-restricted). Per-fund grand totals match `fiscal_f196_summary.total_revenues_and_other_financing_sources` to the cent. |
 | `fiscal_f196_budgetary_comparison.csv` | 1,189,764 | (`school_year`, `ccddd`, `fund`, `section`, `sub_section`, `item_code`, `column_kind`) | Per-fund Final Budget / Actual / Variance from the Budgetary Comparison Schedule sub-report (~pp 7-16) of each `F-196 All Pages.pdf`. 5 fund columns (general / asb / debt_service / capital_projects / transportation_vehicle); Permanent omitted. **Final Budget is the NEW datum** -- the budget after mid-year revisions, not captured anywhere else. `actual` matches `fiscal_f196_summary` to the cent. |
+| `fiscal_f196_program_activity_object.csv` | 314,201 | (`school_year`, `ccddd`, `breakdown_kind`, `code`) | Three side-by-side General Fund expenditure breakdowns from the Program/Activity/Object Report sub-report (~pp 30-31) of each `F-196 All Pages.pdf`: per-program (~30 codes), per-activity (~30 codes), per-object (10 codes). **General Fund only.** The three breakdowns reconcile to the same total and to `fiscal_f196_summary.total_expenditures` where `fund='general'`. |
 | `fiscal_apportionment_monthly.csv` | 983,749 | (`school_year`, `ccddd`, `org_type`, `month`, `revenue_account`, `revenue_description`) | Page 1 of the monthly Statement of Apportionment -- one row per OSPI revenue account with the six summary columns (Annual Allotment, Adjustment, % Due, Allot Due, Paid Previously, Allotment for {Month}). 2013-14 through 2025-26 partial. Includes 24,876 rows for the 9 ESD-level apportionments (dedup'd from 45K replicated source files). |
 | `fiscal_f780_levy.csv` | 93,884 | (`school_year`, `ccddd`, `levy_year`, `status`, `section`, `item_code`) | Form F-780 Levy Authority / LEA Payable -- 4 sections (SUMMARY + SCHEDULE I/II/III), ~22 line items per file. Two `status` flavors per district per levy year: 'Initial' (~October before levy year) and 'Final' (~April of levy year). 2019-20 through 2025-26 (the form was introduced in 2019-20). |
 | `fiscal_1251_enrollment.csv` | 2,592,047 | (`school_year`, `ccddd`, `report_kind`, `section`, `grade`, `month`) | Monthly P-223 enrollment per district per grade per month, both as FTE (Report 1251) and headcount (Report 1251H). 7-8 sections per file (K-12 by grade + by grade span, ALE, Transition To Kindergarten, Running Start, Open Doors, TBIP). District-level only -- ESD-aggregate 1251 reports are deferred (see TODO). |
@@ -357,6 +359,43 @@ variance must apply the section-aware formula:
   5 funds match the sum of the 5 corresponding funds in
   `fiscal_f196_summary` (which has 7 fund columns including Permanent
   and Total).
+
+### `fiscal_f196_program_activity_object`
+
+Three side-by-side General Fund expenditure breakdowns from the
+Program/Activity/Object Report sub-report (~pp 30-31) of each F-196
+All Pages PDF. Each district's General Fund total expenditures are
+decomposed three ways.
+
+| column | meaning |
+|---|---|
+| `breakdown_kind` | `program`, `activity`, or `object` -- which of the three breakdowns this row belongs to. |
+| `code` | OSPI numeric code within the breakdown. Note the code space is **specific to each breakdown_kind** -- `21` means Sp Ed Sup St in `breakdown_kind='program'` and Supv Inst in `breakdown_kind='activity'`. Object codes are 0-9. Grand-total rows use the sentinel `'TOTAL'`. |
+| `is_total` | True for the three grand-total rows (`TOTAL ALL PROGRAMS`, `TOTAL ALL ACTIVITIES`, `TOTAL ALL OBJECTS`). All three carry the same value on any given file. |
+| `item_label` | Label as printed (whitespace normalized). Multi-line labels are joined. Labels drift across years (new programs added: SLRF, ESSER II/III, Transition to Kindergarten). Use `code` for cross-year joins. |
+| `value` | Expenditure amount. Object 1 (Credit Transfer) is consistently negative -- it offsets Object 0 (Debit Transfer). |
+
+**Invariants** that hold corpus-wide:
+- Within a file:
+  `sum(value where breakdown_kind='program' and NOT is_total)` =
+  `sum(value where breakdown_kind='activity' and NOT is_total)` =
+  `sum(value where breakdown_kind='object' and NOT is_total)` =
+  `value where is_total AND breakdown_kind='program'` = (same for
+  activity, object).
+- Cross-table: on every one of 3,724 files, all three grand totals
+  match `fiscal_f196_summary.value` where `item_code='total_expenditures'`
+  and `fund='general'` to the cent.
+- 12 files (0.10% of file x breakdown checks) have sub-cent rounding
+  discrepancies between the printed TOTAL row and the sum of detail
+  rows in the same table -- OSPI form-internal rounding, not a parser
+  issue.
+
+**Scope**: General Fund only. The other funds (ASB / Debt Service /
+Capital Projects / Transportation Vehicle) use simpler activity/object
+breakdowns which are captured by `fiscal_f196_budgetary_comparison`.
+
+**Coverage**: 2013-14 through 2024-25 (3,724 files), district-level
+only.
 
 ### `fiscal_apportionment_monthly`
 
@@ -823,6 +862,38 @@ WHERE bc.school_year = '2018-2019' AND bc.ccddd = 17001
   AND bc.section = 'expenditures' AND bc.sub_section = 'current'
 GROUP BY bc.school_year, bc.ccddd, bc.fund, bc.item_code
 ORDER BY bc.item_code;
+
+-- Salary share of General Fund expenditures (Object 2 Cert Salaries +
+-- Object 3 Class Salaries + Object 4 Employee Benefits) as a fraction
+-- of TOTAL ALL OBJECTS -- the compensation-heaviness of a district.
+SELECT school_year, ccddd,
+       (comp.cert + comp.class + comp.benefits) / tot.total AS comp_share
+FROM (
+  SELECT school_year, ccddd,
+         SUM(CASE WHEN code='2' THEN value END) AS cert,
+         SUM(CASE WHEN code='3' THEN value END) AS class,
+         SUM(CASE WHEN code='4' THEN value END) AS benefits
+  FROM fiscal_f196_program_activity_object
+  WHERE breakdown_kind = 'object' AND NOT is_total
+  GROUP BY school_year, ccddd
+) comp
+JOIN (
+  SELECT school_year, ccddd, value AS total
+  FROM fiscal_f196_program_activity_object
+  WHERE breakdown_kind = 'object' AND is_total
+) tot USING (school_year, ccddd)
+ORDER BY comp_share DESC;
+
+-- Program mix over time: what fraction of Basic Education (program 01)
+-- vs Special Education programs (21 Sp Ed Sup St + 22 Sp Ed I&T +
+-- 24 Sp Ed Fed) per district?
+SELECT school_year, ccddd,
+       SUM(CASE WHEN code='01' THEN value END) AS basic_ed,
+       SUM(CASE WHEN code IN ('21','22','24') THEN value END) AS sped
+FROM fiscal_f196_program_activity_object
+WHERE breakdown_kind = 'program' AND NOT is_total
+GROUP BY school_year, ccddd
+ORDER BY school_year, ccddd;
 
 -- Mid-year budget revision magnitude per district per year: how much
 -- did the General Fund expenditure budget change between Original
