@@ -46,7 +46,8 @@ Within `fiscal/`, the doc kinds with parsers today:
 | F-196 All Pages -- Budgetary Comparison Schedule (Phase 2b) | 3,724 | `fiscal_f196_budgetary_comparison` |
 | F-196 All Pages -- Program/Activity/Object Report roll-up (Phase 2c-i) | 3,724 | `fiscal_f196_program_activity_object` |
 | F-196 All Pages -- Balance Sheet - Governmental Funds (Phase 2c-ii-BS) | 3,724 | `fiscal_f196_balance_sheet` |
-| F-196 All Pages -- Statement of Revenues/Expenditures, Long-Term Liabilities, Per-PROGRAM cross-tab detail, etc (Phase 2c-ii+) | 3,724 | (planned) |
+| F-196 All Pages -- Schedule of Long-Term Liabilities (Phase 2c-ii-LTL) | 3,724 | `fiscal_f196_long_term_liabilities` |
+| F-196 All Pages -- Statement of Revenues/Expenditures, Per-PROGRAM cross-tab detail, etc (Phase 2c-ii+) | 3,724 | (planned) |
 
 `fiscal_f195_budget` is populated from BOTH F-195 Budget Overview and
 F-195 Budget (full) PDFs -- they share the SUMMARY OF X FUND BUDGET
@@ -87,6 +88,7 @@ Within `apportionment/`, the doc kinds with parsers today:
 | `fiscal_f196_budgetary_comparison.csv` | 1,189,764 | (`school_year`, `ccddd`, `fund`, `section`, `sub_section`, `item_code`, `column_kind`) | Per-fund Final Budget / Actual / Variance from the Budgetary Comparison Schedule sub-report (~pp 7-16) of each `F-196 All Pages.pdf`. 5 fund columns (general / asb / debt_service / capital_projects / transportation_vehicle); Permanent omitted. **Final Budget is the NEW datum** -- the budget after mid-year revisions, not captured anywhere else. `actual` matches `fiscal_f196_summary` to the cent. |
 | `fiscal_f196_program_activity_object.csv` | 314,201 | (`school_year`, `ccddd`, `breakdown_kind`, `code`) | Three side-by-side General Fund expenditure breakdowns from the Program/Activity/Object Report sub-report (~pp 30-31) of each `F-196 All Pages.pdf`: per-program (~30 codes), per-activity (~30 codes), per-object (10 codes). **General Fund only.** The three breakdowns reconcile to the same total and to `fiscal_f196_summary.total_expenditures` where `fund='general'`. |
 | `fiscal_f196_balance_sheet.csv` | 1,173,585 | (`school_year`, `ccddd`, `section`, `item_code`, `fund`) | Period-end balance sheet per district per fund from the Balance Sheet - Governmental Funds sub-report (pp 3-5) of each `F-196 All Pages.pdf`. 7-fund columns (general / asb / debt_service / capital_projects / transportation_vehicle / permanent / total). Sections: `assets`, `deferred_outflows`, `liabilities`, `deferred_inflows`, `fund_balance`, plus a `summary` section for the two combined-total identity rows. **The unique analytical add is the stocks dimension** -- no other captured F-196 sub-report exposes G.L.-code-level assets/liabilities. `total_fund_balance` reconciles to `fiscal_f196_summary.ending_total_fund_balance` on every fund on all but 1 file (1 51-cent OSPI form-internal issue). The A+DO=L+DI+FB accounting identity holds on all files for `general`; 12 files have permanent-fund print errors in 2014-15 (form-internal, not parser bugs). |
+| `fiscal_f196_long_term_liabilities.csv` | 107,622 | (`school_year`, `ccddd`, `fund`, `section`, `item_code`) | Long-term debt roll-forward per district per liability item from the Schedule of Long-Term Liabilities sub-report (pp 19-22 in older vintages, page 22 in newer vintages) of each `F-196 All Pages.pdf`. Wide-format value columns: `beginning_outstanding`, `amount_increased`, `amount_decreased`, `ending_outstanding`, `amount_due_within_one_year`. Sections: `voted_debt`, `non_voted_debt_and_liabilities`, `other_liabilities`, `net_pension_liabilities`, `summary`. **Two form vintages**: per-fund (2013-14 through 2018-19; 4 rows per file per section, one per fund) and combined (2019-20+; `fund='combined'`). The debt roll-forward identity `beginning + increased - decreased = ending` holds on **100%** of the 9,163 TOTAL rows. Net Pension Liabilities rows have NULL `amount_due_within_one_year` (form-omitted). |
 | `fiscal_apportionment_monthly.csv` | 983,749 | (`school_year`, `ccddd`, `org_type`, `month`, `revenue_account`, `revenue_description`) | Page 1 of the monthly Statement of Apportionment -- one row per OSPI revenue account with the six summary columns (Annual Allotment, Adjustment, % Due, Allot Due, Paid Previously, Allotment for {Month}). 2013-14 through 2025-26 partial. Includes 24,876 rows for the 9 ESD-level apportionments (dedup'd from 45K replicated source files). |
 | `fiscal_f780_levy.csv` | 93,884 | (`school_year`, `ccddd`, `levy_year`, `status`, `section`, `item_code`) | Form F-780 Levy Authority / LEA Payable -- 4 sections (SUMMARY + SCHEDULE I/II/III), ~22 line items per file. Two `status` flavors per district per levy year: 'Initial' (~October before levy year) and 'Final' (~April of levy year). 2019-20 through 2025-26 (the form was introduced in 2019-20). |
 | `fiscal_1251_enrollment.csv` | 2,592,047 | (`school_year`, `ccddd`, `report_kind`, `section`, `grade`, `month`) | Monthly P-223 enrollment per district per grade per month, both as FTE (Report 1251) and headcount (Report 1251H). 7-8 sections per file (K-12 by grade + by grade span, ALE, Transition To Kindergarten, Running Start, Open Doors, TBIP). District-level only -- ESD-aggregate 1251 reports are deferred (see TODO). |
@@ -447,6 +449,55 @@ cells emit `value=NULL`.
   errors in 2014-15 where the printed combined-total row for the
   permanent column disagrees with the components -- form-internal
   OSPI data-entry errors, not parser bugs.
+
+**Coverage**: 2013-14 through 2024-25 (3,724 files), district-level
+only.
+
+### `fiscal_f196_long_term_liabilities`
+
+Long-term debt roll-forward per district per liability item from the
+Schedule of Long-Term Liabilities sub-report of each F-196 All Pages
+PDF. **The unique analytical contribution is the debt roll-forward
+dimension** (beginning + issued - redeemed = ending) and the current
+portion (Amount Due Within One Year). No other captured sub-report
+tracks these.
+
+Wide format (5 value columns per row): the beg / increased / decreased
+/ end / due-within-1y are semantically distinct and always co-emitted
+per line item, so they live as sibling columns rather than long-form.
+
+| column | meaning |
+|---|---|
+| `fund` | For per-fund vintages (2013-14 through 2018-19): `general`, `debt_service`, `capital_projects`, `transportation_vehicle`. For combined vintages (2019-20+): `combined`. Consumers cross-year should sum per-fund rows on the old form to align with combined rows on the new form. |
+| `section` | `voted_debt`, `non_voted_debt_and_liabilities`, `other_liabilities`, `net_pension_liabilities`, or `summary` (for the `total_long_term_liabilities` row). Voted Debt is only populated on the Debt Service Fund page in older vintages and on the combined page in newer ones. Net Pension Liabilities appears starting 2015-16 (GASB 68). |
+| `item_code` | Slug of the item label (`voted_bonds`, `non_voted_bonds`, `local_program_proceeds`, `capital_leases` pre-2022-23, `leases` post-2022-23 with GASB 87, `contracts_payable`, `compensated_absences`, `long_term_notes`, `net_pension_liabilities_trs_1`, ...). TOTAL row uses `total_long_term_liabilities`. |
+| `is_total` | True for the 'Total Long-Term Liabilities' row (one per fund page in old vintages, one per file in newer). |
+| `beginning_outstanding` | Beginning Outstanding Debt as of September 1 (start of fiscal year). NULL when blank. |
+| `amount_increased` | 'Amount Issued / Increased' during the fiscal year. NULL when blank. |
+| `amount_decreased` | 'Amount Redeemed / Decreased' during the fiscal year. NULL when blank. |
+| `ending_outstanding` | Ending Outstanding Debt as of August 31 (end of fiscal year). NULL when blank. |
+| `amount_due_within_one_year` | Portion of Ending Outstanding Debt classified as current. **Consistently NULL on Net Pension Liabilities rows** (form-omitted). NULL on other rows when blank. |
+
+**GASB drift**:
+- **Net Pension Liabilities** (TRS 1 / TRS 2/3 / SERS 2/3 / PERS 1)
+  entered the schedule in 2015-16 with GASB 68 adoption. Not present
+  on 2013-14 or 2014-15 forms.
+- **Leases** (GASB 87) consolidated 'Capital Leases' and 'Non-
+  Cancellable Operating Leases' into a single 'Leases' item in
+  2022-23.
+- **OPEB** liabilities are explicitly excluded per form footnote in
+  newer vintages ("Other postemployment benefits other than pensions
+  (OPEB) liabilities are not presented in the Schedule of Long Term
+  Liabilities."). No OPEB rows are emitted.
+
+**Invariants** that hold corpus-wide:
+- **Roll-forward identity**: `beginning_outstanding + amount_increased
+  - amount_decreased = ending_outstanding` holds on **100%** of the
+  9,163 TOTAL rows.
+- **Detail-sum identity**: sum of non-TOTAL rows per fund per column
+  equals the TOTAL row's value in that column on **100%** of files.
+- Net Pension Liabilities `amount_due_within_one_year` is NULL on
+  **100%** of the ~15K pension rows.
 
 **Coverage**: 2013-14 through 2024-25 (3,724 files), district-level
 only.

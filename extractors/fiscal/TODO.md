@@ -79,6 +79,19 @@ Within `fiscal/` (17,101 files), one high-volume doc kind remains
   sub-report exposes stocks (assets/liabilities); SUMMARY and Revenues
   capture flows. Enables working-capital, solvency, and inter-fund
   receivable/payable analysis.
+- **F-196 All Pages -- Phase 2c-ii-LTL (Long-Term Liabilities)**: DONE.
+  Parser populates `fiscal_f196_long_term_liabilities` -- per-district
+  long-term debt roll-forward (beg + issued - redeemed = end) plus
+  the current portion (Amount Due Within One Year), per liability
+  item (bonds, leases, notes, compensated absences, pension
+  liabilities). 2013-14 through 2024-25, 3,724 files, 107,622 rows.
+  Handles both form vintages: per-fund (2013-14 through 2018-19,
+  4 pages) and combined (2019-20+, 1 page). Fund attributed by
+  banner label in 2013-14, by page order in 2015-16 through 2018-19,
+  and set to 'combined' in newer vintages. **The unique analytical
+  contribution** is the debt roll-forward dimension -- no other
+  captured sub-report tracks the beg-to-end flow or the current
+  portion of long-term debt.
 - **F-196 All Pages -- Phase 2c-ii+ (remaining sub-reports)**: planned.
   - **Per-PROGRAM cross-tab detail** (pp 33-65, ~33 pages per file --
     one per program) -- activity x object cross-tab per program.
@@ -92,8 +105,6 @@ Within `fiscal/` (17,101 files), one high-volume doc kind remains
     (pp 5-6, 2 pages) -- intermediate-granularity rollup per fund x 7
     funds. Mostly redundant with SUMMARY + Revenues; defer unless a
     specific use case appears.
-  - **Schedule of Long-Term Liabilities** (pp 19-22) -- bonds, leases,
-    OPEB.
   - **Statement of Fiduciary Net Position + Changes** (pp 17-18) --
     ASB Trust / Permanent Fund accounting.
   - **Federal Indirect Cost Rate / MOE / Resource-to-Program / NCES
