@@ -70,6 +70,15 @@ Within `fiscal/` (17,101 files), one high-volume doc kind remains
   Delivers the **per-Object breakdown** (Cert Salaries / Class Salaries
   / Employee Benefits / Supplies / Purchased Services / etc) that is
   not available in any other captured sub-report.
+- **F-196 All Pages -- Phase 2c-ii-BS (Balance Sheet)**: DONE. Parser
+  populates `fiscal_f196_balance_sheet` -- per-fund period-end assets,
+  deferred outflows, liabilities, deferred inflows, and fund balance
+  from the Balance Sheet - Governmental Funds sub-report (pp 3-5).
+  2013-14 through 2024-25, 3,724 files, 1,173,585 rows. **This is the
+  balance-sheet dimension of the corpus** -- no other captured
+  sub-report exposes stocks (assets/liabilities); SUMMARY and Revenues
+  capture flows. Enables working-capital, solvency, and inter-fund
+  receivable/payable analysis.
 - **F-196 All Pages -- Phase 2c-ii+ (remaining sub-reports)**: planned.
   - **Per-PROGRAM cross-tab detail** (pp 33-65, ~33 pages per file --
     one per program) -- activity x object cross-tab per program.
@@ -83,9 +92,6 @@ Within `fiscal/` (17,101 files), one high-volume doc kind remains
     (pp 5-6, 2 pages) -- intermediate-granularity rollup per fund x 7
     funds. Mostly redundant with SUMMARY + Revenues; defer unless a
     specific use case appears.
-  - **Balance Sheet** (pp 3-4) -- assets, liabilities, fund balance
-    by G.L. code per fund x 7 funds. Solvency / working-capital
-    analysis; no current pair.
   - **Schedule of Long-Term Liabilities** (pp 19-22) -- bonds, leases,
     OPEB.
   - **Statement of Fiduciary Net Position + Changes** (pp 17-18) --
@@ -182,6 +188,24 @@ Outside `fiscal/`, 6 report types remain (149,772 files):
   `6000 TOTAL FEDERAL, SPECIAL PURPOSE general`). These are OSPI
   form-internal data-entry errors -- per-fund grand totals still
   reconcile to `fiscal_f196_summary` to the cent. Not parser bugs.
+- **12 source PDFs in `fiscal_f196_balance_sheet` have a mismatched
+  accounting identity on the `permanent` fund** -- all 12 are 2014-15
+  files (CCDDDs 1158, 14068, 17403, 17404, 26056, 27343, 29103,
+  31306, 32356, 32416, 38265, 38301). The printed
+  `TOTAL ASSETS AND DEFERRED OUTFLOWS OF RESOURCES` and
+  `TOTAL LIABILITIES, DEFERRED INFLOW OF RESOURCES, AND FUND BALANCE`
+  disagree on the permanent-fund column (one side prints a value,
+  the other prints 0.00). Component-level detail sums are correct in
+  every case (Nonspendable+Restricted+Committed+Assigned+Unassigned =
+  the printed TOTAL FUND BALANCE), so this is an OSPI form-internal
+  data-entry error in the 2014-15 permanent-fund grand-total rows,
+  not a parser bug. The `general` fund's accounting identity
+  reconciles to the cent on all 3,724 files.
+- **1 source PDF in `fiscal_f196_balance_sheet` has a 51-cent
+  discrepancy** on the permanent fund's `total_fund_balance` vs
+  `fiscal_f196_summary.ending_total_fund_balance` (Palisades 2017-18,
+  CCDDD 19028). Same class of form-internal OSPI issue as the 2014-15
+  permanent-fund identity mismatches.
 - **2,842 files (5.5%) in `fiscal_apportionment_monthly` produce 0 rows**
   -- they are OSPI cover-memo PDFs that share the filename
   `Apportionment for <Month>.pdf` but contain narrative text rather

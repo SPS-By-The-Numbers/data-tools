@@ -45,7 +45,8 @@ Within `fiscal/`, the doc kinds with parsers today:
 | F-196 All Pages -- Report of Revenues and Other Financing Sources (Phase 2a) | 3,724 | `fiscal_f196_revenues` |
 | F-196 All Pages -- Budgetary Comparison Schedule (Phase 2b) | 3,724 | `fiscal_f196_budgetary_comparison` |
 | F-196 All Pages -- Program/Activity/Object Report roll-up (Phase 2c-i) | 3,724 | `fiscal_f196_program_activity_object` |
-| F-196 All Pages -- Statement of Revenues/Expenditures, Balance Sheet, Long-Term Liabilities, Per-PROGRAM cross-tab detail, etc (Phase 2c-ii+) | 3,724 | (planned) |
+| F-196 All Pages -- Balance Sheet - Governmental Funds (Phase 2c-ii-BS) | 3,724 | `fiscal_f196_balance_sheet` |
+| F-196 All Pages -- Statement of Revenues/Expenditures, Long-Term Liabilities, Per-PROGRAM cross-tab detail, etc (Phase 2c-ii+) | 3,724 | (planned) |
 
 `fiscal_f195_budget` is populated from BOTH F-195 Budget Overview and
 F-195 Budget (full) PDFs -- they share the SUMMARY OF X FUND BUDGET
@@ -85,6 +86,7 @@ Within `apportionment/`, the doc kinds with parsers today:
 | `fiscal_f196_revenues.csv`      | 2,911,080 | (`school_year`, `ccddd`, `section`, `revenue_account`, `fund`) | Per-OSPI-4-digit-account-code revenue actuals. Sourced from the Report of Revenues and Other Financing Sources sub-report (~pp 23-29) of each `F-196 All Pages.pdf` -- covers 2013-14 through 2024-25 (3,724 files; ~780 rows/file). 4 fund columns (general / debt_service / capital_projects / transportation_vehicle); ASB and Permanent are not on this report. Most cells are NULL (accounts are fund-restricted). Per-fund grand totals match `fiscal_f196_summary.total_revenues_and_other_financing_sources` to the cent. |
 | `fiscal_f196_budgetary_comparison.csv` | 1,189,764 | (`school_year`, `ccddd`, `fund`, `section`, `sub_section`, `item_code`, `column_kind`) | Per-fund Final Budget / Actual / Variance from the Budgetary Comparison Schedule sub-report (~pp 7-16) of each `F-196 All Pages.pdf`. 5 fund columns (general / asb / debt_service / capital_projects / transportation_vehicle); Permanent omitted. **Final Budget is the NEW datum** -- the budget after mid-year revisions, not captured anywhere else. `actual` matches `fiscal_f196_summary` to the cent. |
 | `fiscal_f196_program_activity_object.csv` | 314,201 | (`school_year`, `ccddd`, `breakdown_kind`, `code`) | Three side-by-side General Fund expenditure breakdowns from the Program/Activity/Object Report sub-report (~pp 30-31) of each `F-196 All Pages.pdf`: per-program (~30 codes), per-activity (~30 codes), per-object (10 codes). **General Fund only.** The three breakdowns reconcile to the same total and to `fiscal_f196_summary.total_expenditures` where `fund='general'`. |
+| `fiscal_f196_balance_sheet.csv` | 1,173,585 | (`school_year`, `ccddd`, `section`, `item_code`, `fund`) | Period-end balance sheet per district per fund from the Balance Sheet - Governmental Funds sub-report (pp 3-5) of each `F-196 All Pages.pdf`. 7-fund columns (general / asb / debt_service / capital_projects / transportation_vehicle / permanent / total). Sections: `assets`, `deferred_outflows`, `liabilities`, `deferred_inflows`, `fund_balance`, plus a `summary` section for the two combined-total identity rows. **The unique analytical add is the stocks dimension** -- no other captured F-196 sub-report exposes G.L.-code-level assets/liabilities. `total_fund_balance` reconciles to `fiscal_f196_summary.ending_total_fund_balance` on every fund on all but 1 file (1 51-cent OSPI form-internal issue). The A+DO=L+DI+FB accounting identity holds on all files for `general`; 12 files have permanent-fund print errors in 2014-15 (form-internal, not parser bugs). |
 | `fiscal_apportionment_monthly.csv` | 983,749 | (`school_year`, `ccddd`, `org_type`, `month`, `revenue_account`, `revenue_description`) | Page 1 of the monthly Statement of Apportionment -- one row per OSPI revenue account with the six summary columns (Annual Allotment, Adjustment, % Due, Allot Due, Paid Previously, Allotment for {Month}). 2013-14 through 2025-26 partial. Includes 24,876 rows for the 9 ESD-level apportionments (dedup'd from 45K replicated source files). |
 | `fiscal_f780_levy.csv` | 93,884 | (`school_year`, `ccddd`, `levy_year`, `status`, `section`, `item_code`) | Form F-780 Levy Authority / LEA Payable -- 4 sections (SUMMARY + SCHEDULE I/II/III), ~22 line items per file. Two `status` flavors per district per levy year: 'Initial' (~October before levy year) and 'Final' (~April of levy year). 2019-20 through 2025-26 (the form was introduced in 2019-20). |
 | `fiscal_1251_enrollment.csv` | 2,592,047 | (`school_year`, `ccddd`, `report_kind`, `section`, `grade`, `month`) | Monthly P-223 enrollment per district per grade per month, both as FTE (Report 1251) and headcount (Report 1251H). 7-8 sections per file (K-12 by grade + by grade span, ALE, Transition To Kindergarten, Running Start, Open Doors, TBIP). District-level only -- ESD-aggregate 1251 reports are deferred (see TODO). |
@@ -393,6 +395,58 @@ decomposed three ways.
 **Scope**: General Fund only. The other funds (ASB / Debt Service /
 Capital Projects / Transportation Vehicle) use simpler activity/object
 breakdowns which are captured by `fiscal_f196_budgetary_comparison`.
+
+**Coverage**: 2013-14 through 2024-25 (3,724 files), district-level
+only.
+
+### `fiscal_f196_balance_sheet`
+
+Period-end balance sheet from the Balance Sheet - Governmental Funds
+sub-report (pp 3-5) of each F-196 All Pages PDF. **The unique
+analytical contribution of this table is the balance-sheet dimension**
+-- assets, deferred outflows, liabilities, deferred inflows, and fund
+balance. No other captured F-196 sub-report exposes G.L.-code-level
+stocks (SUMMARY, Revenues, Budgetary Comparison, and
+Program/Activity/Object all capture flows).
+
+Long-form: one row per (school_year, ccddd, section, item_code, fund).
+Every printed item emits exactly 7 rows -- one per fund column, blank
+cells emit `value=NULL`.
+
+| column | meaning |
+|---|---|
+| `section` | `assets`, `deferred_outflows`, `liabilities`, `deferred_inflows`, `fund_balance`, or `summary`. The `summary` section holds the two combined-total rows that cap the assets side (`TOTAL ASSETS AND DEFERRED OUTFLOWS OF RESOURCES`) and the liabilities+fund-balance side (`TOTAL LIABILITIES, DEFERRED INFLOWS OF RESOURCES, AND FUND BALANCE`). Those two rows reconcile to each other -- the fundamental accounting identity. |
+| `item_code` | Slug of the item label (e.g. `cash_and_cash_equivalents`, `due_from_other_governmental_units`, `nonspendable_fund_balance`). TOTAL rows within a section use `total_<section>` (`total_assets`, `total_liabilities`, `total_deferred_outflows_of_resources`, etc). The two `section='summary'` rows use `total_assets_and_deferred_outflows_of_resources` and `total_liabilities_deferred_inflows_and_fund_balance`. **Positional and stable across years** -- multi-line item labels are absorbed before the slug is computed. |
+| `fund` | `general`, `asb`, `debt_service`, `capital_projects`, `transportation_vehicle`, `permanent`, or `total`. The `total` column is the printed cross-fund sum. |
+| `is_total` | True for TOTAL rows within a section (`total_assets`, `total_deferred_outflows_of_resources`, etc) and for both `section='summary'` rows. False for detail line items. |
+| `item_label` | Label as printed (whitespace normalized). Multi-line labels are joined (e.g. `Investments/Cash With Trustee`, `Investments-Deferred Compensation`). |
+| `value` | Amount as printed. **NULL when the fund/item cell is blank** on the form -- older vintages leave inapplicable cells truly blank; newer vintages fill with explicit 0.00. `Minus Warrants Outstanding` is consistently negative (a contra-asset). |
+| `value_text` | Raw value text before numeric parsing; empty for blank cells. |
+
+**Sub-report vintage drift**:
+- 2013-14 has **no `DEFERRED OUTFLOWS OF RESOURCES` section** (pre-
+  GASB 65/68) and no `TOTAL ASSETS AND DEFERRED OUTFLOWS` combined-
+  total row. The parser produces no rows for those on 2013-14 files.
+- 2024-25 introduces `leases_receivable`, `leases_payable_current`,
+  and `unavailable_revenue_leases` items (GASB 87 lessee/lessor
+  accounting).
+
+**Invariants** that hold corpus-wide:
+- Every item within a file emits exactly 7 rows (one per fund column):
+  **0 count anomalies on 3,724 files.**
+- Per-fund sum of `fund_balance` detail items
+  (Nonspendable + Restricted + Committed + Assigned + Unassigned) =
+  the printed `total_fund_balance` for that fund on every file.
+- Cross-table: `total_fund_balance` matches
+  `fiscal_f196_summary.value` where
+  `item_code='ending_total_fund_balance'` and matching fund on
+  3,723 of 3,724 files (1 file, Palisades 2017-18 CCDDD 19028, has a
+  51-cent discrepancy on the permanent fund -- OSPI form-internal).
+- The A+DO=L+DI+FB accounting identity holds on the `general` fund on
+  **all 3,724 files** (100%). 12 files have permanent-fund print
+  errors in 2014-15 where the printed combined-total row for the
+  permanent column disagrees with the components -- form-internal
+  OSPI data-entry errors, not parser bugs.
 
 **Coverage**: 2013-14 through 2024-25 (3,724 files), district-level
 only.
