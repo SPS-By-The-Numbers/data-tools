@@ -50,7 +50,8 @@ Within `fiscal/`, the doc kinds with parsers today:
 | F-196 All Pages -- Resource to Program Expenditure Report (Phase 2c-ii-R2P) | 3,724 | `fiscal_f196_resource_to_program` |
 | F-196 All Pages -- NCES Object Expenditure Summary (Phase 2c-ii-NCES) | 1,902 (2019-20+) | `fiscal_f196_nces_object` |
 | F-196 All Pages -- Fiduciary Funds (Net Position + Changes) (Phase 2c-ii-FID) | 3,724 | `fiscal_f196_fiduciary` |
-| F-196 All Pages -- Statement of Revenues/Expenditures, Federal Indirect Cost Rate schedules, Per-PROGRAM cross-tab detail, etc (Phase 2c-ii+) | 3,724 | (planned) |
+| F-196 All Pages -- General Fund By Sub-Fund (Phase 2c-ii-SFB) | 1,902 (2019-20+) | `fiscal_f196_gf_by_subfund` |
+| F-196 All Pages -- Federal Indirect Cost Rate schedules, Financial Edit Report, Per-PROGRAM cross-tab detail (Phase 2c-ii+) | 3,724 | (planned) |
 
 `fiscal_f195_budget` is populated from BOTH F-195 Budget Overview and
 F-195 Budget (full) PDFs -- they share the SUMMARY OF X FUND BUDGET
@@ -95,6 +96,7 @@ Within `apportionment/`, the doc kinds with parsers today:
 | `fiscal_f196_resource_to_program.csv` | 203,637 | (`school_year`, `ccddd`, `section`, `item_code`) | Per-program General-Fund expenditures decomposed by funding source from the Resource to Program Expenditure Report sub-report of each `F-196 All Pages.pdf`. Wide-format value columns: `program_expenditures`, `state_resources`, `federal_resources`, `other_resources`. Sections: `regular_instructional`, `other_instructional`, `other_programs`, `summary`. **The unique analytical add** is the funding-source dimension per program -- Program/Activity/Object reports totals per program but not per source; Revenues reports per account but not per program. The funding-source identity `program_expenditures = state + federal + other` holds on ~99.96% of rows (79/~200K OSPI form-internal print errors documented in TODO). Grand-total cross-check vs `fiscal_f196_summary.total_expenditures[general]` matches to the cent on 100% of files. |
 | `fiscal_f196_nces_object.csv` | 184,814 | (`school_year`, `ccddd`, `section`, `nces_code`) | Per-NCES-4-digit-object-code General-Fund expenditures from the NCES Object Expenditure Summary sub-report (pp 34-37) of each `F-196 All Pages.pdf`. Uses federal NCES Financial Accounting Handbook (Fin13) object codes, not OSPI's own 10-code list -- **enables cross-state comparability with USDOE reporting**. Sections: `certificated_salaries` (2110-2170), `classified_salaries` (3110-3160), `employee_benefits_payroll_taxes` (4212-4293), `supplies_non_capital` (5610-5650), `purchased_services` (7310-7960), `travel` (8580), `capital_outlay` (9710-9960), `summary` (grand total). **Coverage: 2019-20 through 2024-25 only** (1,902 files) -- the sub-report did not exist before 2019-20. Detail-sum matches grand total and grand total matches `fiscal_f196_summary.total_expenditures[general]` on **100%** of files. |
 | `fiscal_f196_fiduciary.csv` | 352,970 | (`school_year`, `ccddd`, `statement`, `section`, `item_code`, `fund`) | Per-fund fiduciary balance sheet + income statement from the two adjacent sub-reports (Statement of Fiduciary Net Position + Statement of Changes in Fiduciary Net Position) of each `F-196 All Pages.pdf`. `statement` field distinguishes the two: `net_position` (balance-sheet shape, sections `assets`/`liabilities`/`net_position`) or `changes` (income-statement shape, sections `additions`/`deductions`/`summary`). 2 funds: `private_purpose_trust` and `custodial_funds`. **GASB 84 vintage drift handled**: pre-2019-20 form printed 'Other Trust' (canonicalized to `custodial_funds` per the GASB reclassification), and the column order swapped. Net-position identity `total_assets - total_liabilities = total_net_position` and changes roll-forward `beginning + net_increase + corrections = ending` both hold on **100%** of 7,448 file×fund combos. |
+| `fiscal_f196_gf_by_subfund.csv` | 170,247 | (`school_year`, `ccddd`, `section`, `sub_section`, `item_code`, `fund`) | General Fund broken out by Sub-Fund 10 (Basic Education) vs Sub-Fund 11 (Non-Basic-Education) vs General Fund total from the 'Statement of Revenues, Expenditures, and Changes in Fund Balance - General Fund, By Sub-Fund' sub-report (pp 8-9) of each `F-196 All Pages.pdf`. 3-column layout: `sub_fund_10`, `sub_fund_11`, `general_fund`. Sections: `revenues`, `expenditures` (with sub_sections `current`/`capital_outlay`/`debt_service`), `other_financing_sources_uses`, `summary`. **The unique analytical add**: no other captured report splits the General Fund into Basic-Ed vs Non-Basic-Ed spending. **Coverage: 2019-20+ only** (1,902 files) -- the sub-report did not exist before 2019-20. Additivity `SF10 + SF11 = GF` holds on 100% of 51,043 cross-fund checks; ending_total_fund_balance matches `fiscal_f196_summary.ending_total_fund_balance[general]` on 100% of files. |
 | `fiscal_apportionment_monthly.csv` | 983,749 | (`school_year`, `ccddd`, `org_type`, `month`, `revenue_account`, `revenue_description`) | Page 1 of the monthly Statement of Apportionment -- one row per OSPI revenue account with the six summary columns (Annual Allotment, Adjustment, % Due, Allot Due, Paid Previously, Allotment for {Month}). 2013-14 through 2025-26 partial. Includes 24,876 rows for the 9 ESD-level apportionments (dedup'd from 45K replicated source files). |
 | `fiscal_f780_levy.csv` | 93,884 | (`school_year`, `ccddd`, `levy_year`, `status`, `section`, `item_code`) | Form F-780 Levy Authority / LEA Payable -- 4 sections (SUMMARY + SCHEDULE I/II/III), ~22 line items per file. Two `status` flavors per district per levy year: 'Initial' (~October before levy year) and 'Final' (~April of levy year). 2019-20 through 2025-26 (the form was introduced in 2019-20). |
 | `fiscal_1251_enrollment.csv` | 2,592,047 | (`school_year`, `ccddd`, `report_kind`, `section`, `grade`, `month`) | Monthly P-223 enrollment per district per grade per month, both as FTE (Report 1251) and headcount (Report 1251H). 7-8 sections per file (K-12 by grade + by grade span, ALE, Transition To Kindergarten, Running Start, Open Doors, TBIP). District-level only -- ESD-aggregate 1251 reports are deferred (see TODO). |
@@ -635,6 +637,47 @@ district for others.
 
 **Coverage**: 2013-14 through 2024-25 (3,724 files), district-level
 only.
+
+### `fiscal_f196_gf_by_subfund`
+
+General Fund broken out by Sub-Fund 10 (Basic Education) vs
+Sub-Fund 11 (Non-Basic-Education) vs General Fund total from the
+'Statement of Revenues, Expenditures, and Changes in Fund Balance -
+General Fund, By Sub-Fund' sub-report (pp 8-9) of each F-196 All
+Pages PDF. **The unique analytical contribution is the sub-fund
+decomposition** -- no other captured report splits the General Fund
+into Basic-Ed vs Non-Basic-Ed spending, a fundamental K-12
+funding-analysis dimension.
+
+| column | meaning |
+|---|---|
+| `section` | `revenues`, `expenditures`, `other_financing_sources_uses`, or `summary` (cross-section totals: revenues_over_under_expenditures, excess_of_revenues_over_expenditures, beginning_total_fund_balance, corrections_or_restatements, ending_total_fund_balance). |
+| `sub_section` | For `section='expenditures'`: `current`, `capital_outlay`, or `debt_service`. Empty string for other sections. |
+| `item_code` | Semantic slug (`local`, `state`, `federal`, `other` for revenues; `regular_instruction`, `special_education`, `principal` for expenditures; `transfers_in`, `long_term_financing`, `other` for other financing sources). TOTAL rows use `total_<section>`. |
+| `fund` | `sub_fund_10` (Basic Ed), `sub_fund_11` (Non-Basic-Ed), or `general_fund` (total; equals sub_fund_10 + sub_fund_11 on 100% of rows). |
+| `is_total` | True for TOTAL and summary-section rows. |
+| `item_label` | Label as printed (whitespace normalized). |
+| `amount` | Amount as printed. NULL when the sub-fund cell is blank (some Other Financing Sources items print only 2 values). |
+
+**Invariants** that hold corpus-wide:
+- **Additivity**: `sub_fund_10 + sub_fund_11 = general_fund` holds
+  on 100% of 51,043 cross-fund checks.
+- **Cross-table**: `ending_total_fund_balance` matches
+  `fiscal_f196_summary.value` where
+  `item_code='ending_total_fund_balance'` and `fund='general'` on
+  100% of 1,902 files.
+
+**Coverage**: 2019-20 through 2024-25 only (1,902 files) -- the
+sub-report was introduced in 2019-20.
+
+**Basic Education (SF10) vs Non-Basic-Education (SF11) semantics**:
+The OSPI apportionment formula defines "basic education" as the
+state's constitutionally-mandated K-12 baseline (regular
+instruction + support services + a share of the districtwide
+allocation). Everything else -- categorical grants (SpEd
+Supplemental, LAP, TBIP, Federal), vocational, community services,
+extracurriculars -- lands in SF11. Consumers analyzing basic-ed
+funding adequacy or supplemental grant spend should query on `fund`.
 
 ### `fiscal_apportionment_monthly`
 

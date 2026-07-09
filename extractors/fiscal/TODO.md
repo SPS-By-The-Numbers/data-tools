@@ -119,6 +119,21 @@ Within `fiscal/` (17,101 files), one high-volume doc kind remains
   object list. Detail-sum matches grand total on 100% of files;
   grand total matches
   `fiscal_f196_summary.total_expenditures[general]` on 100%.
+- **F-196 All Pages -- Phase 2c-ii-SFB (GF By Sub-Fund)**: DONE.
+  Parser populates `fiscal_f196_gf_by_subfund` -- General Fund
+  broken out by Sub-Fund 10 (Basic Education) vs Sub-Fund 11
+  (Non-Basic-Education) vs General Fund total from the 'Statement of
+  Revenues, Expenditures, and Changes in Fund Balance - General Fund,
+  By Sub-Fund' sub-report (pp 8-9). 2019-20 through 2024-25, 1,902
+  files, 170,247 rows (**sub-report did not exist before 2019-20**;
+  older files correctly produce no rows). **The unique analytical
+  contribution** is the sub-fund decomposition -- no other captured
+  report splits the General Fund into Basic-Ed vs Non-Basic-Ed
+  spending, which is a fundamental K-12 funding-analysis dimension.
+  Additivity `SF10 + SF11 = GF` holds on 100% of 51,043 cross-fund
+  checks; ending_total_fund_balance matches
+  `fiscal_f196_summary.ending_total_fund_balance[general]` on 100%
+  of files.
 - **F-196 All Pages -- Phase 2c-ii-FID (Fiduciary Funds)**: DONE.
   Parser populates `fiscal_f196_fiduciary` -- per-fund balance sheet
   + income statement for fiduciary funds (custodial + private
