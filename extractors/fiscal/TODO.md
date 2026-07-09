@@ -104,6 +104,21 @@ Within `fiscal/` (17,101 files), one high-volume doc kind remains
   `fiscal_f196_summary.total_expenditures[general]` matches to the
   cent on 100% of files. Handles trailing-digit value-wrap on
   Seattle-scale 10-figure General Fund totals.
+- **F-196 All Pages -- Phase 2c-ii-NCES (NCES Object Expenditure)**:
+  DONE. Parser populates `fiscal_f196_nces_object` -- per-NCES-4-digit-
+  object-code General-Fund expenditures using the federal NCES
+  Financial Accounting Handbook (Fin13) categories. 2019-20 through
+  2024-25, 1,902 files, 184,814 rows (**sub-report did not exist
+  before 2019-20**; older files correctly produce no rows). 7 sections
+  (Certificated Salaries, Classified Salaries, Employee
+  Benefits/Payroll Taxes, Supplies Non-Capital, Purchased Services,
+  Travel, Capital Outlay) plus a single grand-total. **The unique
+  analytical contribution** is federally-standardized object codes
+  that enable cross-state comparison, distinct from
+  `fiscal_f196_program_activity_object`'s OSPI-specific 10-code
+  object list. Detail-sum matches grand total on 100% of files;
+  grand total matches
+  `fiscal_f196_summary.total_expenditures[general]` on 100%.
 - **F-196 All Pages -- Phase 2c-ii+ (remaining sub-reports)**: planned.
   - **Per-PROGRAM cross-tab detail** (pp 33-65, ~33 pages per file --
     one per program) -- activity x object cross-tab per program.
