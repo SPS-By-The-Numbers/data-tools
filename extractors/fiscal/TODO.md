@@ -119,6 +119,22 @@ Within `fiscal/` (17,101 files), one high-volume doc kind remains
   object list. Detail-sum matches grand total on 100% of files;
   grand total matches
   `fiscal_f196_summary.total_expenditures[general]` on 100%.
+- **F-196 All Pages -- Phase 2c-ii-EDIT (Financial Edit Report)**:
+  DONE. Parser populates `fiscal_f196_edit_report` -- per-fund
+  per-edit data-quality check results (edit type / number / message
+  / 2 supporting amounts) plus is_cleared markers for funds with no
+  flagged edits. 2013-14 through 2024-25, 3,724 files, 55,820 rows
+  (36,715 informational + 180 warnings + 18,925 cleared). **The
+  unique analytical contribution** is the data-quality dimension --
+  no other captured report exposes OSPI's post-submission edit
+  checks. Consumers can filter to `edit_type='warning'` to identify
+  potentially misfiled reports. Handles both vintage abbreviation
+  (2013-14 `Info` → canonicalized to `informational`; 2013-14
+  `Warn` → `warning`) and per-vintage column x-position drift
+  (message column x0=164 pre-2020 vs x0=215 post-2020). All 7
+  fund sections (general, asb, debt_service, capital_projects,
+  transportation_vehicle, permanent, fiduciary) represented on
+  100% of files.
 - **F-196 All Pages -- Phase 2c-ii-SFB (GF By Sub-Fund)**: DONE.
   Parser populates `fiscal_f196_gf_by_subfund` -- General Fund
   broken out by Sub-Fund 10 (Basic Education) vs Sub-Fund 11
@@ -170,8 +186,6 @@ Within `fiscal/` (17,101 files), one high-volume doc kind remains
   - **Federal Indirect Cost Rate / MOE schedules** (pp 68-75) --
     Data Requirements + Restricted rate + Unrestricted rate. Complex
     multi-column layouts. Overhead recovery rate for federal grants.
-  - **Financial Edit Report** (pp 82-84) -- OSPI-detected
-    inconsistencies; useful as a data-quality dimension but not core.
 
 The **F-195 Budget (full)** parser landed (-> `fiscal_f195_budget`) but
 only captures the SUMMARY OF X FUND BUDGET sub-reports (Phase 1, all 5

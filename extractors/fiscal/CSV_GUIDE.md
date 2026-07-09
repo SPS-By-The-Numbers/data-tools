@@ -51,7 +51,8 @@ Within `fiscal/`, the doc kinds with parsers today:
 | F-196 All Pages -- NCES Object Expenditure Summary (Phase 2c-ii-NCES) | 1,902 (2019-20+) | `fiscal_f196_nces_object` |
 | F-196 All Pages -- Fiduciary Funds (Net Position + Changes) (Phase 2c-ii-FID) | 3,724 | `fiscal_f196_fiduciary` |
 | F-196 All Pages -- General Fund By Sub-Fund (Phase 2c-ii-SFB) | 1,902 (2019-20+) | `fiscal_f196_gf_by_subfund` |
-| F-196 All Pages -- Federal Indirect Cost Rate schedules, Financial Edit Report, Per-PROGRAM cross-tab detail (Phase 2c-ii+) | 3,724 | (planned) |
+| F-196 All Pages -- Financial Edit Report (Phase 2c-ii-EDIT) | 3,724 | `fiscal_f196_edit_report` |
+| F-196 All Pages -- Federal Indirect Cost Rate schedules, Per-PROGRAM cross-tab detail (Phase 2c-ii+) | 3,724 | (planned) |
 
 `fiscal_f195_budget` is populated from BOTH F-195 Budget Overview and
 F-195 Budget (full) PDFs -- they share the SUMMARY OF X FUND BUDGET
@@ -97,6 +98,7 @@ Within `apportionment/`, the doc kinds with parsers today:
 | `fiscal_f196_nces_object.csv` | 184,814 | (`school_year`, `ccddd`, `section`, `nces_code`) | Per-NCES-4-digit-object-code General-Fund expenditures from the NCES Object Expenditure Summary sub-report (pp 34-37) of each `F-196 All Pages.pdf`. Uses federal NCES Financial Accounting Handbook (Fin13) object codes, not OSPI's own 10-code list -- **enables cross-state comparability with USDOE reporting**. Sections: `certificated_salaries` (2110-2170), `classified_salaries` (3110-3160), `employee_benefits_payroll_taxes` (4212-4293), `supplies_non_capital` (5610-5650), `purchased_services` (7310-7960), `travel` (8580), `capital_outlay` (9710-9960), `summary` (grand total). **Coverage: 2019-20 through 2024-25 only** (1,902 files) -- the sub-report did not exist before 2019-20. Detail-sum matches grand total and grand total matches `fiscal_f196_summary.total_expenditures[general]` on **100%** of files. |
 | `fiscal_f196_fiduciary.csv` | 352,970 | (`school_year`, `ccddd`, `statement`, `section`, `item_code`, `fund`) | Per-fund fiduciary balance sheet + income statement from the two adjacent sub-reports (Statement of Fiduciary Net Position + Statement of Changes in Fiduciary Net Position) of each `F-196 All Pages.pdf`. `statement` field distinguishes the two: `net_position` (balance-sheet shape, sections `assets`/`liabilities`/`net_position`) or `changes` (income-statement shape, sections `additions`/`deductions`/`summary`). 2 funds: `private_purpose_trust` and `custodial_funds`. **GASB 84 vintage drift handled**: pre-2019-20 form printed 'Other Trust' (canonicalized to `custodial_funds` per the GASB reclassification), and the column order swapped. Net-position identity `total_assets - total_liabilities = total_net_position` and changes roll-forward `beginning + net_increase + corrections = ending` both hold on **100%** of 7,448 file×fund combos. |
 | `fiscal_f196_gf_by_subfund.csv` | 170,247 | (`school_year`, `ccddd`, `section`, `sub_section`, `item_code`, `fund`) | General Fund broken out by Sub-Fund 10 (Basic Education) vs Sub-Fund 11 (Non-Basic-Education) vs General Fund total from the 'Statement of Revenues, Expenditures, and Changes in Fund Balance - General Fund, By Sub-Fund' sub-report (pp 8-9) of each `F-196 All Pages.pdf`. 3-column layout: `sub_fund_10`, `sub_fund_11`, `general_fund`. Sections: `revenues`, `expenditures` (with sub_sections `current`/`capital_outlay`/`debt_service`), `other_financing_sources_uses`, `summary`. **The unique analytical add**: no other captured report splits the General Fund into Basic-Ed vs Non-Basic-Ed spending. **Coverage: 2019-20+ only** (1,902 files) -- the sub-report did not exist before 2019-20. Additivity `SF10 + SF11 = GF` holds on 100% of 51,043 cross-fund checks; ending_total_fund_balance matches `fiscal_f196_summary.ending_total_fund_balance[general]` on 100% of files. |
+| `fiscal_f196_edit_report.csv` | 55,820 | (`school_year`, `ccddd`, `fund`, `edit_seq`) | OSPI Financial Edit Report entries per district per fund per year -- automated data-quality checks that either cleared or flagged a concern with an explanation and up to 2 supporting amounts. Columns: `edit_type` (`informational` / `warning` / `error` / `fatal` / `cleared`), `edit_number` (e.g. `'1.588'`), `message` (multi-line joined), `is_cleared` (bool for funds with no flagged edits), `amount_1`, `amount_2`. **The unique analytical add**: no other captured report exposes OSPI's post-submission edit checks. Distribution: 36,715 informational + 180 warnings + 18,925 cleared markers across 3,724 files (100% coverage of the 7 fund sections). Handles vintage abbreviation drift (`Info` → `informational`, `Warn` → `warning`) and per-vintage column x-position drift. |
 | `fiscal_apportionment_monthly.csv` | 983,749 | (`school_year`, `ccddd`, `org_type`, `month`, `revenue_account`, `revenue_description`) | Page 1 of the monthly Statement of Apportionment -- one row per OSPI revenue account with the six summary columns (Annual Allotment, Adjustment, % Due, Allot Due, Paid Previously, Allotment for {Month}). 2013-14 through 2025-26 partial. Includes 24,876 rows for the 9 ESD-level apportionments (dedup'd from 45K replicated source files). |
 | `fiscal_f780_levy.csv` | 93,884 | (`school_year`, `ccddd`, `levy_year`, `status`, `section`, `item_code`) | Form F-780 Levy Authority / LEA Payable -- 4 sections (SUMMARY + SCHEDULE I/II/III), ~22 line items per file. Two `status` flavors per district per levy year: 'Initial' (~October before levy year) and 'Final' (~April of levy year). 2019-20 through 2025-26 (the form was introduced in 2019-20). |
 | `fiscal_1251_enrollment.csv` | 2,592,047 | (`school_year`, `ccddd`, `report_kind`, `section`, `grade`, `month`) | Monthly P-223 enrollment per district per grade per month, both as FTE (Report 1251) and headcount (Report 1251H). 7-8 sections per file (K-12 by grade + by grade span, ALE, Transition To Kindergarten, Running Start, Open Doors, TBIP). District-level only -- ESD-aggregate 1251 reports are deferred (see TODO). |
@@ -678,6 +680,41 @@ allocation). Everything else -- categorical grants (SpEd
 Supplemental, LAP, TBIP, Federal), vocational, community services,
 extracurriculars -- lands in SF11. Consumers analyzing basic-ed
 funding adequacy or supplemental grant spend should query on `fund`.
+
+### `fiscal_f196_edit_report`
+
+OSPI Financial Edit Report entries per district per fund per year
+from the Financial Edit Report sub-report (pp 82-84 typical) of each
+F-196 All Pages PDF. **The unique analytical contribution is the
+data-quality dimension** -- automated checks OSPI runs post-
+submission, exposing potentially misfiled reports.
+
+| column | meaning |
+|---|---|
+| `fund` | One of `general`, `asb`, `debt_service`, `capital_projects`, `transportation_vehicle`, `permanent`, `fiduciary`. All 7 funds appear on 100% of files (either with edits or a `cleared` marker). |
+| `edit_seq` | 0-based sequence within (school_year, ccddd, fund) in the printed order. Funds with no edits emit a single row with `edit_seq=0` and `is_cleared=True`. |
+| `edit_type` | `informational` (data-quality-neutral notes), `warning` (potential problems), `error`, `fatal`, or `cleared` (sentinel for the 'Cleared all edits' marker). Older vintages abbreviate `Info` / `Warn`; canonicalized here. |
+| `edit_number` | OSPI edit identifier like `'1.588'` (Federal Cross-Cutting MOE), `'1.585'` (Special Education MOE), `'3.500'` (Debt Service revenue reconciliation). Empty on `cleared` rows. |
+| `message` | Full multi-line message text explaining the check and, on flagged edits, what the district should investigate. |
+| `is_cleared` | True on sentinel rows emitted for funds with no flagged edits. |
+| `amount_1` | First supporting amount printed with the edit (typically the current-year subject amount OR the value checked against). NULL when blank or on `cleared` rows. |
+| `amount_2` | Second supporting amount, often the prior-year comparable in year-over-year checks like MOE. NULL when blank or on `cleared` rows. |
+
+**Distribution** (across 3,724 files):
+- 36,715 `informational` rows
+- 180 `warning` rows -- ~5% of files have at least one warning
+- 18,925 `cleared` marker rows
+- 0 `error` / `fatal` (none observed in this corpus)
+
+**Common edit numbers**:
+- `1.585` Special Education Maintenance of Effort test
+- `1.588` Federal Cross-Cutting MOE test
+- `1.599` / `1.600` Impact / mitigation fees supplementary reporting
+- `1.601` Federal Restricted Indirect Cost Rate allowable expenditures
+- `3.500` DSF revenue vs County Treasurer reconciliation
+
+**Coverage**: 2013-14 through 2024-25 (3,724 files), district-level
+only. All 7 fund sections represented on 100% of files.
 
 ### `fiscal_apportionment_monthly`
 
