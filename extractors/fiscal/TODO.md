@@ -119,6 +119,32 @@ Within `fiscal/` (17,101 files), one high-volume doc kind remains
   object list. Detail-sum matches grand total on 100% of files;
   grand total matches
   `fiscal_f196_summary.total_expenditures[general]` on 100%.
+- **F-196 All Pages -- Phase 2c-ii-DR (Data Requirements)**: DONE.
+  Parser populates `fiscal_f196_data_requirements` -- three combined
+  Data Requirements sub-reports: Supplemental Reports (p 66),
+  End-of-Year Reporting to Apportionment + State Recovery Rate (p 67),
+  and Federal Indirect Cost Data (pp 68-71). 2013-14 through 2024-25,
+  3,724 files, 159,680 rows. **The unique analytical contribution**
+  is the district-input dimension that feeds the indirect cost rate
+  and state recovery rate calculations. `report_kind` distinguishes
+  the three sub-reports; captures numeric AND textual values
+  (e.g. 'Yes'/'No' on the Inflationary Adjustment Index
+  certification). The State Recovery Rate itself (item 2 of
+  apportionment_recovery, SYSTEM CALCULATED) is a valuable
+  analytical output.
+- **F-196 All Pages -- Phase 2c-ii-IR (Indirect Cost Rate)**: DONE.
+  Parser populates `fiscal_f196_indirect_rate` -- the 14-line rate
+  calculation from both the Restricted (pp 72-73) and Unrestricted
+  (pp 74-75) Federal Indirect Cost Rate Schedules. 2013-14 through
+  2024-25, 3,724 files, 104,272 rows (exactly 14 restricted +
+  14 unrestricted lines per file). **The unique analytical
+  contribution** is the calculated indirect rate itself -- Line 5
+  is the base-FY rate applied in this filing FY, and Line 14 is the
+  newly-calculated rate to apply in a future FY. Both flavors
+  captured for every year. Per-program/activity expenditures
+  breakdown on page 1 of each schedule is NOT captured -- structurally
+  similar to fiscal_f196_program_activity_object; defer to future
+  work if needed.
 - **F-196 All Pages -- Phase 2c-ii-EDIT (Financial Edit Report)**:
   DONE. Parser populates `fiscal_f196_edit_report` -- per-fund
   per-edit data-quality check results (edit type / number / message
@@ -170,22 +196,31 @@ Within `fiscal/` (17,101 files), one high-volume doc kind remains
   position identity (TA - TL = TNP) and changes roll-forward (beg
   + net_change + corrections = end) hold on **100%** of 7,448
   file×fund combos.
-- **F-196 All Pages -- Phase 2c-ii+ (remaining sub-reports)**: planned.
+- **F-196 All Pages -- Phase 2c-ii+ (remaining sub-reports)**:
   - **Per-PROGRAM cross-tab detail** (pp 33-65, ~33 pages per file --
-    one per program) -- activity x object cross-tab per program.
-    Massive schema (~10K cells per file x 3,724 files = ~37M rows).
-    This is the deepest expenditure detail in the entire OSPI corpus;
-    pairs with eventual F-195 GF9-XX per-program budget detail. **Note:
-    Phase 2c-ii parser will produce far more rows than any table
-    so far -- check whether it's worth landing before eventual F-195
-    GF9-XX ships.**
+    one per program): **INTENTIONALLY DEFERRED.** Activity x object
+    cross-tab per program. Massive schema (~10K cells per file x
+    3,724 files = ~37M rows). This is the deepest expenditure detail
+    in the entire OSPI corpus. **Do not land alone -- pairs with
+    eventual F-195 GF9-XX per-program budget detail.** Both should
+    ship in the same milestone so consumers can query
+    budget-vs-actuals per (program, activity, object). The wide
+    per-Object breakdown for the General Fund total is already
+    available in `fiscal_f196_program_activity_object` (Phase 2c-i);
+    the detailed per-program cross-tab is only worth the row-count
+    cost if paired with a budget comparable.
+  - **Rate Schedule per-program/activity breakdown** (pp 72 / 74, page
+    1 of each Indirect Cost Rate schedule): the 7-column expenditures
+    partition (Total / Capital Outlay / Debt Service / Distorting
+    Items / Unallowable / Indirect Pool / Direct Base) per program
+    and per Program-97 activity. Not yet captured. Structurally
+    similar to `fiscal_f196_program_activity_object`; useful for
+    reproducing the indirect rate calculation from underlying
+    expenditures. Defer unless a specific use case appears.
   - **Statement of Revenues, Expenditures, and Changes in Fund Balance**
     (pp 5-6, 2 pages) -- intermediate-granularity rollup per fund x 7
     funds. Mostly redundant with SUMMARY + Revenues; defer unless a
     specific use case appears.
-  - **Federal Indirect Cost Rate / MOE schedules** (pp 68-75) --
-    Data Requirements + Restricted rate + Unrestricted rate. Complex
-    multi-column layouts. Overhead recovery rate for federal grants.
 
 The **F-195 Budget (full)** parser landed (-> `fiscal_f195_budget`) but
 only captures the SUMMARY OF X FUND BUDGET sub-reports (Phase 1, all 5
