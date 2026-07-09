@@ -119,6 +119,26 @@ Within `fiscal/` (17,101 files), one high-volume doc kind remains
   object list. Detail-sum matches grand total on 100% of files;
   grand total matches
   `fiscal_f196_summary.total_expenditures[general]` on 100%.
+- **F-196 All Pages -- Phase 2c-ii-FID (Fiduciary Funds)**: DONE.
+  Parser populates `fiscal_f196_fiduciary` -- per-fund balance sheet
+  + income statement for fiduciary funds (custodial + private
+  purpose trust). Combines the two adjacent sub-reports (Statement
+  of Fiduciary Net Position + Statement of Changes in Fiduciary Net
+  Position) into a single fact table with a `statement` field.
+  2013-14 through 2024-25, 3,724 files, 352,970 rows. **The unique
+  analytical contribution** is the fiduciary-fund dimension --
+  governmental Balance Sheet covers 6 governmental funds; the
+  fiduciary funds tracked here (private donations, student activity,
+  scholarship endowments) use accrual-basis accounting. GASB 84
+  vintage drift handled: pre-2019-20 form printed 'Private Purpose
+  Trust + Other Trust'; 2019-20+ prints 'Custodial Funds + Private
+  Purpose Trust' -- BOTH the column NAMES and ORDER changed. The
+  parser detects column mapping per file and canonicalizes to
+  `private_purpose_trust` / `custodial_funds` (with 'Other Trust'
+  mapped to `custodial_funds` per GASB reclassification). Net-
+  position identity (TA - TL = TNP) and changes roll-forward (beg
+  + net_change + corrections = end) hold on **100%** of 7,448
+  file×fund combos.
 - **F-196 All Pages -- Phase 2c-ii+ (remaining sub-reports)**: planned.
   - **Per-PROGRAM cross-tab detail** (pp 33-65, ~33 pages per file --
     one per program) -- activity x object cross-tab per program.
@@ -132,11 +152,9 @@ Within `fiscal/` (17,101 files), one high-volume doc kind remains
     (pp 5-6, 2 pages) -- intermediate-granularity rollup per fund x 7
     funds. Mostly redundant with SUMMARY + Revenues; defer unless a
     specific use case appears.
-  - **Statement of Fiduciary Net Position + Changes** (pp 17-18) --
-    ASB Trust / Permanent Fund accounting.
-  - **Federal Indirect Cost Rate / MOE / Resource-to-Program / NCES
-    schedules** (pp 66-80) -- supplemental schedules; some
-    overlap with State Recovery Rate calculations.
+  - **Federal Indirect Cost Rate / MOE schedules** (pp 68-75) --
+    Data Requirements + Restricted rate + Unrestricted rate. Complex
+    multi-column layouts. Overhead recovery rate for federal grants.
   - **Financial Edit Report** (pp 82-84) -- OSPI-detected
     inconsistencies; useful as a data-quality dimension but not core.
 
