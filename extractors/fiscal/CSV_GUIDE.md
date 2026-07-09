@@ -47,7 +47,8 @@ Within `fiscal/`, the doc kinds with parsers today:
 | F-196 All Pages -- Program/Activity/Object Report roll-up (Phase 2c-i) | 3,724 | `fiscal_f196_program_activity_object` |
 | F-196 All Pages -- Balance Sheet - Governmental Funds (Phase 2c-ii-BS) | 3,724 | `fiscal_f196_balance_sheet` |
 | F-196 All Pages -- Schedule of Long-Term Liabilities (Phase 2c-ii-LTL) | 3,724 | `fiscal_f196_long_term_liabilities` |
-| F-196 All Pages -- Statement of Revenues/Expenditures, Per-PROGRAM cross-tab detail, etc (Phase 2c-ii+) | 3,724 | (planned) |
+| F-196 All Pages -- Resource to Program Expenditure Report (Phase 2c-ii-R2P) | 3,724 | `fiscal_f196_resource_to_program` |
+| F-196 All Pages -- Statement of Revenues/Expenditures, NCES Object Summary, Federal Indirect Cost Rate schedules, Per-PROGRAM cross-tab detail, etc (Phase 2c-ii+) | 3,724 | (planned) |
 
 `fiscal_f195_budget` is populated from BOTH F-195 Budget Overview and
 F-195 Budget (full) PDFs -- they share the SUMMARY OF X FUND BUDGET
@@ -89,6 +90,7 @@ Within `apportionment/`, the doc kinds with parsers today:
 | `fiscal_f196_program_activity_object.csv` | 314,201 | (`school_year`, `ccddd`, `breakdown_kind`, `code`) | Three side-by-side General Fund expenditure breakdowns from the Program/Activity/Object Report sub-report (~pp 30-31) of each `F-196 All Pages.pdf`: per-program (~30 codes), per-activity (~30 codes), per-object (10 codes). **General Fund only.** The three breakdowns reconcile to the same total and to `fiscal_f196_summary.total_expenditures` where `fund='general'`. |
 | `fiscal_f196_balance_sheet.csv` | 1,173,585 | (`school_year`, `ccddd`, `section`, `item_code`, `fund`) | Period-end balance sheet per district per fund from the Balance Sheet - Governmental Funds sub-report (pp 3-5) of each `F-196 All Pages.pdf`. 7-fund columns (general / asb / debt_service / capital_projects / transportation_vehicle / permanent / total). Sections: `assets`, `deferred_outflows`, `liabilities`, `deferred_inflows`, `fund_balance`, plus a `summary` section for the two combined-total identity rows. **The unique analytical add is the stocks dimension** -- no other captured F-196 sub-report exposes G.L.-code-level assets/liabilities. `total_fund_balance` reconciles to `fiscal_f196_summary.ending_total_fund_balance` on every fund on all but 1 file (1 51-cent OSPI form-internal issue). The A+DO=L+DI+FB accounting identity holds on all files for `general`; 12 files have permanent-fund print errors in 2014-15 (form-internal, not parser bugs). |
 | `fiscal_f196_long_term_liabilities.csv` | 107,622 | (`school_year`, `ccddd`, `fund`, `section`, `item_code`) | Long-term debt roll-forward per district per liability item from the Schedule of Long-Term Liabilities sub-report (pp 19-22 in older vintages, page 22 in newer vintages) of each `F-196 All Pages.pdf`. Wide-format value columns: `beginning_outstanding`, `amount_increased`, `amount_decreased`, `ending_outstanding`, `amount_due_within_one_year`. Sections: `voted_debt`, `non_voted_debt_and_liabilities`, `other_liabilities`, `net_pension_liabilities`, `summary`. **Two form vintages**: per-fund (2013-14 through 2018-19; 4 rows per file per section, one per fund) and combined (2019-20+; `fund='combined'`). The debt roll-forward identity `beginning + increased - decreased = ending` holds on **100%** of the 9,163 TOTAL rows. Net Pension Liabilities rows have NULL `amount_due_within_one_year` (form-omitted). |
+| `fiscal_f196_resource_to_program.csv` | 203,637 | (`school_year`, `ccddd`, `section`, `item_code`) | Per-program General-Fund expenditures decomposed by funding source from the Resource to Program Expenditure Report sub-report of each `F-196 All Pages.pdf`. Wide-format value columns: `program_expenditures`, `state_resources`, `federal_resources`, `other_resources`. Sections: `regular_instructional`, `other_instructional`, `other_programs`, `summary`. **The unique analytical add** is the funding-source dimension per program -- Program/Activity/Object reports totals per program but not per source; Revenues reports per account but not per program. The funding-source identity `program_expenditures = state + federal + other` holds on ~99.96% of rows (79/~200K OSPI form-internal print errors documented in TODO). Grand-total cross-check vs `fiscal_f196_summary.total_expenditures[general]` matches to the cent on 100% of files. |
 | `fiscal_apportionment_monthly.csv` | 983,749 | (`school_year`, `ccddd`, `org_type`, `month`, `revenue_account`, `revenue_description`) | Page 1 of the monthly Statement of Apportionment -- one row per OSPI revenue account with the six summary columns (Annual Allotment, Adjustment, % Due, Allot Due, Paid Previously, Allotment for {Month}). 2013-14 through 2025-26 partial. Includes 24,876 rows for the 9 ESD-level apportionments (dedup'd from 45K replicated source files). |
 | `fiscal_f780_levy.csv` | 93,884 | (`school_year`, `ccddd`, `levy_year`, `status`, `section`, `item_code`) | Form F-780 Levy Authority / LEA Payable -- 4 sections (SUMMARY + SCHEDULE I/II/III), ~22 line items per file. Two `status` flavors per district per levy year: 'Initial' (~October before levy year) and 'Final' (~April of levy year). 2019-20 through 2025-26 (the form was introduced in 2019-20). |
 | `fiscal_1251_enrollment.csv` | 2,592,047 | (`school_year`, `ccddd`, `report_kind`, `section`, `grade`, `month`) | Monthly P-223 enrollment per district per grade per month, both as FTE (Report 1251) and headcount (Report 1251H). 7-8 sections per file (K-12 by grade + by grade span, ALE, Transition To Kindergarten, Running Start, Open Doors, TBIP). District-level only -- ESD-aggregate 1251 reports are deferred (see TODO). |
@@ -498,6 +500,51 @@ per line item, so they live as sibling columns rather than long-form.
   equals the TOTAL row's value in that column on **100%** of files.
 - Net Pension Liabilities `amount_due_within_one_year` is NULL on
   **100%** of the ~15K pension rows.
+
+**Coverage**: 2013-14 through 2024-25 (3,724 files), district-level
+only.
+
+### `fiscal_f196_resource_to_program`
+
+Per-program General-Fund expenditures decomposed by funding source
+(state / federal / other) from the Resource to Program Expenditure
+Report sub-report of each F-196 All Pages PDF. **The unique analytical
+contribution is the funding-source dimension per program.**
+`fiscal_f196_program_activity_object` reports total expenditures per
+program but not per source; `fiscal_f196_revenues` reports revenues
+per OSPI account code but not per program. This table joins the two
+dimensions -- program x funding source.
+
+Wide format (4 value columns per row):
+
+| column | meaning |
+|---|---|
+| `section` | One of `regular_instructional` (canonical for both older 'BASIC EDUCATION PROGRAMS' and newer 'REGULAR INSTRUCTIONAL PROGRAMS' labels), `other_instructional`, `other_programs`, or `summary` (whole-report totals). |
+| `item_code` | OSPI 2-digit program code (`01` Basic Education, `21` Special Education Supplemental State, `51` ESEA Disadvantaged, `97` Districtwide Support, `99` Pupil Transportation, ...). Section totals use `'TOTAL'` paired with a specific section; the whole-report grand total uses `section='summary'` and `item_code='total'`. |
+| `is_total` | True for the 4 total rows (per-section TOTAL + grand TOTALS row). False for the ~50 program-detail rows. |
+| `item_label` | Label as printed (whitespace normalized). Multi-line labels are joined. Labels drift across years as programs are added or renamed -- consumers cross-year should join on `item_code`. |
+| `program_expenditures` | Total General-Fund expenditures for this program. Equals `state_resources + federal_resources + other_resources` (funding-source identity). |
+| `state_resources` | Portion funded by state resources (state general apportionment, categorical grants like Special Education Supplemental State, Transitional Bilingual, LAP, ...). |
+| `federal_resources` | Portion funded by federal resources (IDEA, ESEA/ESSA Titles I-IV, ESSER stimulus, USDA School Food, ...). |
+| `other_resources` | Portion funded by other resources (local excess levies, private grants, tuition, other). |
+
+**Invariants** that hold corpus-wide:
+- **Funding-source identity**: `program_expenditures = state + federal
+  + other` holds on ~99.96% of rows. 79 rows (~0.04%) have OSPI
+  form-internal print errors documented in TODO.
+- **Section detail-sum vs section TOTAL**: matches on all but 8/3,724
+  files (form-internal).
+- **Grand TOTAL vs SUMMARY cross-check**:
+  `TOTALS.program_expenditures` matches
+  `fiscal_f196_summary.value` where
+  `item_code='total_expenditures'` and `fund='general'` on **100%**
+  of 3,724 files (after trailing-digit value-wrap absorption for
+  Seattle-scale 10-figure totals).
+
+**Section-name drift**: 2013-14 through ~2015-16 forms use 'BASIC
+EDUCATION PROGRAMS' / 'TOTAL BASIC EDUCATIONAL PROGRAMS' as the first
+section header; 2016-17+ forms use 'REGULAR INSTRUCTIONAL PROGRAMS'.
+The parser canonicalizes both to `section='regular_instructional'`.
 
 **Coverage**: 2013-14 through 2024-25 (3,724 files), district-level
 only.

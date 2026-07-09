@@ -92,6 +92,18 @@ Within `fiscal/` (17,101 files), one high-volume doc kind remains
   contribution** is the debt roll-forward dimension -- no other
   captured sub-report tracks the beg-to-end flow or the current
   portion of long-term debt.
+- **F-196 All Pages -- Phase 2c-ii-R2P (Resource-to-Program)**: DONE.
+  Parser populates `fiscal_f196_resource_to_program` -- per-program
+  General-Fund expenditures decomposed by funding source (state /
+  federal / other). 2013-14 through 2024-25, 3,724 files, 203,637 rows.
+  **The unique analytical contribution** is the funding-source
+  dimension per program -- `fiscal_f196_program_activity_object`
+  reports totals per program but not per funding source, and
+  `fiscal_f196_revenues` reports revenues per account code but not
+  per program. Grand-total cross-check against
+  `fiscal_f196_summary.total_expenditures[general]` matches to the
+  cent on 100% of files. Handles trailing-digit value-wrap on
+  Seattle-scale 10-figure General Fund totals.
 - **F-196 All Pages -- Phase 2c-ii+ (remaining sub-reports)**: planned.
   - **Per-PROGRAM cross-tab detail** (pp 33-65, ~33 pages per file --
     one per program) -- activity x object cross-tab per program.
@@ -230,6 +242,14 @@ Outside `fiscal/`, 6 report types remain (149,772 files):
   Concentrated in 2024-25 and 2025-26 for a small set of districts
   (Dayton, Anacortes, Adna, Boistfort, Nespelem). These are not parse
   failures.
+- **79 source PDFs in `fiscal_f196_resource_to_program` have per-row
+  funding-source identity mismatches** (~0.04% of ~200K rows). Sample
+  case: Ritzville 2015-16 programs 31 and 34 show state_resources +
+  federal + other != program_expenditures per row -- the printed
+  column values look transposed between the two rows (equal-and-
+  opposite $22,921.56 offset). Section subtotals and grand totals
+  still reconcile. These are OSPI form-internal data-entry errors,
+  not parser bugs.
 - **13 source PDFs in `fiscal_1191fg_grants` are corrupt** -- raw
   data files (not real PDFs) in the OSPI scrape, mostly in 2024-25.
   pdfplumber rejects them with "No /Root object!" and they are
