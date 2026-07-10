@@ -1,5 +1,33 @@
 # extractors/fiscal -- known gaps and quirks
 
+## Fact-table coverage (current)
+
+Twenty fiscal fact tables now exist; see `CSV_GUIDE.md` for the full
+catalog. F-196 All Pages sub-report coverage is essentially complete
+for the analytically-important dimensions:
+
+| Sub-report / phase | Table | Coverage |
+|---|---|---|
+| Page-2 SUMMARY (Phase 1) | `fiscal_f196_summary` | 2013-14+ |
+| Report of Revenues (Phase 2a) | `fiscal_f196_revenues` | 2013-14+ |
+| Budgetary Comparison Schedule (Phase 2b) | `fiscal_f196_budgetary_comparison` | 2013-14+ |
+| Program/Activity/Object Roll-up (Phase 2c-i) | `fiscal_f196_program_activity_object` | 2013-14+ |
+| Balance Sheet - Governmental Funds (Phase 2c-ii-BS) | `fiscal_f196_balance_sheet` | 2013-14+ |
+| Schedule of Long-Term Liabilities (Phase 2c-ii-LTL) | `fiscal_f196_long_term_liabilities` | 2013-14+ |
+| Resource to Program Expenditure (Phase 2c-ii-R2P) | `fiscal_f196_resource_to_program` | 2013-14+ |
+| NCES Object Expenditure (Phase 2c-ii-NCES) | `fiscal_f196_nces_object` | 2019-20+ |
+| Fiduciary Funds (Phase 2c-ii-FID) | `fiscal_f196_fiduciary` | 2013-14+ |
+| GF By Sub-Fund (Phase 2c-ii-SFB) | `fiscal_f196_gf_by_subfund` | 2019-20+ |
+| Financial Edit Report (Phase 2c-ii-EDIT) | `fiscal_f196_edit_report` | 2013-14+ |
+| Data Requirements (Phase 2c-ii-DR) | `fiscal_f196_data_requirements` | 2013-14+ |
+| Federal Indirect Cost Rate (Phase 2c-ii-IR) | `fiscal_f196_indirect_rate` | 2013-14+ |
+
+The remaining un-parsed F-196 sub-reports are documented below with
+deferral rationale. Every parser above has passed its per-file
+identity checks (accounting, roll-forward, funding-source,
+cross-checks against `fiscal_f196_summary`); the tiny number of
+mismatches are OSPI form-internal errors, not parser bugs.
+
 ## Parsers not yet built
 
 Within `apportionment/` (147,244 files), the District / College / State
@@ -226,43 +254,69 @@ The **F-195 Budget (full)** parser landed (-> `fiscal_f195_budget`) but
 only captures the SUMMARY OF X FUND BUDGET sub-reports (Phase 1, all 5
 funds: GF2, ASB1, DS1, CP1, TVF1). Same parser runs against the F-195
 Budget Overview as well, so both source kinds populate the table. The
-remaining ~25 sub-reports per F-195 Budget PDF are not yet captured:
+remaining ~25 sub-reports per F-195 Budget PDF are grouped below by
+priority.
+
+**High priority** (unique dimensions, moderate complexity, ship
+independently):
+
+- **EXPENDITURE BY PROGRAM** (GF8, pp 18-20 typical) -- per-program
+  expenditures with 3-col Actual/Budget/Budget layout. Same shape as
+  fund_summary; extends `fiscal_f195_budget` as
+  `sub_report = 'expenditure_by_program'`. **Provides the budget-side
+  of `fiscal_f196_program_activity_object[breakdown_kind='program']`**
+  -- enables budget-vs-actuals per program.
+- **SUMMARY OF GENERAL FUND EXPENDITURES BY OBJECT** (GF10) -- 6-col
+  (Actual / %Total) x 3 years cross-tab. Budget-side of
+  `fiscal_f196_program_activity_object[breakdown_kind='object']`.
+- **SUMMARY OF GENERAL FUND EXPENDITURES BY ACTIVITY** (GF11) -- 6-col
+  similar. Budget-side of
+  `fiscal_f196_program_activity_object[breakdown_kind='activity']`.
+- **FY ENROLLMENT AND STAFF COUNTS** (GF1, p 7) -- 3-col enrollment +
+  certificated/classified staff counts. Small; unique dimension for
+  budget-side enrollment. Complements `fiscal_f195_four_year`.
+- **GENERAL FUND FINANCIAL SUMMARY** (Budget Summary, pp 5-6) -- 6-col
+  headline rollup with enrollment, financial summary, program-group
+  breakdown, activity-group breakdown. High-density summary page;
+  useful for quick district-level comparisons without full detail
+  joins.
+
+**Medium priority** (structurally larger, worth a dedicated table):
 
 - **Per-fund revenue detail** (GF4, DS2, CP3, TVF3 portion) -- detailed
-  revenue line items grouped by OSPI 4-digit account code. Will fold
-  into `fiscal_f195_budget` as `sub_report = 'fund_revenue_detail'`.
-- **EXPENDITURE BY PROGRAM** (GF8) -- per-program expenditures, 3-col
-  same shape. -> `sub_report = 'expenditure_by_program'`.
-- **SUMMARY OF GENERAL FUND EXPENDITURES BY OBJECT** (GF10) -- 6-col
-  (Actual / %Total) x 3 years cross-tab.
-- **SUMMARY OF GENERAL FUND EXPENDITURES BY ACTIVITY** (GF11) -- 6-col
-  similar.
-- **FY ENROLLMENT AND STAFF COUNTS** (GF1) -- 3-col enrollment +
-  certificated/classified staff counts.
-- **GENERAL FUND FINANCIAL SUMMARY** (Budget Summary) -- 6-col headline
-  rollup (enrollment, financial summary, program-group breakdown,
-  activity-group breakdown).
-- **PROGRAM SUMMARY BY OBJECT OF EXPENDITURE** (GF9) -- wide cross-tab
-  of program x object. Distinct schema; consider a separate
+  revenue line items grouped by OSPI 4-digit account code. Budget-side
+  of `fiscal_f196_revenues`. Will fold into `fiscal_f195_budget` as
+  `sub_report = 'fund_revenue_detail'`.
+- **PROGRAM SUMMARY BY OBJECT OF EXPENDITURE** (GF9, pp 21-24) --
+  wide cross-tab of program x object. Distinct schema; separate
   `fiscal_f195_budget_program_object` table.
-- **OBJECTS OF EXPENDITURE per program** (GF9-XX, ~60 pages per PDF for
-  large districts) -- per-program activity x object detail.
-- **SALARY EXHIBITS -- CERTIFICATED / CLASSIFIED** (GF9-201-XX,
-  GF9-301-XX, CP7, CP8) -- per-program salary tables. Large -- consider
-  a `fiscal_f195_salary_exhibits` table.
+- **SUMMARY OF FTE STAFF COUNTS BY ACTIVITY** (GF15) -- 4-col
+  certificated/classified FTE by activity.
 - **REVENUE WORK SHEET--LOCAL EXCESS LEVIES AND TIMBER EXCISE TAX**
   (GF13, DS3, CP5, TVF3) -- short worksheet, levy collection math.
 - **LONG-TERM FINANCING -- CONDITIONAL SALES CONTRACTS** (GF14, CP9,
-  TVF4) -- bond/contract detail by fund.
-- **SUMMARY OF FTE STAFF COUNTS BY ACTIVITY** (GF15) -- 4-col
-  certificated/classified FTE by activity.
+  TVF4) -- bond/contract detail by fund. Complements
+  `fiscal_f196_long_term_liabilities`.
 - **DEBT SERVICE FUND BUDGET DETAIL OF OUTSTANDING BONDS** (DS4) --
   bond inventory.
+
+**Deferred (large + paired):**
+
+- **OBJECTS OF EXPENDITURE per program** (GF9-XX, ~60 pages per PDF
+  for large districts) -- per-program activity x object detail.
+  **Pairs with F-196 per-PROGRAM cross-tab detail** (Phase 2c-ii+
+  deferred); both should ship in the same milestone so consumers can
+  query budget-vs-actuals per (program, activity, object).
+- **SALARY EXHIBITS -- CERTIFICATED / CLASSIFIED** (GF9-201-XX,
+  GF9-301-XX, CP7, CP8) -- per-program salary tables. Large -- consider
+  a `fiscal_f195_salary_exhibits` table when needed.
+
+**Low priority (rarely-used):**
+
 - **CAPITAL PROJECTS FUND--PROJECT DESCRIPTION** (CP6) -- free-text
   project descriptions (low analytical value as structured data).
 - **Budget Edit Report / Revenue Edit Report / ESD review / derivation
-  formulas** (p170+ of each F-195 Budget PDF) -- appendix material;
-  low priority.
+  formulas** (p170+ of each F-195 Budget PDF) -- appendix material.
 
 Outside `fiscal/`, 6 report types remain (149,772 files):
 
@@ -296,11 +350,9 @@ Outside `fiscal/`, 6 report types remain (149,772 files):
   All Pages parser now populates `fiscal_f196_summary` from 2013-14
   onward, replacing the standalone F-196 Summary parser. The combined
   table covers 2013-14 through 2024-25 (3,724 files).
-- ~~**6 files (0.07% of corpus) are missing the `ending_total_fund_balance`
-  row in `fiscal_f196_summary`**~~ may have been resolved by the parser
-  rewrite (the positional column-anchor approach handles cell-blanking
-  and value-wrap shapes the trailing-7-tokens heuristic missed).
-  Re-verify against the latest fact-table run.
+- ~~**6 files missing `ending_total_fund_balance` in
+  `fiscal_f196_summary`**~~ RESOLVED: verified against the latest
+  fact-table run -- 0 files missing on all 3,724 files.
 - **3 source PDFs in `fiscal_f196_revenues` have a section subtotal
   that does not reconcile with the section's own line items**
   (Inchelium 2015-16 + Dieringer 2015-16, both `9000 TOTAL OTHER
