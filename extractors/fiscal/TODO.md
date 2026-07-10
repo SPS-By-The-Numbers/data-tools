@@ -9,6 +9,12 @@ for the analytically-important dimensions:
 | Sub-report / phase | Table | Coverage |
 |---|---|---|
 | Page-2 SUMMARY (Phase 1) | `fiscal_f196_summary` | 2013-14+ |
+| F-195 Budget: SUMMARY OF X FUND BUDGET (Phase 1) | `fiscal_f195_budget[fund_summary]` | 2013-14+ |
+| F-195 Budget: EXPENDITURE BY PROGRAM (GF8) | `fiscal_f195_budget[expenditure_by_program]` | 2013-14+ |
+| F-195 Budget: SUMMARY OF GF EXPENDITURES BY OBJECT (GF10) | `fiscal_f195_budget[expenditure_by_object_summary]` | 2013-14+ |
+| F-195 Budget: SUMMARY OF GF EXPENDITURES BY ACTIVITY (GF11) | `fiscal_f195_budget[expenditure_by_activity_summary]` | 2013-14+ |
+| F-195 Budget: FY ENROLLMENT AND STAFF COUNTS (GF1) | `fiscal_f195_budget[enrollment_and_staff_counts]` | 2013-14+ |
+| F-195 Budget: GENERAL FUND FINANCIAL SUMMARY | `fiscal_f195_budget[financial_summary]` | 2013-14+ |
 | Report of Revenues (Phase 2a) | `fiscal_f196_revenues` | 2013-14+ |
 | Budgetary Comparison Schedule (Phase 2b) | `fiscal_f196_budgetary_comparison` | 2013-14+ |
 | Program/Activity/Object Roll-up (Phase 2c-i) | `fiscal_f196_program_activity_object` | 2013-14+ |
@@ -250,36 +256,42 @@ Within `fiscal/` (17,101 files), one high-volume doc kind remains
     funds. Mostly redundant with SUMMARY + Revenues; defer unless a
     specific use case appears.
 
-The **F-195 Budget (full)** parser landed (-> `fiscal_f195_budget`) but
-only captures the SUMMARY OF X FUND BUDGET sub-reports (Phase 1, all 5
-funds: GF2, ASB1, DS1, CP1, TVF1). Same parser runs against the F-195
-Budget Overview as well, so both source kinds populate the table. The
-remaining ~25 sub-reports per F-195 Budget PDF are grouped below by
-priority.
+The **F-195 Budget (full)** parser landed (-> `fiscal_f195_budget`) and
+now captures **six sub-reports** covering the full breadth of General
+Fund budget analysis plus the per-fund SUMMARY block for all 5 funds.
+The same parser runs against F-195 Budget Overview (which contains the
+same six sub-reports across its first ~30 pages), so both source kinds
+populate the table.
 
-**High priority** (unique dimensions, moderate complexity, ship
-independently):
+Sub-reports done (2013-14 through 2025-26 coverage on all district-level
+files):
 
-- **EXPENDITURE BY PROGRAM** (GF8, pp 18-20 typical) -- per-program
-  expenditures with 3-col Actual/Budget/Budget layout. Same shape as
-  fund_summary; extends `fiscal_f195_budget` as
-  `sub_report = 'expenditure_by_program'`. **Provides the budget-side
-  of `fiscal_f196_program_activity_object[breakdown_kind='program']`**
+- **`fund_summary`** -- SUMMARY OF X FUND BUDGET, all 5 funds (GF2, ASB1,
+  DS1, CP1, TVF1). 3-col Actual/Budget/Budget.
+- **`expenditure_by_program`** -- EXPENDITURE BY PROGRAM (GF8, pp 18-20
+  typical). 3-col Actual/Budget/Budget. Per-OSPI-program-code General
+  Fund expenditures grouped into program-group sections. **Provides the
+  budget-side of `fiscal_f196_program_activity_object[breakdown_kind='program']`**
   -- enables budget-vs-actuals per program.
-- **SUMMARY OF GENERAL FUND EXPENDITURES BY OBJECT** (GF10) -- 6-col
-  (Actual / %Total) x 3 years cross-tab. Budget-side of
-  `fiscal_f196_program_activity_object[breakdown_kind='object']`.
-- **SUMMARY OF GENERAL FUND EXPENDITURES BY ACTIVITY** (GF11) -- 6-col
-  similar. Budget-side of
+- **`expenditure_by_object_summary`** -- SUMMARY OF GENERAL FUND
+  EXPENDITURES BY OBJECT OF EXPENDITURE (GF10). 6-col
+  (Actual/%Total)x3-years cross-tab per OSPI object code (0..9).
+  Budget-side of `fiscal_f196_program_activity_object[breakdown_kind='object']`.
+- **`expenditure_by_activity_summary`** -- SUMMARY OF GENERAL FUND
+  EXPENDITURES BY ACTIVITY (GF11). 6-col cross-tab per OSPI activity
+  code, grouped into 5 activity-group sections. Budget-side of
   `fiscal_f196_program_activity_object[breakdown_kind='activity']`.
-- **FY ENROLLMENT AND STAFF COUNTS** (GF1, p 7) -- 3-col enrollment +
-  certificated/classified staff counts. Small; unique dimension for
-  budget-side enrollment. Complements `fiscal_f195_four_year`.
-- **GENERAL FUND FINANCIAL SUMMARY** (Budget Summary, pp 5-6) -- 6-col
-  headline rollup with enrollment, financial summary, program-group
-  breakdown, activity-group breakdown. High-density summary page;
-  useful for quick district-level comparisons without full detail
-  joins.
+- **`enrollment_and_staff_counts`** -- FY ENROLLMENT AND STAFF COUNTS
+  (GF1, p 7). 3-col Average/Budget/Budget enrollment counts per grade
+  + certificated/classified staff FTE. Unique budget-side enrollment
+  dimension; complements `fiscal_f195_four_year`.
+- **`financial_summary`** -- GENERAL FUND FINANCIAL SUMMARY (pp 5-6).
+  Mixed-shape (3-col + 6-col) headline rollup: enrollment + financial
+  summary + expenditure-by-program-group / activity-group / object.
+  High-density summary page useful for quick district-level comparisons.
+
+The remaining ~24 sub-reports per F-195 Budget PDF are grouped below
+by priority.
 
 **Medium priority** (structurally larger, worth a dedicated table):
 
@@ -342,6 +354,31 @@ Outside `fiscal/`, 6 report types remain (149,772 files):
 
 ## Coverage gaps in current fact tables
 
+- **~32 source PDFs in `fiscal_f195_budget[expenditure_by_program]` have
+  duplicated `code=45` / `code=46` rows in the Skill Center section**
+  (concentrated in 2014-15 filings). OSPI's 2014-15 form printed BOTH
+  the old naming ("Skills Center, Basic, State") and the new naming
+  ("Skill Center, Basic, State") as separate rows sharing the same
+  OSPI code. Each row has real values in a different subset of the 3
+  data-year columns and `XXXXX` in the other subset. The parser's
+  logical-key dedup collapses these to one row per code, silently
+  losing the values from the discarded row. Aggregate impact: the
+  per-group `TOTAL SKILL CENTER INSTRUCTION` row will overstate the
+  sum-of-detail-items on affected files (Colville 2015 is the
+  representative case: printed total = $4.06M, captured sum = $70k
+  after dedup). Not a parser bug -- an OSPI form-vintage transition
+  quirk. Consumers should prefer the TOTAL row over sum-of-details on
+  2014-15 skill_center_instruction.
+- **1 source PDF in `fiscal_f195_budget[enrollment_and_staff_counts]`
+  has a K-12 SUBTOTAL that doesn't reconcile with the sum of grade
+  items** (Muckleshoot Tribal Compact 2013-14, CCDDD 25200; printed
+  SUBTOTAL = 56, sum of grades 1-13 = 60). OSPI form-internal
+  data-entry error.
+- Cross-tab identities `expenditure_by_object_summary` grand-total ==
+  `expenditure_by_activity_summary` grand-total ==
+  `fund_summary[general].B_TOTAL_EXPENDITURES` reconcile on **100%**
+  of 3,963 files. `financial_summary.total_program_groups ==
+  total_activity_groups` reconciles on **100%** as well.
 - **`fiscal_food_service`** stops at 2018-19. OSPI stopped publishing
   the Report 1800SUM Food Service Program Summary after that year. The
   data may have moved into a different report or into F-196 detail

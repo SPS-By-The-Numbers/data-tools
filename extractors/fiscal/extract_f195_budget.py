@@ -20,7 +20,7 @@ FIELDNAMES = [
     "school_year", "class_of", "ccddd", "county", "district",
     "sub_report", "fund", "section", "item_code",
     "data_year_offset", "data_school_year", "data_class_of",
-    "column_kind", "item_label", "value", "value_text",
+    "column_kind", "item_label", "value", "value_text", "pct_of_total",
     "_source", "_source_table",
 ]
 

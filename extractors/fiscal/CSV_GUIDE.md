@@ -37,8 +37,8 @@ Within `fiscal/`, the doc kinds with parsers today:
 |---|--:|---|
 | Food Service Program Summary (Report 1800SUM) |  1,703 | `fiscal_food_service` |
 | F-195 Budget Overview (page 1 only)           |  3,959 | `fiscal_f195_overview` |
-| F-195 Budget Overview (SUMMARY OF X FUND pages, all 5 funds) | 3,959 | `fiscal_f195_budget` |
-| F-195 Budget (full -- SUMMARY OF X FUND pages, all 5 funds) | 3,961 | `fiscal_f195_budget` |
+| F-195 Budget Overview (6 sub-reports, all 5 funds + General Fund detail) | 3,959 | `fiscal_f195_budget` |
+| F-195 Budget (full -- same 6 sub-reports)     |  3,961 | `fiscal_f195_budget` |
 | F-195 Four-year Budget Summary Plan           |  2,475 | `fiscal_f195_four_year` |
 | F-196 Annual Financial Statements Summary     |  1,277 | (retired -- SUMMARY block is also page 2 of F-196 All Pages, which the All Pages parser covers across all years) |
 | F-196 All Pages -- page-2 SUMMARY block (Phase 1) | 3,724 | `fiscal_f196_summary` |
@@ -89,7 +89,7 @@ Within `apportionment/`, the doc kinds with parsers today:
 | `fiscal_food_service.csv`       | 70,104 | (`school_year`, `ccddd`, `section`, `item_code`, `subkey`) | Food service revenues / expenditures / indirect / summary / carryforward (Report 1800SUM). 2013-14 through 2018-19 only -- OSPI stopped publishing this report after 2018-19. |
 | `fiscal_f195_overview.csv`      | 190,830 | (`school_year`, `ccddd`, `section`, `item_code`, `fund`) | Page-1 BUDGET AND EXCESS LEVY SUMMARY of Form F-195 -- 7 items in Section A + 3 items in Section B, each spread across 5 fund columns. |
 | `fiscal_f195_four_year.csv`     | 2,543,988 | (`school_year`, `ccddd`, `fund`, `section`, `item_code`, `data_year_offset`) | Form F-195F Four-year Budget Summary Plan -- enrollment + staff + per-fund revenues/expenditures/balances over a current + 3 forecast columns. |
-| `fiscal_f195_budget.csv`        | 5,723,796 | (`school_year`, `ccddd`, `sub_report`, `fund`, `section`, `item_code`, `data_year_offset`) | F-195 Budget SUMMARY OF X FUND BUDGET sub-reports, all 5 funds. One row per (item, data year). 3-column shape: Actual / Budget / Budget for years `-2 / -1 / 0` from the report's current school year. Parsed from both F-195 Budget (full) and F-195 Budget Overview source PDFs. |
+| `fiscal_f195_budget.csv`        | see schema | (`school_year`, `ccddd`, `sub_report`, `fund`, `section`, `item_code`, `data_year_offset`) | F-195 Budget sub-reports: `fund_summary` (all 5 funds), `expenditure_by_program` (GF8), `expenditure_by_object_summary` (GF10), `expenditure_by_activity_summary` (GF11), `enrollment_and_staff_counts` (GF1), `financial_summary`. One row per (item, data year). 3-column shape: Actual / Budget / Budget for years `-2 / -1 / 0` from the report's current school year. The 6-column cross-tab sub-reports (GF10, GF11, plus the expenditure sub-sections of `financial_summary`) additionally carry a `pct_of_total` column. Parsed from both F-195 Budget (full) and F-195 Budget Overview source PDFs. |
 | `fiscal_f196_summary.csv`       | 182,476 | (`school_year`, `ccddd`, `item_code`, `fund`) | Page-2 REPORT F-196 SUMMARY -- 7 items x 7 fund columns. Sourced from the SUMMARY page (page 2) of each `F-196 All Pages.pdf` -- covers 2013-14 through 2024-25 (3,724 files; 49 rows per file). Pre-2021-22 vintages are the unaudited mid-Dec filing; 2021-22+ are the audited final. Older vintages leave non-applicable cells blank (NULL `value`); newer vintages fill explicit 0.00. |
 | `fiscal_f196_revenues.csv`      | 2,911,080 | (`school_year`, `ccddd`, `section`, `revenue_account`, `fund`) | Per-OSPI-4-digit-account-code revenue actuals. Sourced from the Report of Revenues and Other Financing Sources sub-report (~pp 23-29) of each `F-196 All Pages.pdf` -- covers 2013-14 through 2024-25 (3,724 files; ~780 rows/file). 4 fund columns (general / debt_service / capital_projects / transportation_vehicle); ASB and Permanent are not on this report. Most cells are NULL (accounts are fund-restricted). Per-fund grand totals match `fiscal_f196_summary.total_revenues_and_other_financing_sources` to the cent. |
 | `fiscal_f196_budgetary_comparison.csv` | 1,189,764 | (`school_year`, `ccddd`, `fund`, `section`, `sub_section`, `item_code`, `column_kind`) | Per-fund Final Budget / Actual / Variance from the Budgetary Comparison Schedule sub-report (~pp 7-16) of each `F-196 All Pages.pdf`. 5 fund columns (general / asb / debt_service / capital_projects / transportation_vehicle); Permanent omitted. **Final Budget is the NEW datum** -- the budget after mid-year revisions, not captured anywhere else. `actual` matches `fiscal_f196_summary` to the cent. |
@@ -206,35 +206,57 @@ form rows (current + 3 forecasts).
 
 ### `fiscal_f195_budget`
 
-Per-line-item capture of the SUMMARY OF X FUND BUDGET sub-reports
-embedded in OSPI Form F-195 Budget and F-195 Budget Overview PDFs.
-One occurrence per fund per file -- the 5 funds always print in the
-same order (General, ASB, Debt Service, Capital Projects, Transportation
-Vehicle). Each value-bearing source line emits 3 rows (one per data
-column: Actual prior-prior year, Budget prior year, Budget current
-year).
+Per-line-item capture of six sub-reports embedded in OSPI Form F-195
+Budget and F-195 Budget Overview PDFs. Both source kinds populate this
+table (the Overview's sub-report pages are the trimmed prefix of the
+full Budget's), and the parser dedups by logical key so overlapping
+rows collapse to one. Each value-bearing source line emits 3 rows
+(one per data-year column).
 
-The schema is keyed on `sub_report` so future additions (per-program
-expenditure, per-object expenditure, etc.) can populate the same table
-without migration. Phase 1 emits only `sub_report = 'fund_summary'`.
+| `sub_report` value | pages typical | rows per file | source pages |
+|---|---|---|---|
+| `fund_summary` | 3 per fund × 5 funds | ~240 | SUMMARY OF <fund> FUND BUDGET |
+| `expenditure_by_program` | 3 | ~150-200 | EXPENDITURE BY PROGRAM (GF8) |
+| `expenditure_by_object_summary` | 1 | 30 | SUMMARY OF GF EXPENDITURES BY OBJECT (GF10) |
+| `expenditure_by_activity_summary` | 2 | ~145-155 | SUMMARY OF GF EXPENDITURES BY ACTIVITY (GF11) |
+| `enrollment_and_staff_counts` | 1 | 60 | FY ENROLLMENT AND STAFF COUNTS (GF1) |
+| `financial_summary` | 2 | 93 | GENERAL FUND FINANCIAL SUMMARY |
 
 | column | meaning |
 |---|---|
-| `sub_report` | `fund_summary` (only value emitted today; see TODO for planned future values: `fund_revenue_detail`, `expenditure_by_program`, `expenditure_by_object_summary`, `expenditure_by_activity_summary`, `enrollment_and_staff_counts`, `financial_summary`). |
-| `fund` | `general`, `asb`, `debt_service`, `capital_projects`, or `transportation_vehicle`. |
-| `section` | `revenues` / `expenditures` / `beginning_fund_balance` / `ending_fund_balance` / `summary` (totals -- section-letter rows like 'A. TOTAL REVENUES'). |
-| `item_code` | OSPI revenue/expenditure account code (`1000`, `6000`, `90`), G.L. code (`G.L.810`), section letter (`A`, `B`, `H` for totals), or a slug of the label when no prefix is recognized (e.g. Debt Service Fund's `matured_bond_expenditures`). |
+| `sub_report` | One of the six values above. Reserved for future: `fund_revenue_detail` (GF4 / DS2 / CP3 / TVF revenue detail). |
+| `fund` | `general`, `asb`, `debt_service`, `capital_projects`, or `transportation_vehicle`. All General-Fund-only sub-reports (everything except `fund_summary`) carry `fund='general'`. |
+| `section` | Subsection within the sub-report. Values vary by `sub_report`; TOTAL rows for section groups and grand totals go to `section='summary'`. See below for the per-sub-report breakdown. |
+| `item_code` | Identifier derived from the printed line prefix -- OSPI account / program / activity code (`1000`, `01`, `27`), object code (`0`-`9`), section letter (`A`, `B`, `H`), numbered item (`1`-`18` on GF1), or a slug of the label when no prefix is recognized (e.g. `total_program_expenditures`, `total_activity_groups`). |
 | `data_year_offset` | `-2` (prior actual) / `-1` (prior budget) / `0` (current budget). |
 | `data_school_year` | The year the column reports on, e.g. `2024-2025`. |
-| `column_kind` | `actual` (offset `-2`) or `budget` (offsets `-1` and `0`). |
+| `column_kind` | `actual` (offset `-2`) or `budget` (offsets `-1` and `0`). `enrollment_and_staff_counts` uses `average` instead of `actual` (the form labels the prior-actual column 'Average' -- year-average FTE counts). |
 | `item_label` | Line item label as printed (whitespace normalized). Multi-line labels are joined. |
-| `value` | Parsed decimal. NULL when the form printed `XXXX` / `XXXXX` (column doesn't apply to that line item -- e.g. PRIOR YEAR CORRECTIONS prints `XXXXX` for all 3 years on most filings). |
+| `value` | Parsed decimal. NULL when the form printed `XXXX` / `XXXXX` (column doesn't apply to that line item -- e.g. PRIOR YEAR CORRECTIONS prints `XXXXX` for all 3 years on most filings, and GF10 Debit/Credit transfer rows print `XXXXX` in the pct column). |
+| `pct_of_total` | Companion `% of Total` column, present only on the 6-column cross-tab sub-reports (`expenditure_by_object_summary`, `expenditure_by_activity_summary`, and the expenditure sub-sections of `financial_summary`). Stored as printed (`43.20` means 43.20%, not 0.4320). NULL for `fund_summary`, `expenditure_by_program`, `enrollment_and_staff_counts`, and rows where the form printed `XXXX` in the pct column. |
 
-Both F-195 Budget and F-195 Budget Overview produce **identical row
-sets** for a (school_year, ccddd) pair (the SUMMARY pages are the
-same in both source kinds). The dedup-by-logical-key inside the parser
-collapses re-occurrences; downstream callers can pick rows by
-`_source_id` to track which physical file a row came from.
+**Section values per sub-report**:
+
+- `fund_summary`: `revenues` / `expenditures` / `beginning_fund_balance` / `ending_fund_balance` / `summary` (section-letter total rows like 'A. TOTAL REVENUES').
+- `expenditure_by_program`: OSPI program group slug -- `regular_instruction`, `federal_special_purpose` (2020-21+) or `federal_stimulus` (2013-14 through ~2019-20), `special_education_instruction`, `vocational_instruction`, `skill_center_instruction`, `compensatory_education`, `other_instructional_programs`, `community_services`, `support_services` -- or `summary` for per-group TOTAL rows and the grand `TOTAL PROGRAM EXPENDITURES`.
+- `expenditure_by_object_summary`: `objects` (all 9 object-code rows), `summary` (the grand `TOTAL EXPENDITURES`).
+- `expenditure_by_activity_summary`: OSPI activity group slug -- `teaching_activities`, `teaching_support`, `other_support_activities`, `unit_administration`, `central_administration` -- or `summary` for per-group TOTAL rows and the grand `TOTAL EXPENDITURES`.
+- `enrollment_and_staff_counts`: `enrollment_counts` (Section A rows 1-13, 15-17: grades K-12 + Running Start / Dropout Reengagement / ALE), `staff_counts` (Section B rows 1-2: certificated / classified FTE), `summary` (row 14 SUBTOTAL K-12 excluding non-standard enrollments, and row 18 TOTAL K-12).
+- `financial_summary`: `enrollment_and_staffing` (K-12 total + cert/class FTE, no pct), `financial` (total revenues / expenditures / beg / end fund balance, no pct), `program_groups` (per-program-group value + pct), `activity_groups` (per-activity-group value + pct), `objects` (per-object value + pct), `summary` (`Total - Program Groups` / `Total - Activity Groups` / `Total - Objects` -- three copies of Total General Fund expenditures).
+
+**Cross-sub-report invariants** (hold on the current-year column, subject to OSPI form-internal errors):
+
+- `expenditure_by_object_summary` grand total == `expenditure_by_activity_summary` grand total == `expenditure_by_program` grand total == `financial_summary.total_program_groups` == `fund_summary` General B. TOTAL EXPENDITURES. All five point to Total General Fund expenditures.
+- Per-program-group sum-of-items == group's TOTAL row within `expenditure_by_program` (e.g. sum of Regular Instruction items 01/02/03/09 == the 00 TOTAL row).
+- `enrollment_and_staff_counts` K-12 SUBTOTAL (item 14) == sum of grade items 1-13; K-12 TOTAL (item 18) == SUBTOTAL + Running Start + Dropout Reengagement + ALE.
+
+Both F-195 Budget and F-195 Budget Overview produce **near-identical row
+sets** for a (school_year, ccddd) pair. Occasional divergences reflect
+mid-year source-data drift (the two PDFs are generated at different
+times -- Overview is typically an earlier snapshot). The dedup-by-
+logical-key inside the parser collapses re-occurrences; downstream
+callers can pick rows by `_source_id` to track which physical file a
+row came from.
 
 **Coverage**: 2013-14 through 2025-26, district-level only. Same set
 of districts as the rest of the `fiscal/<year>/` corpus (~310/year).
