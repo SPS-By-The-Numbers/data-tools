@@ -16,6 +16,7 @@ for the analytically-important dimensions:
 | F-195 Budget: FY ENROLLMENT AND STAFF COUNTS (GF1) | `fiscal_f195_budget[enrollment_and_staff_counts]` | 2013-14+ |
 | F-195 Budget: GENERAL FUND FINANCIAL SUMMARY | `fiscal_f195_budget[financial_summary]` | 2013-14+ |
 | F-195 Budget: FTE Staff Counts by Activity (GF15) | `fiscal_f195_staff_by_activity` | 2013-14+ |
+| F-195 Budget: Per-fund revenue detail (GF4/DS2/CP3) | `fiscal_f195_budget[fund_revenue_detail]` | 2013-14+ |
 | Report of Revenues (Phase 2a) | `fiscal_f196_revenues` | 2013-14+ |
 | Budgetary Comparison Schedule (Phase 2b) | `fiscal_f196_budgetary_comparison` | 2013-14+ |
 | Program/Activity/Object Roll-up (Phase 2c-i) | `fiscal_f196_program_activity_object` | 2013-14+ |
@@ -296,10 +297,18 @@ by priority.
 
 **Medium priority** (structurally larger, worth a dedicated table):
 
-- **Per-fund revenue detail** (GF4, DS2, CP3, TVF3 portion) -- detailed
-  revenue line items grouped by OSPI 4-digit account code. Budget-side
-  of `fiscal_f196_revenues`. Will fold into `fiscal_f195_budget` as
-  `sub_report = 'fund_revenue_detail'`.
+- ~~**Per-fund revenue detail** (GF4, DS2, CP3, TVF3 portion) --
+  detailed revenue line items grouped by OSPI 4-digit account code.
+  Budget-side of `fiscal_f196_revenues`. Will fold into
+  `fiscal_f195_budget` as `sub_report = 'fund_revenue_detail'`.~~
+  **DONE** for GF4/DS2/CP3 (general/debt_service/capital_projects funds).
+  TVF revenues live inline on the SUMMARY OF TRANSPORTATION VEHICLE
+  FUND BUDGET page, not a standalone sub-report -- captured as
+  fund_summary detail rows already. Section slugs match
+  `fiscal_f196_revenues` -- join on `(school_year, ccddd, fund,
+  section, item_code)` for budget-vs-actuals per revenue account.
+  Grand-total reconciles to fund_summary A. TOTAL REVENUES on 99.97%
+  of 11,847 (file, fund) checks (4 OSPI form-internal discrepancies).
 - **PROGRAM SUMMARY BY OBJECT OF EXPENDITURE** (GF9, pp 21-24) --
   wide cross-tab of program x object. Distinct schema; separate
   `fiscal_f195_budget_program_object` table.

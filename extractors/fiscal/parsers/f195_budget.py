@@ -98,6 +98,21 @@ _GF11_SECTIONS = [
     ("CENTRAL ADMINISTRATION",    "central_administration"),
 ]
 
+# Section markers on the per-fund revenue-detail sub-reports (GF4 /
+# DS2 / CP3 / TVF revenue portion). The section slugs match
+# fiscal_f196_revenues so the two tables join on section+revenue_account.
+_REVENUE_DETAIL_SECTIONS = [
+    ("LOCAL TAXES",               "local_taxes"),
+    ("LOCAL SUPPORT NONTAX",      "local_support_nontax"),
+    ("STATE, GENERAL PURPOSE",    "state_general_purpose"),
+    ("STATE, SPECIAL PURPOSE",    "state_special_purpose"),
+    ("FEDERAL, GENERAL PURPOSE",  "federal_general_purpose"),
+    ("FEDERAL, SPECIAL PURPOSE",  "federal_special_purpose"),
+    ("REVENUES FROM OTHER SCHOOL DISTRICTS", "revenues_from_other_school_districts"),
+    ("REVENUES FROM OTHER ENTITIES",         "revenues_from_other_entities"),
+    ("OTHER FINANCING SOURCES",   "other_financing_sources"),
+]
+
 # GF1 section headers include trailing parenthetical guidance ("A. FTE
 # ENROLLMENT COUNTS (calculate to two decimal places)") that varies
 # across vintages -- match by leading letter + keyword rather than
@@ -173,6 +188,16 @@ _PAGE_TITLE_TO_CONFIG = {
     # ---- GF8 EXPENDITURE BY PROGRAM ----
     "EXPENDITURE BY PROGRAM":
         _mk_3col("expenditure_by_program", "general", _GF8_SECTIONS),
+    # ---- per-fund revenue detail (GF4 / DS2 / CP3) ----
+    # TVF revenues are captured inline within `SUMMARY OF TRANSPORTATION
+    # VEHICLE FUND BUDGET` (fund_summary) -- there's no standalone TVF
+    # revenue-detail sub-report.
+    "GENERAL FUND BUDGET--REVENUES AND OTHER FINANCING SOURCES":
+        _mk_3col("fund_revenue_detail", "general", _REVENUE_DETAIL_SECTIONS),
+    "DEBT SERVICE FUND BUDGET--REVENUES AND OTHER FINANCING SOURCES":
+        _mk_3col("fund_revenue_detail", "debt_service", _REVENUE_DETAIL_SECTIONS),
+    "CAPITAL PROJECTS FUND BUDGET--REVENUES AND OTHER FINANCING SOURCES":
+        _mk_3col("fund_revenue_detail", "capital_projects", _REVENUE_DETAIL_SECTIONS),
     # ---- GF10 SUMMARY OF GF EXPENDITURES BY OBJECT ----
     "SUMMARY OF GENERAL FUND EXPENDITURES BY OBJECT OF EXPENDITURE":
         _mk_6col("expenditure_by_object_summary", "general", [],

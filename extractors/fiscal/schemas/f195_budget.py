@@ -35,9 +35,14 @@ Sub-reports currently populated:
        expenditure by program-group / activity-group / object. Mixed
        row shapes: the top two sub-sections carry 3 trailing values;
        the bottom three carry 6 (value + `pct_of_total`).
-
-Future sub-reports the same table is shaped to accept:
-  - fund_revenue_detail  (GF4 / DS2 / CP3 / TVF revenue detail)
+  - sub_report = 'fund_revenue_detail'  (GF4 / DS2 / CP3 / TVF revenue
+       sub-report of each fund) -- per-OSPI-4-digit-account-code
+       revenue detail per fund. 3-column layout matching fund_summary.
+       Section slugs match fiscal_f196_revenues (`local_taxes`,
+       `state_general_purpose`, ...), so the budget-per-account
+       (this table) joins to actuals-per-account
+       (`fiscal_f196_revenues`) on `(section, item_code, fund)` for
+       budget-vs-actuals per revenue account.
 """
 
 from .common import AUDIT_FIELDS, SCHOOL_YEAR_DISTRICT_FIELDS
@@ -68,11 +73,11 @@ FISCAL_F195_BUDGET = {
             "doc": (
                 "Which F-195 Budget sub-report this row came from. "
                 "Current values: 'fund_summary', "
+                "'fund_revenue_detail', "
                 "'expenditure_by_program', "
                 "'expenditure_by_object_summary', "
                 "'expenditure_by_activity_summary', "
-                "'enrollment_and_staff_counts', 'financial_summary'. "
-                "Reserved for future: 'fund_revenue_detail'."
+                "'enrollment_and_staff_counts', 'financial_summary'."
             ),
         },
         {
