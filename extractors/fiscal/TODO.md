@@ -18,6 +18,7 @@ for the analytically-important dimensions:
 | F-195 Budget: FTE Staff Counts by Activity (GF15) | `fiscal_f195_staff_by_activity` | 2013-14+ |
 | F-195 Budget: Per-fund revenue detail (GF4/DS2/CP3) | `fiscal_f195_budget[fund_revenue_detail]` | 2013-14+ |
 | F-195 Budget: Long-Term Financing (GF14/CP9/TVF4) | `fiscal_f195_long_term_financing` | 2013-14+ |
+| F-195 Budget: Debt Service Outstanding Bonds (DS4) | `fiscal_f195_debt_service_bonds` | 2013-14+ |
 | Report of Revenues (Phase 2a) | `fiscal_f196_revenues` | 2013-14+ |
 | Budgetary Comparison Schedule (Phase 2b) | `fiscal_f196_budgetary_comparison` | 2013-14+ |
 | Program/Activity/Object Roll-up (Phase 2c-i) | `fiscal_f196_program_activity_object` | 2013-14+ |
@@ -339,8 +340,16 @@ by priority.
   != sum(A details) -- OSPI form-internal doubling on aggregated-
   contract detail rows (Pasco GF fund 2013-14 through 2023-24;
   Bainbridge Island GF fund 2024-25 and 2025-26).
-- **DEBT SERVICE FUND BUDGET DETAIL OF OUTSTANDING BONDS** (DS4) --
-  bond inventory.
+- ~~**DEBT SERVICE FUND BUDGET DETAIL OF OUTSTANDING BONDS** (DS4) --
+  bond inventory.~~ **DONE** -- populates
+  `fiscal_f195_debt_service_bonds` (15,312 rows across 3,391 files
+  with outstanding bonds; the ~570 uncovered files have no bonds).
+  Sections `voted_bonds` (A), `nonvoted_bonds` (B), `summary` (the
+  combined TOTAL ALL BONDS row). All 6 identity checks (per-section
+  TOTAL = sum of details; TOTAL ALL = V + NV, both amount columns)
+  reconcile on 100% of files. Handles the ~4 files whose Section A
+  detail row omits the date-of-issue token by relaxing to accept
+  dateless 2-value rows within an active section.
 
 **Deferred (large + paired):**
 
