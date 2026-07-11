@@ -19,6 +19,7 @@ for the analytically-important dimensions:
 | F-195 Budget: Per-fund revenue detail (GF4/DS2/CP3) | `fiscal_f195_budget[fund_revenue_detail]` | 2013-14+ |
 | F-195 Budget: Long-Term Financing (GF14/CP9/TVF4) | `fiscal_f195_long_term_financing` | 2013-14+ |
 | F-195 Budget: Debt Service Outstanding Bonds (DS4) | `fiscal_f195_debt_service_bonds` | 2013-14+ |
+| F-195 Budget: Revenue Worksheet (GF13/DS3/CP5/TVF3) | `fiscal_f195_revenue_worksheet` | 2013-14+ |
 | Report of Revenues (Phase 2a) | `fiscal_f196_revenues` | 2013-14+ |
 | Budgetary Comparison Schedule (Phase 2b) | `fiscal_f196_budgetary_comparison` | 2013-14+ |
 | Program/Activity/Object Roll-up (Phase 2c-i) | `fiscal_f196_program_activity_object` | 2013-14+ |
@@ -325,8 +326,15 @@ by priority.
   codes match `fiscal_f195_budget[expenditure_by_activity_summary]` --
   join on `(school_year, ccddd, activity_code)` for budget-per-FTE
   analysis.
-- **REVENUE WORK SHEET--LOCAL EXCESS LEVIES AND TIMBER EXCISE TAX**
-  (GF13, DS3, CP5, TVF3) -- short worksheet, levy collection math.
+- ~~**REVENUE WORK SHEET--LOCAL EXCESS LEVIES AND TIMBER EXCISE TAX**
+  (GF13, DS3, CP5, TVF3) -- short worksheet, levy collection math.~~
+  **DONE** -- populates `fiscal_f195_revenue_worksheet` (95,064 rows,
+  24 per file × 3,961 files, 4 funds × 2 parts × 3 rows). Sections
+  `local_property_tax` (Part I, Account 1100) and `timber_excise_tax`
+  (Part II, Account 1500). TOTAL == fall + spring amount_budgeted
+  reconciles exactly on ~93% of (file, fund, part) combos; the rest
+  differ by $1-$2 (OSPI form-internal rounding, not parser bugs).
+  Timber fall.amount_budgeted is consistently NULL by form design.
 - ~~**LONG-TERM FINANCING -- CONDITIONAL SALES CONTRACTS** (GF14, CP9,
   TVF4) -- bond/contract detail by fund. Complements
   `fiscal_f196_long_term_liabilities`.~~ **DONE** -- populates
