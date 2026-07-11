@@ -17,6 +17,7 @@ for the analytically-important dimensions:
 | F-195 Budget: GENERAL FUND FINANCIAL SUMMARY | `fiscal_f195_budget[financial_summary]` | 2013-14+ |
 | F-195 Budget: FTE Staff Counts by Activity (GF15) | `fiscal_f195_staff_by_activity` | 2013-14+ |
 | F-195 Budget: Per-fund revenue detail (GF4/DS2/CP3) | `fiscal_f195_budget[fund_revenue_detail]` | 2013-14+ |
+| F-195 Budget: Long-Term Financing (GF14/CP9/TVF4) | `fiscal_f195_long_term_financing` | 2013-14+ |
 | Report of Revenues (Phase 2a) | `fiscal_f196_revenues` | 2013-14+ |
 | Budgetary Comparison Schedule (Phase 2b) | `fiscal_f196_budgetary_comparison` | 2013-14+ |
 | Program/Activity/Object Roll-up (Phase 2c-i) | `fiscal_f196_program_activity_object` | 2013-14+ |
@@ -325,9 +326,19 @@ by priority.
   analysis.
 - **REVENUE WORK SHEET--LOCAL EXCESS LEVIES AND TIMBER EXCISE TAX**
   (GF13, DS3, CP5, TVF3) -- short worksheet, levy collection math.
-- **LONG-TERM FINANCING -- CONDITIONAL SALES CONTRACTS** (GF14, CP9,
+- ~~**LONG-TERM FINANCING -- CONDITIONAL SALES CONTRACTS** (GF14, CP9,
   TVF4) -- bond/contract detail by fund. Complements
-  `fiscal_f196_long_term_liabilities`.
+  `fiscal_f196_long_term_liabilities`.~~ **DONE** -- populates
+  `fiscal_f195_long_term_financing` (59,779 rows across 3,961 files,
+  3 funds × 3-6 rows per fund per file). Sections: existing_contracts
+  (A), new_contracts (B), summary (C). Value columns are
+  section-neutral (`amount_beginning`, `principal_fy`, `interest_fy`,
+  `amount_ending`) with per-section semantics in the schema doc.
+  C.principal_fy / C.interest_fy / C.amount_ending reconcile to A+B on
+  100% of files. 13 files (0.3%) have printed A.TOTAL amount_beginning
+  != sum(A details) -- OSPI form-internal doubling on aggregated-
+  contract detail rows (Pasco GF fund 2013-14 through 2023-24;
+  Bainbridge Island GF fund 2024-25 and 2025-26).
 - **DEBT SERVICE FUND BUDGET DETAIL OF OUTSTANDING BONDS** (DS4) --
   bond inventory.
 
