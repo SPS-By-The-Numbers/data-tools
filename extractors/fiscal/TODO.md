@@ -15,6 +15,7 @@ for the analytically-important dimensions:
 | F-195 Budget: SUMMARY OF GF EXPENDITURES BY ACTIVITY (GF11) | `fiscal_f195_budget[expenditure_by_activity_summary]` | 2013-14+ |
 | F-195 Budget: FY ENROLLMENT AND STAFF COUNTS (GF1) | `fiscal_f195_budget[enrollment_and_staff_counts]` | 2013-14+ |
 | F-195 Budget: GENERAL FUND FINANCIAL SUMMARY | `fiscal_f195_budget[financial_summary]` | 2013-14+ |
+| F-195 Budget: FTE Staff Counts by Activity (GF15) | `fiscal_f195_staff_by_activity` | 2013-14+ |
 | Report of Revenues (Phase 2a) | `fiscal_f196_revenues` | 2013-14+ |
 | Budgetary Comparison Schedule (Phase 2b) | `fiscal_f196_budgetary_comparison` | 2013-14+ |
 | Program/Activity/Object Roll-up (Phase 2c-i) | `fiscal_f196_program_activity_object` | 2013-14+ |
@@ -302,8 +303,17 @@ by priority.
 - **PROGRAM SUMMARY BY OBJECT OF EXPENDITURE** (GF9, pp 21-24) --
   wide cross-tab of program x object. Distinct schema; separate
   `fiscal_f195_budget_program_object` table.
-- **SUMMARY OF FTE STAFF COUNTS BY ACTIVITY** (GF15) -- 4-col
-  certificated/classified FTE by activity.
+- ~~**SUMMARY OF FTE STAFF COUNTS BY ACTIVITY** (GF15) -- 4-col
+  certificated/classified FTE by activity.~~ **DONE** -- populates
+  `fiscal_f195_staff_by_activity` (120,918 rows across 3,963 files,
+  2013-14 through 2025-26). Parsed via positional column-anchor
+  extraction to handle the 2013-14/2014-15 form vintage's
+  bare-blank-cell convention (older form prints blank instead of
+  `XXXXX` for zero-staff activities, which a token-count parser would
+  mis-bin). Sum-of-detail == grand total on 100% of files. Activity
+  codes match `fiscal_f195_budget[expenditure_by_activity_summary]` --
+  join on `(school_year, ccddd, activity_code)` for budget-per-FTE
+  analysis.
 - **REVENUE WORK SHEET--LOCAL EXCESS LEVIES AND TIMBER EXCISE TAX**
   (GF13, DS3, CP5, TVF3) -- short worksheet, levy collection math.
 - **LONG-TERM FINANCING -- CONDITIONAL SALES CONTRACTS** (GF14, CP9,
