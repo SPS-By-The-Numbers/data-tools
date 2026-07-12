@@ -20,6 +20,7 @@ for the analytically-important dimensions:
 | F-195 Budget: Long-Term Financing (GF14/CP9/TVF4) | `fiscal_f195_long_term_financing` | 2013-14+ |
 | F-195 Budget: Debt Service Outstanding Bonds (DS4) | `fiscal_f195_debt_service_bonds` | 2013-14+ |
 | F-195 Budget: Revenue Worksheet (GF13/DS3/CP5/TVF3) | `fiscal_f195_revenue_worksheet` | 2013-14+ |
+| F-195 Budget: Program-by-Object cross-tab (GF9) | `fiscal_f195_program_summary_by_object` | 2013-14+ |
 | Report of Revenues (Phase 2a) | `fiscal_f196_revenues` | 2013-14+ |
 | Budgetary Comparison Schedule (Phase 2b) | `fiscal_f196_budgetary_comparison` | 2013-14+ |
 | Program/Activity/Object Roll-up (Phase 2c-i) | `fiscal_f196_program_activity_object` | 2013-14+ |
@@ -312,9 +313,22 @@ by priority.
   section, item_code)` for budget-vs-actuals per revenue account.
   Grand-total reconciles to fund_summary A. TOTAL REVENUES on 99.97%
   of 11,847 (file, fund) checks (4 OSPI form-internal discrepancies).
-- **PROGRAM SUMMARY BY OBJECT OF EXPENDITURE** (GF9, pp 21-24) --
-  wide cross-tab of program x object. Distinct schema; separate
-  `fiscal_f195_budget_program_object` table.
+- ~~**PROGRAM SUMMARY BY OBJECT OF EXPENDITURE** (GF9, pp 21-24) --
+  wide cross-tab of program x object.~~ **DONE** -- populates
+  `fiscal_f195_program_summary_by_object` (235,365 rows across 3,961
+  files). Value columns are per-object: `object_total`,
+  `object_0_debit_transfer` ... `object_9_capital_outlay` (skipping
+  the unused Object 6). Parsed via positional column-anchor
+  extraction (anchors set from the first 10-value row seen in the
+  PDF, typically the `OBJECT TOTALS` grand-total row); per-row
+  identity `sum(9 objs) == object_total` on **100%** of detail rows.
+  File-level identity `sum(details) == grand` holds on 92.5% of
+  files -- 299 files (concentrated in 2015-16) have OSPI form-internal
+  duplicate program-code rows (2 different programs printed with the
+  same 2-digit code, e.g. two different `52` rows) which the parser's
+  logical-key dedup collapses. This is the same class of form quirk
+  as the 2014-15 Skill Center 45/46 duplicates in
+  `fiscal_f195_budget[expenditure_by_program]`.
 - ~~**SUMMARY OF FTE STAFF COUNTS BY ACTIVITY** (GF15) -- 4-col
   certificated/classified FTE by activity.~~ **DONE** -- populates
   `fiscal_f195_staff_by_activity` (120,918 rows across 3,963 files,
