@@ -21,6 +21,7 @@ for the analytically-important dimensions:
 | F-195 Budget: Debt Service Outstanding Bonds (DS4) | `fiscal_f195_debt_service_bonds` | 2013-14+ |
 | F-195 Budget: Revenue Worksheet (GF13/DS3/CP5/TVF3) | `fiscal_f195_revenue_worksheet` | 2013-14+ |
 | F-195 Budget: Program-by-Object cross-tab (GF9) | `fiscal_f195_program_summary_by_object` | 2013-14+ |
+| F-195 Budget: Salary Exhibits (GF9-201-XX cert / GF9-301-XX class / CP-7 / CP-8) | `fiscal_f195_salary_exhibits` | 2013-14+ |
 | Report of Revenues (Phase 2a) | `fiscal_f196_revenues` | 2013-14+ |
 | Budgetary Comparison Schedule (Phase 2b) | `fiscal_f196_budgetary_comparison` | 2013-14+ |
 | Program/Activity/Object Roll-up (Phase 2c-i) | `fiscal_f196_program_activity_object` | 2013-14+ |
@@ -380,9 +381,49 @@ by priority.
   **Pairs with F-196 per-PROGRAM cross-tab detail** (Phase 2c-ii+
   deferred); both should ship in the same milestone so consumers can
   query budget-vs-actuals per (program, activity, object).
-- **SALARY EXHIBITS -- CERTIFICATED / CLASSIFIED** (GF9-201-XX,
-  GF9-301-XX, CP7, CP8) -- per-program salary tables. Large -- consider
-  a `fiscal_f195_salary_exhibits` table when needed.
+- ~~**SALARY EXHIBITS -- CERTIFICATED / CLASSIFIED** (GF9-201-XX,
+  GF9-301-XX, CP7, CP8) -- per-program salary tables.~~ **DONE** --
+  populates `fiscal_f195_salary_exhibits`. All 3,961 F-195 Budget PDFs
+  covered (2013-14 through 2025-26). Per-district per-(fund, program,
+  activity, duty) budgeted salary detail (title + FTE + high/low/avg
+  rate + total salary + state/local decomposition), with per-activity
+  `ACTIVITY CODE XX TOTAL` and per-program `PROGRAM TOTAL` subtotals
+  captured via `row_kind` (`detail` / `activity_total` /
+  `program_total`). Certificated rows carry annual $ rates; classified
+  rows carry hourly $ rates and `number_of_hours`. **STATE / LOCAL
+  split is 2019-20+ only** (post-McCleary form vintage); older files
+  have NULL `state_annual_salary` / `local_annual_salary`. **The
+  unique analytical contribution** is per-position salary detail --
+  no other captured F-195 or F-196 sub-report exposes salary at the
+  duty-code grain. Parsed via positional column-anchor extraction with
+  wrap-body / wrap-tail merging (FTE `1,037.300` and HOURS `394,766.40`
+  overflow their columns on large districts and wrap the trailing
+  digit(s) to an adjacent visual line at the same x1). Anchors persist
+  across a program's continuation pages so subtotal-only continuation
+  pages (2013-14 / 2014-15 form vintage quirk -- e.g. Seattle's Program
+  01 classified continuation on p85 opens on `ACTIVITY CODE 26 TOTAL`
+  with no preceding detail row) don't drop rows. Per-program salary
+  identity (sum of activity_totals == PROGRAM TOTAL) reconciles on
+  **100%** of 3,961 files. Per-activity salary identity (sum of details
+  == activity_total) reconciles on **95.5%** of files -- the 177 files
+  with mismatches all carry OSPI form-internal duplicate `PP-AA-DDD`
+  rows in the source PDF (e.g. Richland 2013-14 GF9-201-01 lists
+  `01-22-412 LIBRARY MEDIA SPECIALIST SUPPLEMENTAL DAYS & HOURS`
+  twice with different values; Puyallup 2018-19 GF9-201-01 lists
+  `01-27-005`, `01-27-312`, `01-27-322`, `01-27-342` each twice).
+  The parser's logical-key dedup collapses these to first-write-wins,
+  which is the same class of quirk documented for
+  `fiscal_f195_program_summary_by_object` (GF9) and
+  `fiscal_f195_budget[expenditure_by_program]` (GF8). Not a parser
+  bug. On 2019-20+ files ~18% of detail rows print `state=0 local=0`
+  while `total > 0` -- OSPI form-internal data-entry inconsistency
+  (some districts don't decompose salary into state/local funding
+  sources for every row); federal-only programs (24, 51, 52) do this
+  systematically, other programs sporadically. `state + local == total`
+  reconciles on the ~82% of 2019-20+ rows where OSPI populated both
+  fields; consumers who need the decomposition should filter for
+  `state_annual_salary + local_annual_salary == total_annual_salary`
+  to isolate reliable rows.
 
 **Low priority (rarely-used):**
 
@@ -415,6 +456,31 @@ Outside `fiscal/`, 6 report types remain (149,772 files):
 
 ## Coverage gaps in current fact tables
 
+- **177 source PDFs (4.5%) in `fiscal_f195_salary_exhibits` have
+  activity-total mismatches** because the source PDF prints the same
+  `PP-AA-DDD` duty code more than once within a single activity, with
+  different values on each occurrence. Examples: Richland 2013-14
+  GF9-201-01 (`01-22-412 LIBRARY MEDIA SPECIALIST SUPPLEMENTAL DAYS &
+  HOURS` twice, $36,990 and $1,097); Puyallup 2018-19 GF9-201-01
+  (`01-27-005`, `01-27-312`, `01-27-322`, `01-27-342` all doubled,
+  affected activity 27's sum by ~$608K); Thorp 2018-19 GF9-301-55
+  (`55-27-910 AIDES` printed twice, once with a real rate and
+  once with zeroes but a $29,875 total). The parser's logical-key
+  dedup keeps the first row and drops subsequent duplicates. Per-file
+  program-level identity (sum of activity_totals == PROGRAM TOTAL)
+  still holds on **100%** of files -- OSPI's own activity_total
+  captures the true sum. Consumers should prefer `activity_total` and
+  `program_total` rows over `sum(detail)` when needed.
+- **~18% of detail rows in `fiscal_f195_salary_exhibits` (2019-20+)
+  print `state_annual_salary=0` and `local_annual_salary=0` even when
+  `total_annual_salary > 0`**. OSPI form-internal data-entry
+  inconsistency -- some districts didn't decompose salary into state-vs-
+  local funding sources for every row. Federal-only programs (24, 51,
+  52) do this systematically; other programs sporadically. The
+  identity `state + local == total` reconciles on the ~82% of 2019-20+
+  rows where OSPI populated both fields. Not a parser bug; filter on
+  `state + local == total` to isolate rows with a reliable
+  decomposition.
 - **~32 source PDFs in `fiscal_f195_budget[expenditure_by_program]` have
   duplicated `code=45` / `code=46` rows in the Skill Center section**
   (concentrated in 2014-15 filings). OSPI's 2014-15 form printed BOTH
