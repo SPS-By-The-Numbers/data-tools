@@ -56,9 +56,9 @@ _GRAND_TOTAL_RE = re.compile(r"^GRAND\s+TOTAL\b", re.IGNORECASE)
 # these ranges. Windows are set from vintage-safe observations
 # (2013-14 through 2016-17).
 _COL_WINDOWS = [
-    ("acct_3121_special_ed_general_app", (380.0, 435.0)),
-    ("acct_4121_special_education",      (435.0, 535.0)),
-    ("acct_4122_special_ed_infants",     (535.0, 630.0)),
+    ("acct_3121_special_ed_general_app", (370.0, 440.0)),
+    ("acct_4121_special_education",      (440.0, 520.0)),
+    ("acct_4122_special_ed_infants",     (520.0, 630.0)),
 ]
 
 _VALUE_COLUMNS = [name for name, _ in _COL_WINDOWS]

@@ -104,10 +104,12 @@ def parse_f196_indirect_rate_detail_pdf(info: FiscalFilename) -> Iterator[dict]:
         if restricted_p1 is None and unrestricted_p1 is None:
             return
 
-        # District from first found page.
+        # District from first found page. Use extract_text() (spatially
+        # ordered top-to-bottom) rather than extract_words (text-flow
+        # ordered) so the REPORT F196 line is available in the top rows.
         anchor_pg = restricted_p1 if restricted_p1 is not None else unrestricted_p1
-        first_words = pdf.pages[anchor_pg].extract_words(use_text_flow=True)
-        d = _district_from_words(first_words)
+        first_text = pdf.pages[anchor_pg].extract_text() or ""
+        d = _district_from_text(first_text)
         if d:
             base["district"] = d
 
@@ -119,11 +121,11 @@ def parse_f196_indirect_rate_detail_pdf(info: FiscalFilename) -> Iterator[dict]:
                 pdf.pages[unrestricted_p1], "unrestricted", base)
 
 
-def _district_from_words(words) -> Optional[str]:
-    text = " ".join(w["text"] for w in words[:30])
-    m = re.search(r"REPORT\s+F196\s+(.+?)\s+No\.\s*\d+", text, re.IGNORECASE)
-    if m:
-        return re.sub(r"\s+", " ", m.group(1)).strip()
+def _district_from_text(text: str) -> Optional[str]:
+    for line in text.split("\n")[:10]:
+        m = re.search(r"REPORT\s+F196\s+(.+?)\s+No\.\s*\d+", line, re.IGNORECASE)
+        if m:
+            return re.sub(r"\s+", " ", m.group(1)).strip()
     return None
 
 
