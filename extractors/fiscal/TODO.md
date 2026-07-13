@@ -2,9 +2,9 @@
 
 ## Fact-table coverage (current)
 
-Twenty fiscal fact tables now exist; see `CSV_GUIDE.md` for the full
-catalog. F-196 All Pages sub-report coverage is essentially complete
-for the analytically-important dimensions:
+Twenty-two fiscal fact tables now exist; see `CSV_GUIDE.md` for the
+full catalog. F-196 All Pages sub-report coverage is essentially
+complete for the analytically-important dimensions:
 
 | Sub-report / phase | Table | Coverage |
 |---|---|---|
@@ -22,9 +22,11 @@ for the analytically-important dimensions:
 | F-195 Budget: Revenue Worksheet (GF13/DS3/CP5/TVF3) | `fiscal_f195_revenue_worksheet` | 2013-14+ |
 | F-195 Budget: Program-by-Object cross-tab (GF9) | `fiscal_f195_program_summary_by_object` | 2013-14+ |
 | F-195 Budget: Salary Exhibits (GF9-201-XX cert / GF9-301-XX class / CP-7 / CP-8) | `fiscal_f195_salary_exhibits` | 2013-14+ |
+| F-195 Budget: Objects-of-Expenditure per program (GF9-XX) | `fiscal_f195_program_activity_object_detail` | 2013-14+ |
 | Report of Revenues (Phase 2a) | `fiscal_f196_revenues` | 2013-14+ |
 | Budgetary Comparison Schedule (Phase 2b) | `fiscal_f196_budgetary_comparison` | 2013-14+ |
 | Program/Activity/Object Roll-up (Phase 2c-i) | `fiscal_f196_program_activity_object` | 2013-14+ |
+| Program/Activity/Object per-PROGRAM cross-tab (Phase 2c-ii+) | `fiscal_f196_program_activity_object_detail` | 2013-14+ |
 | Balance Sheet - Governmental Funds (Phase 2c-ii-BS) | `fiscal_f196_balance_sheet` | 2013-14+ |
 | Schedule of Long-Term Liabilities (Phase 2c-ii-LTL) | `fiscal_f196_long_term_liabilities` | 2013-14+ |
 | Resource to Program Expenditure (Phase 2c-ii-R2P) | `fiscal_f196_resource_to_program` | 2013-14+ |
@@ -238,18 +240,27 @@ Within `fiscal/` (17,101 files), one high-volume doc kind remains
   + net_change + corrections = end) hold on **100%** of 7,448
   file×fund combos.
 - **F-196 All Pages -- Phase 2c-ii+ (remaining sub-reports)**:
-  - **Per-PROGRAM cross-tab detail** (pp 33-65, ~33 pages per file --
-    one per program): **INTENTIONALLY DEFERRED.** Activity x object
-    cross-tab per program. Massive schema (~10K cells per file x
-    3,724 files = ~37M rows). This is the deepest expenditure detail
-    in the entire OSPI corpus. **Do not land alone -- pairs with
-    eventual F-195 GF9-XX per-program budget detail.** Both should
-    ship in the same milestone so consumers can query
-    budget-vs-actuals per (program, activity, object). The wide
-    per-Object breakdown for the General Fund total is already
-    available in `fiscal_f196_program_activity_object` (Phase 2c-i);
-    the detailed per-program cross-tab is only worth the row-count
-    cost if paired with a budget comparable.
+  - **Per-PROGRAM cross-tab detail** (pp 33+ typical, one page per
+    General Fund program): **DONE.** Parser populates
+    `fiscal_f196_program_activity_object_detail` -- per-district per-
+    (program, activity, object) actual expenditures. 2013-14 through
+    2024-25, 3,724 files, 730,094 rows. Ships as a **pair** with
+    `fiscal_f195_program_activity_object_detail` (budget-side, GF9-XX)
+    so consumers can query budget-vs-actuals per (program, activity,
+    object). **The unique analytical contribution** is the deepest
+    expenditure detail in the corpus -- previous captures had program
+    OR activity OR object rollups (`fiscal_f196_program_activity_
+    object`) but not the (program x activity x object) cross-tab.
+    Parser handles two Seattle-scale wrap complexities that only
+    appear on large districts' Program 97 (District-wide Support):
+    (1) 10-figure values wrap 1-2 trailing digits to the next visual
+    line, and (2) some columns wrap the whole value onto a follow-up
+    line while their sign token remains on the parent line. Per-file
+    per-program per-column identity (sum of details == program_total)
+    reconciles on **100.000%** of 705,170 file×program×column checks
+    (3 mismatches on 1 file -- Spokane 2022-23 program 97 debit
+    transfer -- from an OSPI form-print truncation of the printed
+    total row's trailing decimals).
   - **Rate Schedule per-program/activity breakdown** (pp 72 / 74, page
     1 of each Indirect Cost Rate schedule): the 7-column expenditures
     partition (Total / Capital Outlay / Debt Service / Distorting
@@ -376,11 +387,32 @@ by priority.
 
 **Deferred (large + paired):**
 
-- **OBJECTS OF EXPENDITURE per program** (GF9-XX, ~60 pages per PDF
-  for large districts) -- per-program activity x object detail.
-  **Pairs with F-196 per-PROGRAM cross-tab detail** (Phase 2c-ii+
-  deferred); both should ship in the same milestone so consumers can
-  query budget-vs-actuals per (program, activity, object).
+- ~~**OBJECTS OF EXPENDITURE per program** (GF9-XX, ~60 pages per PDF
+  for large districts) -- per-program activity x object detail.~~
+  **DONE** -- populates `fiscal_f195_program_activity_object_detail`.
+  All 3,961 F-195 Budget PDFs covered (2013-14 through 2025-26),
+  1,915,876 rows (1.72M detail + 125K program_total + 67K
+  fte_program_staff). Per-district per-(program, activity, object)
+  budgeted expenditures cross-tab; the deepest per-program budget
+  breakdown available in the F-195. Ships as a **pair** with
+  `fiscal_f196_program_activity_object_detail` (actuals-side, F-196
+  per-PROGRAM cross-tab) so consumers can query budget-vs-actuals per
+  (program, activity, object) with a single join on `(school_year,
+  ccddd, program_code, activity_code)`. `row_kind` distinguishes
+  activity detail (10 money columns per row), program subtotal (`Total`
+  row for the program), and per-program FTE totals (`FTE Program
+  Staff` row carrying `fte_cert` + `fte_class`). Parsed via
+  **positional column-anchor extraction** (anchors derived from the
+  first 10-value row across the PDF, using x1 binning so blank Credit
+  Transfer / blank Cert Sal / blank Class Sal cells stay unbinned).
+  Handles vintage drift: 2013-14 / 2014-15 print `NN Supv Inst`
+  (space-separator), 2019-20+ print `NN | Supv Inst` (pipe-separator).
+  Per-file per-program per-column identity (sum of details ==
+  program_total) reconciles on **99.999%** of 1,252,240 checks (14
+  mismatches on 1 file -- Bellevue 2019-20 has $1-off print rounding
+  on the `activity_total` column of 7 programs; each printed activity
+  row rounds independently, and the printed program total is computed
+  from unrounded internals).
 - ~~**SALARY EXHIBITS -- CERTIFICATED / CLASSIFIED** (GF9-201-XX,
   GF9-301-XX, CP7, CP8) -- per-program salary tables.~~ **DONE** --
   populates `fiscal_f195_salary_exhibits`. All 3,961 F-195 Budget PDFs
