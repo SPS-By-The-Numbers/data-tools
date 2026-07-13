@@ -99,15 +99,20 @@ Outstanding:
   dedup). If a specific reconciliation use case appears, build
   `fiscal_1251_enrollment_esd` with a minimal parser that captures
   only the p1 K-12 grade table (the main headline data point).
-- **Pages 2+ of the monthly Statement** -- DEFERRED. The 40+ pages of
-  per-account computation detail (school-generated entitlement
-  formulas, etc.) we currently skip via `read_pdf_lines(max_pages=1)`.
-  The headline Allotment for {Month} number is already captured; the
-  year-end Final version of the same per-account derivation is now
-  captured (headline-only) as `fiscal_apportionment_final`. Full
-  per-item derivation is not captured -- extremely low ratio of
-  parsing complexity to analytical value; consumers should reference
-  the source PDF directly for a specific district's audit.
+- **Pages 3+ of the monthly Statement** -- **DONE (headline-only).**
+  Parser populates `fiscal_apportionment_monthly_estimated`. Each
+  monthly `Apportionment for {Month}.pdf` is a 50-70 page compound
+  doc: p1-p2 are the 1197 Statement of Apportionment (captured by
+  `fiscal_apportionment_monthly`); pp 3+ are the same 1191 Estimated
+  Funding Report captured in year-end final form by
+  `fiscal_apportionment_final`, but as an interim monthly snapshot.
+  Headline-only, structurally identical to Final except each row
+  carries a `month` field. Cross-year identity: **the August (year-
+  end) row exactly matches Final on all accounts**. Monthly
+  sub-report codes drop the trailing "F" vs Final (1191 vs 1191F,
+  1191SE vs 1191SEF, etc); same total-line patterns match both.
+  Full per-item derivation (staffing units, per-pupil formulas)
+  remains deferred, same rationale as Final.
 
 Within `fiscal/` (17,101 files), one high-volume doc kind remains
 **partially parsed** (Phase 1 done):
