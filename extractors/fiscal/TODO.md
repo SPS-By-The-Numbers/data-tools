@@ -36,6 +36,7 @@ complete for the analytically-important dimensions:
 | Financial Edit Report (Phase 2c-ii-EDIT) | `fiscal_f196_edit_report` | 2013-14+ |
 | Data Requirements (Phase 2c-ii-DR) | `fiscal_f196_data_requirements` | 2013-14+ |
 | Federal Indirect Cost Rate (Phase 2c-ii-IR) | `fiscal_f196_indirect_rate` | 2013-14+ |
+| Federal Indirect Cost Rate p1 expenditures partition (Phase 2c-ii-IR-DTL) | `fiscal_f196_indirect_rate_detail` | 2013-14+ |
 
 The remaining un-parsed F-196 sub-reports are documented below with
 deferral rationale. Every parser above has passed its per-file
@@ -49,11 +50,22 @@ Within `apportionment/` (147,244 files), the District / College / State
 Agency monthly Statement table (51,985 files, page 1 only) is parsed.
 Outstanding:
 
-- **Apportionment allocation forms** -- ~3,732 files remaining.
-  `Final Apportionment Summary` (3,732) is its own form -- the
-  year-end version of monthly Apportionment pages 2+ (per-account
-  derivation -- complex compound doc).
+- **Apportionment allocation forms** -- coverage below.
   Done:
+  - `Final Apportionment Summary` (3,732 district-level files)
+    -> `fiscal_apportionment_final`. **Headline-only** parser (as
+    the "Deferred" section previously indicated the compound doc
+    was too big to fully parse). Captures per-Account "Total Amount
+    to be Paid / Total Amount Due / Calculated Allotment" lines,
+    keyed by (source, account_code, item_ordinal). Sub-report codes
+    (1191F/1191EEF/1191MSCTEF/1191SCF/1191FSF/1191SEF/1191TRNF/
+    1191CTER) are captured but positional -- the intermediate
+    per-item derivation (staffing units, per-pupil formulas) is NOT
+    captured; consumers should reference the source PDF directly for
+    a specific district's audit. Account attribution on the joint
+    "Account XXXX & YYYY" banners (4198 & 419801; 4199 & 4499) uses
+    the first account code -- 4499 lines merge into the 4199 group
+    for the Transportation section.
   - `Non-High Billing` (1,584 files) -> `fiscal_nonhigh_billing`.
   - `1191FG Grants Administration` (~4,200 unique-after-ESD-dedup
     files; ~7,700 raw including ESD replication) ->
@@ -67,23 +79,35 @@ Outstanding:
     2014-15 only; later years' unaudited filings live under
     `data/fiscal/fiscal/` as `F-196 All Pages`) ->
     `fiscal_f196_unaudited_summary` (page-2 SUMMARY block only).
-- **Report 1220TR ESD SpEd Transfer of Allocation** -- ~120 ESD-path
-  files (2013-14 through 2016-17 only; replicated per-member, dedup
-  needed). This is the ESD-level companion to district 1220 -- a
-  tabular per-member-district breakdown of 3121 / 4121 / 4122
-  transfers. Distinct enough from district 1220 to warrant a
-  parallel `fiscal_1220_sped_transfer` table.
-- **ESD-aggregate 1251 enrollment** -- ~3,800 unique ESD-level files
-  after dedup (replicated under every member subdir, so ~45K duplicates
-  before dedup). The format is a multi-district aggregate; per-ESD
-  enrollment rollup wouldn't fit `fiscal_1251_enrollment`'s
-  per-district shape. Build a parallel `fiscal_1251_enrollment_esd`
-  table if needed.
-- **Pages 2+ of the monthly Statement** -- the 40+ pages of per-account
-  computation detail (school-generated entitlement formulas, etc.) we
-  currently skip via `read_pdf_lines(max_pages=1)`. The headline
-  Allotment for {Month} number is already captured; pages 2+ would add
-  derivation transparency but bulk up the schema substantially.
+- **Report 1220TR ESD SpEd Transfer of Allocation** -- **DONE**.
+  Parser populates `fiscal_1220_sped_transfer` (2013-14 through
+  2016-17). The corpus has 1220TR files for **ESD 112 only**;
+  the other 8 ESDs' scrapes did not pull the 1220TR form (all
+  ESD-path 1220 files are for 06801 ESD 112 across 4 years). 120
+  raw files, 4 unique (year, ESD) reports after dedup. Per-member-
+  district breakdown of Accounts 3121 / 4121 / 4122 transfers plus
+  TOTAL TRANSFERRED / SAFETY NET / GRAND TOTAL summary rows. Sum
+  identity `TOTAL 4121 + SAFETY NET = GRAND TOTAL` reconciles on
+  all 4 files.
+- **ESD-aggregate 1251 enrollment** -- DEFERRED. The 1251 FTE PDFs
+  under `apportionment/YYYY/esd/{esd_dir}/{member}/` do carry ESD-
+  level aggregate data (63 pages of monthly enrollment breakdowns
+  per grade / program / grade span / etc.), but the same data can
+  be derived by summing member districts in `fiscal_1251_enrollment`.
+  The value-add is bounded to reconciling OSPI's ESD-level totals
+  against the district-level sums (~117 unique ESD-year files after
+  dedup). If a specific reconciliation use case appears, build
+  `fiscal_1251_enrollment_esd` with a minimal parser that captures
+  only the p1 K-12 grade table (the main headline data point).
+- **Pages 2+ of the monthly Statement** -- DEFERRED. The 40+ pages of
+  per-account computation detail (school-generated entitlement
+  formulas, etc.) we currently skip via `read_pdf_lines(max_pages=1)`.
+  The headline Allotment for {Month} number is already captured; the
+  year-end Final version of the same per-account derivation is now
+  captured (headline-only) as `fiscal_apportionment_final`. Full
+  per-item derivation is not captured -- extremely low ratio of
+  parsing complexity to analytical value; consumers should reference
+  the source PDF directly for a specific district's audit.
 
 Within `fiscal/` (17,101 files), one high-volume doc kind remains
 **partially parsed** (Phase 1 done):
@@ -262,17 +286,37 @@ Within `fiscal/` (17,101 files), one high-volume doc kind remains
     transfer -- from an OSPI form-print truncation of the printed
     total row's trailing decimals).
   - **Rate Schedule per-program/activity breakdown** (pp 72 / 74, page
-    1 of each Indirect Cost Rate schedule): the 7-column expenditures
-    partition (Total / Capital Outlay / Debt Service / Distorting
-    Items / Unallowable / Indirect Pool / Direct Base) per program
-    and per Program-97 activity. Not yet captured. Structurally
-    similar to `fiscal_f196_program_activity_object`; useful for
-    reproducing the indirect rate calculation from underlying
-    expenditures. Defer unless a specific use case appears.
+    1 of each Indirect Cost Rate schedule): **DONE.** Parser populates
+    `fiscal_f196_indirect_rate_detail` (2013-14 through 2024-25, 3,724
+    files, ~166,400 rows). Per-district per-rate_kind (restricted /
+    unrestricted) 7-column partition per row_kind (programs_total /
+    activity_detail / program_97_total). Positional column-anchor
+    extraction handles blank cells across all vintages. Per-file per-
+    rate_kind row-level sum identity `TOTAL = CAPITAL + DEBT +
+    DISTORTING + UNALLOWABLE + INDIRECT + DIRECT` reconciles on
+    ~91.2% of Total Program 97 rows; the ~8.8% failures are OSPI
+    form-internal data-entry errors (activity-level row totals that
+    don't match printed column values, e.g. Prosser 2013-14 activity
+    14 Human Resources total=79,607.34 but printed indirect
+    value=83,671.56). Not a parser bug -- the parser captures printed
+    values verbatim.
   - **Statement of Revenues, Expenditures, and Changes in Fund Balance**
-    (pp 5-6, 2 pages) -- intermediate-granularity rollup per fund x 7
-    funds. Mostly redundant with SUMMARY + Revenues; defer unless a
-    specific use case appears.
+    (pp 5-6, 2 pages) -- intermediate-granularity rollup per fund x 6
+    funds. **DEFERRED after re-review.** Structurally overlaps
+    `fiscal_f196_budgetary_comparison[column_kind='actual']` (per-fund
+    actuals across 5 funds) plus `fiscal_f196_summary` (fund_balance
+    roll-forward) plus `fiscal_f196_revenues` (revenues by source).
+    The unique add is per-fund CURRENT expenditures broken out by
+    program-group (Regular Instruction / Special Ed / Vocational /
+    Skill Center / Compensatory / Federal Stim / Community Services /
+    Support Services / Student Activities) for the non-General funds
+    -- which mostly zero out (ASB fund has only Student Activities,
+    Debt Service fund has only DEBT SERVICE, Capital Projects fund
+    has only CAPITAL OUTLAY, TVF has only Transportation Equipment).
+    Permanent Fund actuals are the one novel dimension but are ~0 on
+    all but a handful of districts. If a specific use case appears
+    (e.g. auditing OSPI's fund-level rollup vs SUMMARY+Revenues
+    reconciliation), build a minimal parser; otherwise defer.
 
 The **F-195 Budget (full)** parser landed (-> `fiscal_f195_budget`) and
 now captures **six sub-reports** covering the full breadth of General
@@ -457,35 +501,68 @@ by priority.
   `state_annual_salary + local_annual_salary == total_annual_salary`
   to isolate reliable rows.
 
-**Low priority (rarely-used):**
+**Low priority (rarely-used) -- DEFERRED with rationale:**
 
 - **CAPITAL PROJECTS FUND--PROJECT DESCRIPTION** (CP6) -- free-text
   project descriptions (low analytical value as structured data).
+  Consumers who need Capital Projects detail can join
+  `fiscal_f195_program_activity_object_detail` (budget-side) with
+  `fiscal_f196_program_activity_object_detail` (actual-side) filtered
+  to CP fund equivalents; the free-text descriptions in CP6 rarely
+  drive analytical queries.
 - **Budget Edit Report / Revenue Edit Report / ESD review / derivation
   formulas** (p170+ of each F-195 Budget PDF) -- appendix material.
+  Edit-check results are captured for F-196 filings by
+  `fiscal_f196_edit_report`; the F-195 pre-filing edit checks are
+  intermediate state that OSPI resolves before publication and rarely
+  matters for post-filing analysis.
 
-Outside `fiscal/`, 6 report types remain (149,772 files):
+Outside `fiscal/`, the following report types remain **DEFERRED with
+rationale** after content survey:
 
-- **`apportionment/`** -- 147,244 files. Biggest bucket. Per-district /
-  ESD / college / state-agency monthly and one-off apportionment PDFs.
-  Doc kinds: monthly `Apportionment for {Month}.pdf` (~50K), `1735T
-  Special Education`, `1251 FTE`, `1251H Headcount`, `1191FG Grants
-  Administration`, `Final Apportionment Summary`, `1220 Special
-  Education Allocation`, `Non-High Billing`, `K12 Staff Ratios`, `F-196
-  Unaudited`, multi-year `F-780 Levy Authority` (Initial / Final per
-  year). Likely needs at least 3 distinct parsers (monthly summaries
-  vs. allocation detail vs. F-780 levy).
-- **`state_agencies_schools_colleges/`** -- 751 files. Mostly named just
-  `PDF (N)` from the OSPI source; content type is unclear without
-  opening each. 155 are timestamped scraper-rerun duplicates.
-- **`county_treasurer/`** -- 624 files. Same `PDF (N)` / `XLS (N)`
-  generic naming pattern. Worth a content-extraction pass to attribute
-  each PDF to a county before designing a schema.
-- **`technical_colleges/`** -- 402 files. Same generic-naming issue.
-- **`esd_allocations/`** -- 38 files. Smallest bucket; named documents
-  (`ESD Core Allocations`, `ESD K20 Allocations`, etc.) per year per
-  ESD.
-
+- **`apportionment/`** -- ~147K files. All primary doc kinds are now
+  parsed:
+  - Monthly Apportionment page 1 (Statement of Apportionment) ->
+    `fiscal_apportionment_monthly`.
+  - 1191FG Grants, 1220 SpEd, 1220TR SpEd Transfer, 1251 FTE / 1251H
+    (district), 1735T SpEd, F-780 Levy, Non-High Billing, F-196
+    Unaudited, 1159 Staff Ratios -> individual `fiscal_*` tables.
+  - Final Apportionment Summary (1191F) -> `fiscal_apportionment_final`
+    (headline-only).
+  Deferred: monthly Statement pages 2+, ESD-aggregate 1251 (see
+  above).
+- **`state_agencies_schools_colleges/`** -- 751 files. **Content
+  survey**: PDFs are OSPI Report 1197 "Statement of Apportionment 900"
+  -- the monthly apportionment analog for state agencies / schools /
+  colleges (e.g. Peninsula College, Shoreline Community College).
+  Same 1-page format as `Apportionment for {Month}.pdf`. Deferred
+  because these entities are not K-12 school districts and don't
+  participate in the SAFS / F-195 / F-196 flows the fiscal tables
+  are optimized for. If K-14 analysis becomes a use case, refactor
+  the existing `apportionment_monthly` parser to accept file leaves
+  matching `PDF ({N})` under `state_agencies_schools_colleges/`.
+- **`county_treasurer/`** -- 624 files (2018-19 through 2020-21 only).
+  **Content survey**: PDFs are OSPI Report 1196A "Certificate of
+  Apportionment" -- county-level certification listing per-district
+  fund apportionment. Values are recoverable by summing from the
+  district-side `fiscal_apportionment_monthly` grouped by county.
+  Deferred unless a specific county-treasurer-side reconciliation
+  use case appears.
+- **`technical_colleges/`** -- 402 files. **Content survey**: mix of
+  Report 1197 (Statement of Apportionment 900, same as
+  state_agencies_schools_colleges) and Quarterly Funding Reports
+  (per-district CTE vocational funding). The 1197 subset is same
+  deferral rationale as state_agencies_schools_colleges. The
+  Quarterly Funding Reports carry per-district CTE Voc allocations
+  that could be a useful add if CTE vocational analysis is a use
+  case; defer for now.
+- **`esd_allocations/`** -- 38 files. **Content survey**: ~7 sub-
+  reports per year (ESD Core, ESD PD, ESD K20, ESD Nurse Corp, ESD
+  School Safety, ESD Suicide Prevention, ESD Core+PD Supplemental)
+  for 3 years (2017-18, 2019-20, 2020-21). ESD-level line-item
+  allocations (Staff Units, Salaries, Benefits, Insurance, etc). Not
+  parsed. Very small volume; if ESD funding analysis becomes a use
+  case, build a minimal per-line-item parser -- structurally simple.
 ## Coverage gaps in current fact tables
 
 - **177 source PDFs (4.5%) in `fiscal_f195_salary_exhibits` have
