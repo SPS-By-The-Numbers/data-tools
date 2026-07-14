@@ -1,6 +1,36 @@
 # data-tools
 Scripts and tools for ingesting data.
 
+## Two data paths: SAFS raw vs Fiscal PDF
+
+OSPI publishes the same district financial data twice — once as raw
+Microsoft Access `.accdb`/`.mdb` files (the **SAFS raw** path,
+extracted by [`extractors/safs/`](extractors/safs/)) and once as
+printed PDFs (the **Fiscal PDF** path, extracted by
+[`extractors/fiscal/`](extractors/fiscal/)). Both extractors run in
+this repo, but they capture **different slices** of the underlying
+data.
+
+**Short version:**
+- For top-level per-item / per-account / per-program-activity-object
+  totals, prefer the SAFS raw path — faster, more stable.
+- For salary/staff detail, balance sheets, mid-year Final Budget
+  revisions, indirect rate calculations, and ~15 other dimensions that
+  only appear on the printed forms, use the Fiscal PDF path.
+- For per-school granularity, only SAFS raw's
+  `ActualsChildGenerlFundExpenditures` has it.
+
+See [extractors/fiscal/DATA_SOURCE_DIVERGENCE.md](extractors/fiscal/DATA_SOURCE_DIVERGENCE.md)
+for the complete per-dimension mapping between the two paths,
+recommendations for which to use when, and a plan for closing the
+remaining SAFS `ITEMDIC` coverage gap.
+
+For the fiscal PDF outputs specifically, start with
+[extractors/fiscal/OVERVIEW.md](extractors/fiscal/OVERVIEW.md) (map
+of every fact CSV) and
+[extractors/fiscal/CSV_GUIDE.md](extractors/fiscal/CSV_GUIDE.md)
+(per-table schema, join keys, quirks).
+
 ## P223 data
 
 ### Setup
