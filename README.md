@@ -1,6 +1,39 @@
 # data-tools
 Scripts and tools for ingesting data.
 
+## Repository layout
+
+- `extractors/` — ETL source code: `safs/`, `fiscal/`, `stars/`, `budget/`,
+  `purplebook/`, `odata/`, `prr/`, plus standalone extractors
+  (`enrollment_reports.py`, `p223_pdf_batch.py`, ...).
+- `bigquery/` — legacy pre-SAFS loaders, kept for reference.
+- `marts/` — downstream joined datasets ("data marts"); `bigsheet.py` merges
+  ALL per-school data we have (vitals, MAP, BEX, S-275 churn, assessments,
+  SQSS) into one wide sheet. See `marts/README.md`.
+- `scripts/` — shell entry points (`load_safs.sh`, `push_data_to_gcs.sh`,
+  `pull_data_from_gcs.sh`, ...). Run from anywhere; they `cd` to the repo
+  root themselves.
+- `tools/` — ad-hoc analysis/CLI scripts operating on pipeline outputs; not
+  part of the production pipeline.
+- `docs/` — GitHub Pages site + dev guides (`docs/guides/`).
+- `data/` — raw source data that syncs to
+  `gs://sps-btn-data-all-data/raw/<subdir>` via `scripts/push_data_to_gcs.sh` /
+  `scripts/pull_data_from_gcs.sh`. **Read-only for tooling** — nothing is ever
+  written, moved, or renamed here by any script or by hand; only the owner
+  adds to it. Subtrees (approximate sizes): `fiscal` (~142 GB), `safs`
+  (~6.3 GB), `stars` (~1.4 GB), `transit` (~905 MB), `assessment` (~356 MB),
+  `sps` (~327 MB), `sqss` (~233 MB), `census` (~41 MB), `map` (~20 MB),
+  `enrollment` (~872 KB).
+- `reference/` — gitignored, human reference material moved as-is
+  (`input/`, `olddata/`, `regress/`, `stats/`, `analysis/`, `scratch/`,
+  `prr/`); never cleaned or reorganized by tooling.
+- `attic/` — gitignored parking lot for unclassified root clutter, pending
+  owner triage. See `attic/MANIFEST.md`.
+- `safs_prod/`, `output/`, `out_*/` — generated pipeline outputs, gitignored
+  in place. **TODO:** these should move under one output root (e.g. `out/`);
+  requires coordinated updates to `scripts/load_safs.sh` and the fiscal/stars
+  extractor paths. See `Reorganize.md` Follow-ups.
+
 ## Two data paths: SAFS raw (start here) vs Fiscal PDF
 
 OSPI publishes the same district financial data twice — once as raw

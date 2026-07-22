@@ -6,6 +6,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Scripts and tools for ingesting Seattle Public Schools / OSPI data (budgets, actuals, personnel, assessments, enrollment) from heterogeneous source formats (Access `.accdb`/`.mdb`, Excel, CSV, AVRO, PDF) into normalized AVRO files that are uploaded to GCS and loaded into BigQuery.
 
+## Repository layout
+
+- `extractors/`, `bigquery/` — pipeline source code (`bigquery/` is legacy, pre-SAFS).
+- `marts/` — joined per-school datasets ("data marts"); `bigsheet.py` merges everything we have per school.
+- `scripts/`, `tools/`, `docs/` — shell entry points, ad-hoc analysis scripts, and docs/guides.
+- `data/` — raw source, syncs to GCS via `scripts/push_data_to_gcs.sh` / `pull_data_from_gcs.sh`. Read-only for tooling; only the owner adds to it. See README.md for the subtree breakdown and sizes.
+- `reference/` — human reference only, gitignored, never cleaned by tooling (`input/`, `olddata/`, `regress/`, `stats/`, `analysis/`, `scratch/`, `prr/`).
+- `attic/` — pending owner triage; see `attic/MANIFEST.md`.
+- `safs_prod/`, `output/`, `out_*/` — generated, gitignored in place. TODO: `safs_prod/`, `output/`, `out_*` should move under one output root; requires coordinated updates to `scripts/load_safs.sh` and fiscal/stars extractor paths (see `Reorganize.md` Follow-ups).
+
 ## Setup
 
 ```console

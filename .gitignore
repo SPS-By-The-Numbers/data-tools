@@ -164,10 +164,27 @@ cython_debug/
 # Claude Code per-checkout settings (machine-specific paths, etc.).
 .claude/settings.local.json
 
-# This directory should be in gcs.
-input/
-output/
+# macOS
+.DS_Store
+
+# Raw source data — synced to GCS, never committed, read-only for tooling
 data/
-out_stars/
+
+# Generated pipeline outputs — reproducible from data/ + extractors/.
+# TODO: consolidate these under a single output root (e.g. out/) and update
+# load_safs.sh --outdir, extractors/fiscal + extractors/stars output paths,
+# and the docs that reference safs_prod/ and out_fiscal/. See Reorganize.md.
+safs_prod/
+output/
+out_*
+out_*/
+
+# Human reference material (old inputs, old analyses, scratch) — kept on disk only
+reference/
+
+# Parked clutter pending owner triage
+attic/
+SEA_Analysis/
+*.log
 
 *.sw[op]
