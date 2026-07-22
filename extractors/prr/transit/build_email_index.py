@@ -16,7 +16,7 @@ Then we dedupe across (normalized_from, normalized_subject, date_minute),
 preferring native > bundle (and within natives, preferring the canonical
 sha256 copy over duplicates).
 
-Output: prr_transportation/_all_emails.csv
+Output: reference/prr/transportation/_all_emails.csv
 """
 
 import argparse
@@ -289,7 +289,7 @@ def main():
     parser.add_argument("--ocr-root", default="data/transit/ocr",
                         help="optional: dir of OCR sidecars per bundle. "
                         "Used to backfill chunk body text.")
-    parser.add_argument("--out-csv", default="prr_transportation/_all_emails.csv")
+    parser.add_argument("--out-csv", default="reference/prr/transportation/_all_emails.csv")
     parser.add_argument("--log-level", default="INFO")
     args = parser.parse_args()
     logging.basicConfig(

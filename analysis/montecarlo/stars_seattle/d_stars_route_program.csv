@@ -1,7 +1,0 @@
-program,program_letter,full_label,description
-basic,A,Basic Program (A),General-education home-to-school transportation.
-special_ed,S,Special Ed Program (S),Special-education routes (IEP-mandated transportation).
-bilingual,B,Bilingual Program (B),Bilingual / Transitional Bilingual Instructional Program routes.
-gifted,G,Gifted Program (G),Gifted / Highly Capable program routes.
-homeless,H,Homeless Program (H),Homeless-student transportation under McKinney-Vento.
-early_ed,E,Early Ed Program (E),Early-childhood / preschool program routes.

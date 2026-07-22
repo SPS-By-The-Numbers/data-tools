@@ -1,7 +1,0 @@
-{
-  "name": "ms_walk_1mi",
-  "description": "Shrink middle school walk zones from the 2.0-mile rule to 1.0 mile (all MS walk zones regenerated as calibrated buffers; kids between 1 and 2 miles become bus-eligible). K-8s carry level ES and are untouched.",
-  "ops": [
-    {"op": "set_walk_threshold", "level": "MS", "miles": 1.0}
-  ]
-}

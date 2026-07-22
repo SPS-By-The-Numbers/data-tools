@@ -1,7 +1,0 @@
-metric_code,base_metric,is_change_pct,unit,description
-basic_rider_kpi,basic_rider_kpi,False,riders/bus,Basic-program riders per basic-program bus. Total basic ridership (AM+PM count divided by two) over basic bus count.
-sped_rider_kpi,sped_rider_kpi,False,riders/bus,Special-education riders per special-education bus. Same calculation as basic_rider_kpi but for special-program routes.
-cost_per_rider,cost_per_rider,False,$/rider,"Average operating cost per transported rider, in dollars per student per year."
-basic_rider_kpi_change_pct,basic_rider_kpi,True,%,Year-over-year change in basic_rider_kpi. Positive = more efficient.
-sped_rider_kpi_change_pct,sped_rider_kpi,True,%,Year-over-year change in sped_rider_kpi. Positive = more efficient.
-cost_per_rider_change_pct,cost_per_rider,True,%,Year-over-year change in cost_per_rider. Negative = more efficient (cost dropped).

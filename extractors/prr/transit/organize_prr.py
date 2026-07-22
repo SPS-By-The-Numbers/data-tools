@@ -1,16 +1,16 @@
 #!python3
-"""Organize the transit PRR tree into prr_transportation/ by topic.
+"""Organize the transit PRR tree into reference/prr/transportation/ by topic.
 
 Reads:
   - data/transit/manifest.csv (one row per file in the source tree)
-  - prr_transportation/_all_emails.csv (unified email index, with bodies)
+  - reference/prr/transportation/_all_emails.csv (unified email index, with bodies)
   - data/transit/chunks/*.chunks.csv (bundle chunks)
 
 Writes:
-  - prr_transportation/<NN_topic>/<YYYY-MM-DD_HHMM_from_subject>.{pdf,eml,msg}
+  - reference/prr/transportation/<NN_topic>/<YYYY-MM-DD_HHMM_from_subject>.{pdf,eml,msg}
     Each entry is a symlink (default) or hard copy back to the source file.
-  - prr_transportation/<NN_topic>/README.md  — topic explanation + callouts.
-  - prr_transportation/README.md             — top-level index.
+  - reference/prr/transportation/<NN_topic>/README.md  — topic explanation + callouts.
+  - reference/prr/transportation/README.md             — top-level index.
 
 Topic assignment uses keyword rules in priority order. The first matching
 rule wins. The taxonomy is hand-tuned around the user's stated research
@@ -714,9 +714,9 @@ def write_topic_readme(topic_dir, topic, entries, callouts):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--manifest", default="data/transit/manifest.csv")
-    parser.add_argument("--emails", default="prr_transportation/_all_emails.csv")
+    parser.add_argument("--emails", default="reference/prr/transportation/_all_emails.csv")
     parser.add_argument("--chunks-root", default="data/transit/chunks")
-    parser.add_argument("--out", default="prr_transportation")
+    parser.add_argument("--out", default="reference/prr/transportation")
     parser.add_argument(
         "--mode", choices=("symlink", "copy", "portable"),
         default="symlink",
@@ -1099,7 +1099,7 @@ def main():
     index_lines.append(
         "## Generated from\n\n"
         "- `data/transit/manifest.csv` — file inventory.\n"
-        "- `prr_transportation/_all_emails.csv` — unified email index "
+        "- `reference/prr/transportation/_all_emails.csv` — unified email index "
         "(eml + msg + bundle chunks, with dedupe).\n"
         "- `data/transit/chunks/*.chunks.csv` — per-bundle chunk splits.\n"
         "- `data/transit/ocr/Installment_{5,6,7,9,11}/page_NNNN.txt` — "

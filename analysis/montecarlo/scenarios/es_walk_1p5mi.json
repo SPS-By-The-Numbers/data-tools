@@ -1,7 +1,0 @@
-{
-  "name": "es_walk_1p5mi",
-  "description": "Expand the elementary walk threshold from 1.0 to 1.5 miles (all ES walk zones regenerated as calibrated buffers).",
-  "ops": [
-    {"op": "set_walk_threshold", "level": "ES", "miles": 1.5}
-  ]
-}
