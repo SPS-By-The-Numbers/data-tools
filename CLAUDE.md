@@ -16,6 +16,8 @@ $ brew install pdftotext mdbtools     # pdftotext for P223; mdbtools for .accdb/
 
 A local PostgreSQL server is required for the SAFS pipeline (used as a staging RDBMS — connections go to `localhost`, see `extractors/safs/db_connection.py`). `tr` (already on macOS) is also required for P223.
 
+There is no need to `source venv/bin/activate`. Activation only edits `PATH`/`$VIRTUAL_ENV` for an interactive shell; it changes nothing about how scripts run. Instead, invoke the venv interpreter directly — `venv/bin/python3 -m extractors.safs.from_raw_file ...`, `venv/bin/pytest`, `venv/bin/pip` — and it will use the venv's site-packages regardless. The `python3`/`pytest` commands shown below assume the venv is on `PATH` (i.e. activated); prefix them with `venv/bin/` to skip activation.
+
 ## Common commands
 
 Run tests:
