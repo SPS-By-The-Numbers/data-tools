@@ -1,4 +1,5 @@
 #!/bin/bash
+cd "$(dirname "$0")/.." || exit 1
 
 # Order matters. Go backwards in time to be most resilient to schema changes.
 set -e

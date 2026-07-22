@@ -29,7 +29,7 @@ $ pytest extractors/safs/data_reader_test.py::test_tables   # one test
 
 Run the full SAFS pipeline (loads raw files → Postgres → final tables → AVRO → GCS → BigQuery):
 ```console
-$ ./load_safs.sh
+$ ./scripts/load_safs.sh
 ```
 
 Run individual pipeline stages as modules (always from repo root, since they use package-relative imports):
@@ -40,7 +40,7 @@ $ python3 -m extractors.safs.dump_tables --db-name=safs_prod --outdir=safs_prod 
 $ python3 -m extractors.safs.gcloud_load_tables --upload-to-gcs --load-bq-from-gcs --outdir=safs_prod <datasets...>
 ```
 
-Valid `datasets` values: `domain enrollment sqss f19x s275 assessment`. Order matters in `from_raw_file` — `load_safs.sh` loads newest-to-oldest so newer schemas win when older sources are missing columns.
+Valid `datasets` values: `domain enrollment sqss f19x s275 assessment`. Order matters in `from_raw_file` — `scripts/load_safs.sh` loads newest-to-oldest so newer schemas win when older sources are missing columns.
 
 Extract P223 enrollment PDFs:
 ```console
@@ -96,9 +96,17 @@ The same schema dict is converted to SQLAlchemy `Table` (via `orm.py:make_table`
 - `extractors/odata/` — OSPI OData endpoints (e.g. `ospi-odata-load.py`).
 - `extractors/2023_budget_school_breakdown_to_csv.py`, `2024_budget_school_breakdown_to_csv.py` — year-specific one-off scripts.
 
+### Marts
+
+`marts/bigsheet.py` is a first-class pipeline stage (a data mart built on
+extractor outputs): it joins ALL per-school data we have — vitals, MAP
+scores, BEX building condition/utilization/income, S-275 staffing churn,
+assessments, and SQSS — into one wide per-school sheet for analysis. See
+`marts/README.md` for its CLI/input contract.
+
 ### Top-level scripts
 
-`analyze.py`, `bigsheet.py`, `plot.py`, `scatter.py`, `boxplot.py`, `to_boss.py`, `odd_salary.py`, `avro_to_csv.py` are ad-hoc analysis/visualization scripts that operate on the CSV/AVRO outputs of the pipeline — they are not part of the production pipeline.
+`tools/analyze.py`, `tools/plot.py`, `tools/scatter.py`, `tools/boxplot.py`, `tools/to_boss.py`, `tools/odd_salary.py`, `tools/avro_to_csv.py` are ad-hoc analysis/visualization scripts that operate on the CSV/AVRO outputs of the pipeline — they are not part of the production pipeline.
 
 ## Working in this repo
 

@@ -259,7 +259,7 @@ The biggest single lift to close this gap is to load the sidecar xlsx
 files into the SAFS pipeline. Suggested plan:
 
 1. **Load the sidecar xlsx files.** Add `data/safs/f196/*item_dictionary.xlsx`
-   to [`load_safs.sh`](../../load_safs.sh) and update the F-196 config
+   to [`load_safs.sh`](../../scripts/load_safs.sh) and update the F-196 config
    in [`extractors/safs/data_reader_config/f196.py`](../safs/data_reader_config/f196.py)
    to route the item-dictionary sheet into `f196_item_dict`. Expected
    coverage: 95-98%.

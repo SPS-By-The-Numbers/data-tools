@@ -1,7 +1,8 @@
 #!/bin/bash
+cd "$(dirname "$0")/.." || exit 1
 
 #
-#  ./load_one_odata_by_code.sh wagov xxxx-yyyy
+#  ./scripts/load_one_odata_by_code.sh wagov xxxx-yyyy
 #
 #  using ospi currently runs into an issue because tables are done with biglake so its all external.
 
