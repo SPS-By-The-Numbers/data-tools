@@ -76,7 +76,7 @@ label alongside (`program_code` + `program`, `activity_code` +
 to have to derive from `fiscal_f196_resource_to_program` (a PDF-only
 sub-report) is already baked into the SAFS canonical avros. That
 means the revenue→program→activity→object Sankey (see
-`analysis/sps_sankey_avro.py` `spao_safs_only_variant`) can be built
+`reference/analysis/sps_sankey_avro.py` `spao_safs_only_variant`) can be built
 end-to-end from just these two avros — no PDFs needed.
 
 **`capital_project_revenues.avro`, `debt_service_revenues.avro`,
@@ -129,7 +129,7 @@ with open("safs_prod/f19x/general_fund_revenues.avro", "rb") as f:
 Then distribute `directed` amounts to their target programs directly,
 and `fungible` amounts proportionally to remaining program capacity.
 See the three-pass algorithm in
-[`analysis/sps_sankey_avro.py:spao_safs_only_variant`](../../analysis/sps_sankey_avro.py)
+[`reference/analysis/sps_sankey_avro.py:spao_safs_only_variant`](../../reference/analysis/sps_sankey_avro.py)
 for the reference implementation.
 
 ### Budget vs Actuals per (program, activity, object)
@@ -277,7 +277,7 @@ Estimated effort: 3-5 engineering days for full 100% coverage.
 
 ## Case study: revenue → expenditure Sankey
 
-The Sankey work in `analysis/sps_sankey_avro.py` demonstrates the
+The Sankey work in `reference/analysis/sps_sankey_avro.py` demonstrates the
 SAFS-first pattern end-to-end for Seattle 2024-25. Five variants use
 only the two canonical avros above (`spao_safs_only_variant` is the
 purest example) and reconcile every program's inflow to its outflow

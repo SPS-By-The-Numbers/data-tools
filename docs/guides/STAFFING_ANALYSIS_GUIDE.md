@@ -229,7 +229,7 @@ Media, 42 Counselor, 43 OT, 44 Social Worker, 45 SLP, 46 Psychologist, 47 Nurse,
 - `seattle_ratio_duty_*.jpg`, `seattle_ratio_basiced_*.jpg`, `seattle_ratio_*_teacher_*.jpg`,
   `seattle_school_experience_scatter.jpg`, `seattle_teacher_salary_experience.png` — the figures.
 - ⚠️ The Python that built these lived in the session **scratchpad (ephemeral)** — not committed. If you
-  want them persisted into `analysis/`, ask and they can be reconstructed (the recipes above + this guide
+  want them persisted into `reference/analysis/`, ask and they can be reconstructed (the recipes above + this guide
   are enough to rebuild any of it).
 
 Plot conventions used (if you continue the visual style): facet by middle-school attendance area
