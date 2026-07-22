@@ -1,29 +1,42 @@
 # data-tools
 Scripts and tools for ingesting data.
 
-## Two data paths: SAFS raw vs Fiscal PDF
+## Two data paths: SAFS raw (start here) vs Fiscal PDF
 
 OSPI publishes the same district financial data twice — once as raw
 Microsoft Access `.accdb`/`.mdb` files (the **SAFS raw** path,
-extracted by [`extractors/safs/`](extractors/safs/)) and once as
-printed PDFs (the **Fiscal PDF** path, extracted by
-[`extractors/fiscal/`](extractors/fiscal/)). Both extractors run in
-this repo, but they capture **different slices** of the underlying
-data.
+extracted by [`extractors/safs/`](extractors/safs/) into canonical
+avros under `safs_prod/f19x/*.avro`) and once as printed PDFs (the
+**Fiscal PDF** path, extracted by
+[`extractors/fiscal/`](extractors/fiscal/) into
+`out_fiscal/*.csv`). Both extractors run in this repo, but they
+capture **different slices** of the underlying data.
 
-**Short version:**
-- For top-level per-item / per-account / per-program-activity-object
-  totals, prefer the SAFS raw path — faster, more stable.
-- For salary/staff detail, balance sheets, mid-year Final Budget
-  revisions, indirect rate calculations, and ~15 other dimensions that
-  only appear on the printed forms, use the Fiscal PDF path.
-- For per-school granularity, only SAFS raw's
-  `ActualsChildGenerlFundExpenditures` has it.
+**Start with the SAFS canonical avros.** They cover almost every
+top-level analysis you'd want — budget vs actuals, revenue
+account → program → activity → object flows, per-school detail, NCES
+categories, sub-fund breakouts, four-year forecasts — with decoded
+labels and dimensions pre-joined. Two files are enough for most
+work:
+- `safs_prod/f19x/general_fund_expenditures.avro` — full P×A×O cube
+  including NCES, sub-fund, per-school grain; both actuals and budget
+  in one table (filter on `data_type`).
+- `safs_prod/f19x/general_fund_revenues.avro` — per-account
+  revenues with OSPI's own **`program_code` attribution baked in**
+  (so revenue → program flows work without any PDF).
+
+**Reach for the Fiscal PDF path** only when you need a dimension
+that genuinely doesn't exist in the SAFS raw path: per-duty-code
+salary detail, balance sheets, long-term liabilities, the mid-year
+revised (Final) Budget column, federal indirect cost rate
+calculation, edit-check quality flags, or any of the
+apportionment / 1191 / F-780 / 1191SI sub-reports (~15 dimensions
+total).
 
 See [extractors/fiscal/DATA_SOURCE_DIVERGENCE.md](extractors/fiscal/DATA_SOURCE_DIVERGENCE.md)
-for the complete per-dimension mapping between the two paths,
-recommendations for which to use when, and a plan for closing the
-remaining SAFS `ITEMDIC` coverage gap.
+for the complete per-dimension mapping, working recipes for the
+SAFS-first pattern, and the plan for closing the remaining SAFS
+`ITEMDIC` coverage gap.
 
 For the fiscal PDF outputs specifically, start with
 [extractors/fiscal/OVERVIEW.md](extractors/fiscal/OVERVIEW.md) (map

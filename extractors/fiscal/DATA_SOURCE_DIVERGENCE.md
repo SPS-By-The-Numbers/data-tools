@@ -1,27 +1,37 @@
-# SAFS raw vs Fiscal PDF: two paths, different coverage
+# SAFS raw vs Fiscal PDF: what each covers, and what to reach for first
 
 OSPI publishes the same district financial data twice — once as raw
 tables in Microsoft Access `.accdb`/`.mdb` files (the **SAFS raw**
 path), and once as printed PDFs (the **fiscal PDF** path). This repo
 extracts both, but they capture **different slices** of the underlying
-data. This doc explains what each path has, where they overlap, and
-which one to prefer for a given question.
+data.
 
-If you only need the top-level numbers (revenues per fund, expenditures
-per program × activity × object, per-item totals) — **use the SAFS raw
-path**. It's faster, more stable, and OSPI intends it as the machine-
-readable interface. If you need staff/salary detail, balance sheets,
-mid-year budget revisions, or anything that only appears on the printed
-form — **you need the fiscal PDF path**.
+**Start with SAFS raw.** Almost all top-level analysis — budget vs
+actuals, per-(program × activity × object × NCES × school × sub-fund)
+expenditures, per-account revenues with pre-attributed target programs,
+four-year forecasts — is available from the SAFS pipeline outputs
+under `safs_prod/f19x/`. That path is faster, more stable, updates on
+OSPI's filing cadence, and has richer analytical dimensions than the
+PDF path (per-school, sub-fund, NCES).
+
+Only reach for the fiscal PDF path when you need one of the dimensions
+that only lives on the printed forms: salary/staff detail per duty
+code, balance sheet, long-term debt, mid-year revised (Final) Budget,
+federal indirect rate calculation, edit-check quality flags, or any of
+the smaller apportionment/1191/F-780/1191SI reports. Those are documented
+in [OVERVIEW.md](OVERVIEW.md) and cataloged in [CSV_GUIDE.md](CSV_GUIDE.md).
 
 ## The two paths at a glance
 
 ```
      Districts submit ---> OSPI
                             |
-                            +--> SAFS Access .accdb  ---> extractors/safs/  ---> BigQuery (safs_*)
-                            |                                                    d_budget_item / d_actuals_item
-                            |                                                    general_fund_expenditures / etc.
+                            +--> SAFS Access .accdb  ---> extractors/safs/  ---> Postgres staging
+                            |                              orm.py / transforms/     |
+                            |                                                       v
+                            |                                             safs_prod/f19x/*.avro
+                            |                                             (canonical, decoded,
+                            |                                              per-school + NCES + sub-fund)
                             |
                             +--> Published PDFs      ---> extractors/fiscal/ ---> CSV out_fiscal/
                                 (F-195 Budget,                                    fiscal_f195_*, fiscal_f196_*,
@@ -30,94 +40,146 @@ form — **you need the fiscal PDF path**.
                                  1191*, F-780, etc)
 ```
 
-The SAFS raw path is fed by a few dozen `.accdb`/`.mdb` files per year
-(one per form kind) plus sidecar `-item_dictionary.xlsx` and
-`-codes.xlsx` reference tables. The fiscal PDF path is fed by ~200K
-PDFs per year and produces ~35 fact CSVs (see
-[OVERVIEW.md](OVERVIEW.md)).
+**When code says "SAFS raw", prefer the canonical avros** in
+`safs_prod/f19x/*.avro` over parsing `.accdb` files directly. The
+avros have joined dimension tables, decoded labels for every code,
+and `data_type` fields distinguishing actuals from budget in one
+uniform place. See [Recipes](#recipes-from-safs-raw-only) below for
+examples.
 
-## What's in the SAFS raw path
+## What's in the SAFS canonical avros
 
-Every F-195 `.accdb` contains these tables (names carry a year prefix
-like `2022-2023` or `1819`):
+Under `safs_prod/f19x/`:
 
-- `BudgetItemNumbers` — flat `(CCDDD, FUND, ITEM, AMOUNT)` — 180+
-  unique item codes per year.
-- `BudgetGeneralFundExpenditures` — **`(CCDDD, PROGRAM, ACTIVITY,
-  OBJECT, AMOUNT)`** — this is the full budget-side per-program ×
-  per-activity × per-object cross-tab.
-- `BudgetCapitalProjectRevenues`, `BudgetDebtServiceRevenues`,
-  `BudgetGeneralFundRevenues`, `BudgetTransVehicleRevenues` — per-fund
-  revenue detail by 4-digit account code.
-- `F-195F All Districts` — four-year budget forecast (base year +
-  3 forecast years).
-- `ITEMDIC1` — item dictionary (code → description). Coverage varies
-  93-100%; missing entries mostly show up as rows with empty
-  `DESCRIPTION`. See [item domain notes](#item-domain-completion) below.
-- `TL-ACTIVITY`, `TL-COUNTY`, `TL-FUND`, `TL-OBJECT`, `TL-PROGRAM`,
-  `TL-REVENUE`, `TL-CCDDD` — dimension tables.
+**`general_fund_expenditures.avro`** — the P×A×O cube, plus NCES,
+sub-fund, and per-school grain (2019-20+). Both `data_type='budget'`
+and `data_type='actuals'` in one table. Every code carries its decoded
+label alongside (`program_code` + `program`, `activity_code` +
+`activity`, etc.). This single table replaces most of what the fiscal
+`fiscal_f195_program_activity_object_detail` and
+`fiscal_f196_program_activity_object_detail` PDFs give you.
 
-Every F-196 `.accdb` contains the parallel actuals tables:
+**`general_fund_revenues.avro`** — per-account revenues with:
+- `revenue_code` + `revenue` (4-digit OSPI account with label)
+- `category_code` + `category` (State-General / State-Special /
+  Federal-General / Federal-Special / Local-Taxes / Local-Non-Tax /
+  Other-Financing / Revenues-from-Other-Entities / etc.)
+- **`program_code` + `program` — target program per OSPI's 1191F
+  apportionment methodology.** Value `0` with label
+  `"[special] Unrestricted"` marks fungible accounts (e.g. Account
+  3100 Apportionment, Account 1100 Local Property Tax). All others
+  route to a specific program (e.g. Account 4121 → Program 21,
+  Account 6151 → Program 51).
+- `amount`
 
-- `ActualsItemNumbers` — flat item totals.
-- `ActualsGeneralFundExpenditures` — full actuals-side `(CCDDD,
-  FundCode, ProgramCode, ActivityCode, ObjectCode, Amount)`.
-- `ActualsChildGenerlFundExpenditures` (2019-20+) — **per-school**
-  breakdown with `SchoolCode`, `SubFundCode`, and `NCESCode` columns —
-  a finer grain than the fiscal PDF tables capture.
-- `ActualsRevenuesAndExpenditures` — union of all revenue + expenditure
-  detail with `RevenueCode`, `ItemCode`, `ProgramCode`, `ActivityCode`,
-  `ObjectCode` columns.
-- `Actuals*Revenues` per fund.
-- `Item Dictionary` (2013-14 through 2017-18 only; later years use
-  sidecar `.xlsx` files).
+**This is a big deal.** The revenue→program attribution that we used
+to have to derive from `fiscal_f196_resource_to_program` (a PDF-only
+sub-report) is already baked into the SAFS canonical avros. That
+means the revenue→program→activity→object Sankey (see
+`analysis/sps_sankey_avro.py` `spao_safs_only_variant`) can be built
+end-to-end from just these two avros — no PDFs needed.
 
-The pipeline is orchestrated by [`load_safs.sh`](../../load_safs.sh) and
-reads through [`extractors/safs/from_raw_file.py`](../safs/from_raw_file.py)
-with per-form config in
-[`extractors/safs/data_reader_config/f195.py`](../safs/data_reader_config/f195.py)
-and [`extractors/safs/data_reader_config/f196.py`](../safs/data_reader_config/f196.py).
-Transforms and dedup rules live in
-[`extractors/safs/transforms/f19x.py`](../safs/transforms/f19x.py).
+**`capital_project_revenues.avro`, `debt_service_revenues.avro`,
+`trans_vehicle_revenues.avro`** — the same shape but for CP / DS / TVF
+funds.
 
-## What's in the fiscal PDF path
+**`budget_items.avro`, `actuals_items.avro`** — per-item totals (the
+`ItemNumbers` roll-up) with decoded item-code labels.
 
-Everything documented in [OVERVIEW.md](OVERVIEW.md). ~35 fact tables
-covering:
+Every avro table joins to the source `.accdb` via `_source` /
+`_source_table` for traceability.
 
-- All the same top-level dimensions the SAFS raw path has.
-- Plus 15+ analytical dimensions that the SAFS raw does not carry (see
-  next section).
+## Recipes (from SAFS raw only)
 
-## Coverage divergence
+Use these patterns as the default. They avoid the fiscal PDF path
+entirely and are faster to iterate on.
 
-The fiscal PDF path was built because it captures dimensions the SAFS
-raw path does not expose. Concretely:
+### Per-program actuals across P × A × O × NCES × school
 
-### In SAFS raw and in fiscal PDF (both paths available)
+```python
+import fastavro
+from decimal import Decimal
+from collections import defaultdict
 
-For these questions, **prefer SAFS raw** — it's faster and more stable.
+cube = defaultdict(Decimal)
+with open("safs_prod/f19x/general_fund_expenditures.avro", "rb") as f:
+    for r in fastavro.reader(f):
+        if (r["ccddd"] == 17001                        # Seattle
+                and r["school_year"] == "2024-2025"
+                and r["data_type"] == "actuals"):
+            key = (r["program_code"], r["activity_code"],
+                   r["object_code"], r["nces_code"], r["school_code"])
+            cube[key] += Decimal(r["amount"] or 0)
+```
 
-| Question | SAFS raw table | Fiscal PDF table |
-|---|---|---|
-| Budget per (program, activity, object) | `BudgetGeneralFundExpenditures` | `fiscal_f195_program_activity_object_detail` |
-| Actuals per (program, activity, object) | `ActualsGeneralFundExpenditures` | `fiscal_f196_program_activity_object_detail` |
-| Program × object cross-tab (budget) | derivable by pivot | `fiscal_f195_program_summary_by_object` |
-| Program / activity / object roll-ups (actuals) | derivable by aggregation | `fiscal_f196_program_activity_object` |
-| Revenues per 4-digit account (budget) | `Budget*Revenues` per fund | `fiscal_f195_budget[fund_revenue_detail]` |
-| Revenues per 4-digit account (actuals) | `Actuals*Revenues` per fund | `fiscal_f196_revenues` |
-| Item totals per fund | `BudgetItemNumbers` / `ActualsItemNumbers` | `fiscal_f195_budget[fund_summary]` / `fiscal_f196_summary` |
-| Four-year budget forecast (F-195F) | `F-195F All Districts` | `fiscal_f195_four_year` |
-| NCES-object expenditures per school | `ActualsChildGenerlFundExpenditures` (2019-20+, per-school!) | `fiscal_f196_nces_object` (district roll-up) |
+### Revenue → program attribution
 
-Note that `ActualsChildGenerlFundExpenditures` in the SAFS raw path
-gives you **per-school** granularity that the fiscal PDF path does not
-capture — the fiscal_* tables are district-level only.
+```python
+directed = []      # revenue accounts with OSPI-designated target program
+fungible = []      # program_code == 0 "[special] Unrestricted"
+with open("safs_prod/f19x/general_fund_revenues.avro", "rb") as f:
+    for r in fastavro.reader(f):
+        if r["ccddd"] == 17001 and r["school_year"] == "2024-2025" \
+                and r["data_type"] == "actuals":
+            row = {"revenue_code": r["revenue_code"], "amount": Decimal(r["amount"] or 0),
+                   "program_code": r["program_code"], "category": r["category"]}
+            (fungible if r["program_code"] in (0, None) else directed).append(row)
+```
 
-### Only in fiscal PDF path (SAFS raw does not carry the dimension)
+Then distribute `directed` amounts to their target programs directly,
+and `fungible` amounts proportionally to remaining program capacity.
+See the three-pass algorithm in
+[`analysis/sps_sankey_avro.py:spao_safs_only_variant`](../../analysis/sps_sankey_avro.py)
+for the reference implementation.
 
-These are the reason the fiscal PDF path exists. There is no SAFS raw
-equivalent — you must parse the PDFs.
+### Budget vs Actuals per (program, activity, object)
+
+Both are in the same avro. Filter by `data_type` and diff:
+
+```python
+# Two passes: build the two cubes, then compare on the shared key.
+def build(dtype):
+    c = defaultdict(Decimal)
+    with open("safs_prod/f19x/general_fund_expenditures.avro", "rb") as f:
+        for r in fastavro.reader(f):
+            if r["ccddd"] == 17001 and r["school_year"] == "2024-2025" \
+                    and r["data_type"] == dtype:
+                c[(r["program_code"], r["activity_code"], r["object_code"])] \
+                    += Decimal(r["amount"] or 0)
+    return c
+
+budget = build("budget")
+actual = build("actuals")
+for key in sorted(set(budget) | set(actual)):
+    b, a = budget.get(key, 0), actual.get(key, 0)
+    print(key, f"budget={b}  actual={a}  variance={a - b}")
+```
+
+### Per-school breakdown
+
+`general_fund_expenditures.avro` has `school_code` + `school` +
+`is_district_office` on every row (per-school data via the underlying
+`ActualsChildGeneralFundExpenditures` table for 2019-20+). Just
+group by `school_code` — the fiscal PDF path does not carry per-
+school grain.
+
+### NCES-category breakdown
+
+`nces_code` + `nces` (label) are on the same avro. Group by
+`nces_code` for federal-comparable object categories (much finer
+than the 7 OSPI object codes).
+
+### Sub-fund (Basic Ed vs Non-Basic-Ed) breakdown
+
+`sub_fund_code` + `sub_fund` are on the same avro (2019-20+). Group
+by `sub_fund_code`. The PDF equivalent is `fiscal_f196_gf_by_subfund`
+but you don't need it — the SAFS avro has more grain.
+
+## What still needs the fiscal PDF path
+
+These dimensions genuinely don't exist in SAFS raw. If you need them,
+parse the PDFs (see [OVERVIEW.md](OVERVIEW.md) and
+[CSV_GUIDE.md](CSV_GUIDE.md) for the tables).
 
 | Dimension | Fiscal PDF table |
 |---|---|
@@ -129,7 +191,6 @@ equivalent — you must parse the PDFs.
 | Balance Sheet (assets, deferred outflows, liabilities, fund balance) | `fiscal_f196_balance_sheet` |
 | Long-term liabilities roll-forward (beg + issued − redeemed = end) | `fiscal_f196_long_term_liabilities` |
 | **Mid-year revised (Final) Budget column** | `fiscal_f196_budgetary_comparison` |
-| Per-program funding-source split (state / federal / other) | `fiscal_f196_resource_to_program` |
 | Fiduciary funds (custodial + private purpose trust) | `fiscal_f196_fiduciary` |
 | Data-quality edit-check results | `fiscal_f196_edit_report` |
 | Data Requirements input items (indirect rate inputs, state recovery rate) | `fiscal_f196_data_requirements` |
@@ -142,38 +203,49 @@ equivalent — you must parse the PDFs.
 The **Final Budget column** in `fiscal_f196_budgetary_comparison`
 is worth calling out separately — it's the budget after mid-year
 revisions, and it's the only place in either source path where that
-number appears. Consumers doing budget-vs-actuals analysis want it.
+number appears. Consumers doing tight budget-vs-actuals reconciliation
+want it in addition to the SAFS-raw budget baseline.
 
-## Which path to use
+## Previously PDF-only, now available from SAFS raw
 
-Use the SAFS raw path when:
-- You want top-level per-item / per-account / per-program-activity-object
-  totals.
-- You need per-school granularity (only ActualsChildGenerlFundExpenditures
-  has it).
-- Freshness matters — Access DBs are published closer to the filing
-  cadence than the printed PDFs.
-- Reliability matters — Access DB schema drift is bounded; PDF text
-  extraction has more moving parts.
+Two dimensions moved off this list once we discovered that the SAFS
+staging pipeline had already extracted them:
 
-Use the fiscal PDF path when:
-- You need any of the dimensions in the "Only in fiscal PDF" table
-  above.
-- You want the printed labels / formulas / section context, not just
-  the raw numbers.
-- You want to cross-check the SAFS numbers against what OSPI actually
-  published — the fiscal PDF numbers reconcile to the SAFS numbers to
-  the cent on the overlapping dimensions.
+- **Per-program funding-source attribution** (state / federal / other):
+  we used to derive from `fiscal_f196_resource_to_program`. Now use
+  the `program_code` field on every row of
+  `safs_prod/f19x/general_fund_revenues.avro` — OSPI's own 1191F
+  attribution, encoded per revenue account.
+- **Per-program × per-activity × per-object cube**: was thought to
+  require `fiscal_f19{5,6}_program_activity_object_detail`; actually
+  available in `general_fund_expenditures.avro` directly, with more
+  grain (adds NCES, sub-fund, per-school).
 
-Use **both** when:
-- You want the deepest analytical view. `fiscal_f195_*` and
-  `fiscal_f196_*` add the dimensions the SAFS raw doesn't have, while
-  SAFS raw gives you faster access to the totals.
+If you find another dimension that's supposedly PDF-only but is
+actually in the SAFS raw path, please update this table.
+
+## When to still parse the fiscal PDFs
+
+Beyond the "PDF-only" table above:
+
+1. **Cross-validation.** The fiscal_* tables reconcile to the SAFS
+   avros on overlapping dimensions to the penny. If a SAFS-based
+   analysis gives a number that seems off, the fiscal PDF path is a
+   useful independent check. Any known reconciliation gaps are in
+   [TODO.md](TODO.md)'s coverage-gaps section, keyed to the specific
+   file / district / year.
+2. **Printed labels and formulas.** The PDF path preserves OSPI's
+   printed section headers, item labels, and derivation formulas.
+   For audit or explanation purposes those are useful even when the
+   underlying number is in SAFS raw too.
+3. **Non-district entities.** Certain data (Report 1191SI State
+   Institutions, ESD allocations, Technical Colleges) doesn't flow
+   through SAFS at all — it's only in the fiscal PDF path.
 
 ## Item domain completion
 
-A recurring pain point on the SAFS raw path: `ITEMDIC1` (F-195) and
-the `-item_dictionary.xlsx` sidecar (F-196 2018-19+) have gaps.
+A minor known gap on the SAFS raw path: `ITEMDIC1` (F-195) and the
+`-item_dictionary.xlsx` sidecar (F-196 2018-19+) have gaps.
 Coverage of value codes appearing in `*ItemNumbers` value tables:
 
 - F-195: 93-100% per year (0-14 codes missing description per year)
@@ -183,8 +255,8 @@ Coverage of value codes appearing in `*ItemNumbers` value tables:
   descriptions for those years fall through the dedup logic in
   [`transforms/f19x.py`](../safs/transforms/f19x.py).
 
-The biggest single lift for making the SAFS raw path a viable
-standalone data source is to close this gap. Suggested plan:
+The biggest single lift to close this gap is to load the sidecar xlsx
+files into the SAFS pipeline. Suggested plan:
 
 1. **Load the sidecar xlsx files.** Add `data/safs/f196/*item_dictionary.xlsx`
    to [`load_safs.sh`](../../load_safs.sh) and update the F-196 config
@@ -201,21 +273,20 @@ standalone data source is to close this gap. Suggested plan:
 4. **Manual annotation.** Small CSV committed to the repo for the
    residual codes.
 
-Estimated effort: 3-5 engineering days for full 100% coverage. Once
-complete, the SAFS raw path becomes a viable standalone pipeline for
-the top-level numbers, with the fiscal PDF path handling the
-dimensions in the "Only in fiscal PDF" table.
+Estimated effort: 3-5 engineering days for full 100% coverage.
 
-## Cross-validation
+## Case study: revenue → expenditure Sankey
 
-The overlapping tables (fiscal_f195_program_activity_object_detail vs
-BudgetGeneralFundExpenditures, etc.) can be cross-checked against
-each other. If the two paths disagree on the same
-`(school_year, ccddd, program, activity, object)` triple, either:
-- OSPI published inconsistent data across the two channels (rare but
-  documented in [TODO.md](TODO.md)'s "Coverage gaps"), or
-- One of the parsers has a bug.
+The Sankey work in `analysis/sps_sankey_avro.py` demonstrates the
+SAFS-first pattern end-to-end for Seattle 2024-25. Five variants use
+only the two canonical avros above (`spao_safs_only_variant` is the
+purest example) and reconcile every program's inflow to its outflow
+to the penny, with a synthetic "Fund Balance Drawdown" node absorbing
+the deficit-spending gap. Earlier variants that predate the discovery
+of SAFS's `program_code` attribution use `fiscal_f196_resource_to_program`
+via `out_fiscal/*.csv` and produce the same result — but require the
+fiscal PDF pipeline to have been run first.
 
-Any known reconciliation gaps are recorded in TODO.md's coverage-gaps
-section, keyed to the specific file / district / year where the
-discrepancy occurs.
+The lesson: when starting a new analysis, look at
+`safs_prod/f19x/*.avro` first. If everything you need is there, skip
+the fiscal PDF path entirely.

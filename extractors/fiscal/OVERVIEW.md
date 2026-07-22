@@ -7,6 +7,32 @@ analytical value lives. For per-table specifics see
 [CSV_GUIDE.md](CSV_GUIDE.md); for what's *not* captured (with rationale)
 see [TODO.md](TODO.md).
 
+## Before you use these tables: check SAFS raw first
+
+**Most top-level fiscal analysis does not need the PDF path.** The
+SAFS canonical avros in `safs_prod/f19x/` cover almost every dimension
+these fiscal PDF tables carry — usually with more grain (per-school,
+NCES, sub-fund) and always with pre-decoded labels — and they're
+faster to iterate on because they don't require re-parsing PDFs.
+
+**Rule of thumb:** start at
+[DATA_SOURCE_DIVERGENCE.md](DATA_SOURCE_DIVERGENCE.md), which lists
+what each path covers side-by-side and which one to reach for. Come
+back to this file only when you need one of the dimensions that
+genuinely doesn't exist in SAFS raw:
+
+- Per-duty-code salary detail (`fiscal_f195_salary_exhibits`)
+- FTE staff counts per activity (`fiscal_f195_staff_by_activity`)
+- Debt / long-term liabilities detail (`fiscal_f195_debt_service_bonds`,
+  `fiscal_f195_long_term_financing`, `fiscal_f196_long_term_liabilities`)
+- Balance sheet (`fiscal_f196_balance_sheet`)
+- Mid-year revised (Final) Budget column (`fiscal_f196_budgetary_comparison`)
+- Federal Indirect Cost Rate calculation (`fiscal_f196_indirect_rate*`)
+- Fiduciary funds, data-quality edit report, data requirements
+- Any apportionment / 1191 / F-780 / 1191SI sub-report
+- Non-district entities (state institutions, ESD allocations, tech
+  colleges) that don't flow through SAFS at all
+
 ## What this is
 
 Washington state's Office of Superintendent of Public Instruction (OSPI)

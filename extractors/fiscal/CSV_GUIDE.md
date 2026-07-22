@@ -7,6 +7,18 @@ scripts plus `build_sources.py`). For schema docs see
 `extractors/fiscal/schemas/`; for known gaps see
 `extractors/fiscal/TODO.md`.
 
+**Before you reach for one of these CSVs**, check whether the SAFS
+canonical avros in `safs_prod/f19x/*.avro` already have what you need.
+Most per-(program, activity, object), per-account revenue, per-item,
+budget-vs-actuals, per-school, per-NCES-code, and per-sub-fund
+analyses can be done directly from SAFS raw — faster and with more
+decoded labels. See
+[DATA_SOURCE_DIVERGENCE.md](DATA_SOURCE_DIVERGENCE.md) for the
+side-by-side. The fiscal CSVs below are the source of truth for the
+~15 dimensions that only appear on printed OSPI PDFs (salary exhibits,
+balance sheet, mid-year Final Budget, indirect rate calculation,
+apportionment sub-reports, non-district entities, etc.).
+
 ## What the data is
 
 OSPI publishes SAFS / apportionment fiscal reports per Washington school
