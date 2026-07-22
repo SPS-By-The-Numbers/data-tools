@@ -110,5 +110,5 @@ assessments, and SQSS — into one wide per-school sheet for analysis. See
 
 ## Working in this repo
 
-- Many `.csv`, `.avro`, `.pdf`, `.txt`, `.json`, `.accdb` files at the repo root are working data, not source — they're untracked and not checked in. `data/`, `input/`, `output/`, `olddata/`, `safs_prod/`, `regress/`, `stats/` are also working/output directories and gitignored. Don't treat anything outside `extractors/`, `bigquery/`, the top-level analysis `.py` files, and shell scripts as source.
+- Root data files, `input/`, `olddata/`, `regress/`, `stats/`, `analysis/`, and root `scratch_*` files now live under `reference/` (gitignored, human reference only, moved as-is — never edited or cleaned by tooling). `attic/` holds parked root clutter awaiting owner triage; `data/` is raw source, read-only for tooling. `output/`, `safs_prod/` are still generated/gitignored in place. Don't treat anything outside `extractors/`, `bigquery/`, `marts/`, `tools/`, `scripts/`, and `docs/` as source.
 - Run the SAFS modules as `python3 -m extractors.safs.<name>` from the repo root; they use package-relative imports and will fail if invoked as plain scripts from inside the package directory.
