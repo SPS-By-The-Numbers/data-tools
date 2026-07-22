@@ -4,10 +4,39 @@ import argparse
 import pandas as pd
 import numpy as np
 
+from decimal import Decimal
 from pathlib import Path
 
 
 DEFAULT_BQ_PROJECT = 'sps-btn-data'
+
+
+def to_csv_like_dtypes(df):
+    """Makes a BigQuery result frame look like one pd.read_csv would produce.
+
+    BigQuery hands back pandas extension dtypes (Int64/boolean/string, backed
+    by pd.NA) and NUMERIC columns as objects holding Decimal. Both break the
+    plain-numpy arithmetic and np.where() comparisons downstream, so convert
+    to the numpy dtypes the CSV path yields: int64 when a numeric column has
+    no nulls, float64 when it does, object otherwise.
+    """
+    for name in df.columns:
+        col = df[name]
+        if isinstance(col.dtype, pd.api.extensions.ExtensionDtype):
+            if pd.api.types.is_bool_dtype(col.dtype):
+                df[name] = col.astype(object) if col.isna().any() \
+                    else col.astype(bool)
+            elif pd.api.types.is_integer_dtype(col.dtype):
+                df[name] = col.astype('float64') if col.isna().any() \
+                    else col.astype('int64')
+            elif pd.api.types.is_numeric_dtype(col.dtype):
+                df[name] = col.astype('float64')
+            else:
+                df[name] = col.astype(object)
+        elif col.dtype == object and col.map(
+                lambda v: isinstance(v, Decimal)).any():
+            df[name] = col.astype('float64')
+    return df
 
 
 def run_query(sql_filename, project):
@@ -19,8 +48,10 @@ def run_query(sql_filename, project):
     from google.cloud import bigquery
 
     sql = (Path(__file__).parent / sql_filename).read_text()
+    # Plain replace, not str.format: the SQL comments contain braces.
     client = bigquery.Client(project=project)
-    return client.query(sql.format(project=project)).to_dataframe()
+    return to_csv_like_dtypes(
+        client.query(sql.replace('{project}', project)).to_dataframe())
 
 
 def load_assessment(args):

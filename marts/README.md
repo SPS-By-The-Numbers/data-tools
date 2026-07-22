@@ -80,6 +80,48 @@ Note the `dat` column is a suppression annotation and is NOT
 what distinguishes the `_nodat` variant, despite the name — the distinction
 is purely whether `pct_met_standard` carried a `<`/`>` bound.
 
+### `vitals.sql` — reconstructed; 22 of 23 contract columns exact
+
+Row set is `ospi.rc_enrollment` at `ccddd = 17001, grade = 'All Grades'` —
+1,185 rows, exactly the CSV's row set (including 11 district-total rows with
+NULL `school_code`), no extra and none missing. Sources:
+
+| group | source |
+|---|---|
+| `school_name`, `all_students`, demographics | `ospi.rc_enrollment` |
+| `type`, `region`, `is_regular`, `ms_assignment_code` | `safs_domains.d_school` |
+| `spend_*_per_pupil` | `safs_f19x.general_fund_expenditures` (actuals), bucketed by `program_code`, ÷ `all_students` |
+| staffing counts / FTE / experience | `safs_s275.assignment` + `report_employee` |
+
+**22 of the 23 columns bigsheet reads match `attic/vitals.csv` exactly** (0
+null mismatches, 0 value mismatches). The exception is
+`class_teacher_exp_50pctile` at 1045/1110 (94.1%) — see the SQL header; the
+65 deviations are exactly the school-years with 14, 28 or 56 class teachers,
+where the source CSV took the next-higher order statistic. That is an
+artifact of whatever tool built the CSV, not a defect here: the same index
+formula reproduces `class_teacher_exp_80pctile` on 1110/1110 and
+`class_teacher_exp_avg` on 1110/1110.
+
+End to end, BigQuery mode reproduces CSV mode on **1,176 shared columns ×
+1,174 shared rows with only that one column disagreeing** (plus its derived
+`class_teacher_exp_50pctile_normalized`).
+
+**BigQuery mode yields a narrower sheet: 1,178 columns vs 1,236.** The 58
+absent columns are vitals pass-through columns bigsheet never reads — the
+salary/compensation blocks, the principal/counselor/librarian/aide blocks,
+the `comp_amount_*`/`non_comp_amount_*` splits, and `fte`, `fte_per_pupil`,
+`grade`, `school_1`. They were not investigated, not shown to be unavailable.
+
+Two things worth knowing about the data:
+
+- **`total_spend` silently drops vocational/CTE/skill-center spend.** Programs
+  31, 34, 38 and 45 map to no bucket — $83.1M of program 31 alone. Any
+  "total per-pupil spend" from vitals understates high schools materially.
+  This is faithful to the original CSV, not a new bug.
+- **`other_teacher` = duty 33 + 34.** Since duty 34 (Elementary Specialist)
+  was carved out of 31 in 2015-16, `class_teacher_fte` has a structural
+  discontinuity at `class_of` 2016 that is not a real staffing change.
+
 ### Hard-coded inputs (all under the GCS-synced `data/` tree)
 
 - `data/sps/map/map-score-2017-2024-average-hc.csv`
