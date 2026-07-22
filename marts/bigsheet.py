@@ -4,6 +4,38 @@ import argparse
 import pandas as pd
 import numpy as np
 
+from pathlib import Path
+
+
+DEFAULT_BQ_PROJECT = 'sps-btn-data'
+
+
+def run_query(sql_filename, project):
+    """Runs the named .sql file (next to this module) in BigQuery.
+
+    The file may reference the project as {project}.
+    """
+    # Imported lazily so the CSV path works without BigQuery installed.
+    from google.cloud import bigquery
+
+    sql = (Path(__file__).parent / sql_filename).read_text()
+    client = bigquery.Client(project=project)
+    return client.query(sql.format(project=project)).to_dataframe()
+
+
+def load_assessment(args):
+    """Assessment data, from --assessment if given, else from BigQuery."""
+    if args.assessment:
+        return pd.read_csv(args.assessment)
+    return run_query('assessment.sql', args.bq_project)
+
+
+def load_vitals(args):
+    """Per-school vitals, from --vitals if given, else from BigQuery."""
+    if args.vitals:
+        return pd.read_csv(args.vitals)
+    return run_query('vitals.sql', args.bq_project)
+
 
 def rotateLeftColumnName(raw_f):
     """Given a set of fields post pivot, moves the first to the back"""
@@ -211,16 +243,20 @@ def main():
     parser = argparse.ArgumentParser(
         prog='bigsheet',
         description='Combines multiple datafiles into one big merged dataset')
-    parser.add_argument('--vitals', required=True,
-                        help='csv with vitals by school')
-    parser.add_argument('--assessment', required=True,
-                        help='csv with assessment data')
+    parser.add_argument('--vitals',
+                        help='csv with vitals by school '
+                             '(default: query BigQuery)')
+    parser.add_argument('--assessment',
+                        help='csv with assessment data '
+                             '(default: query BigQuery)')
+    parser.add_argument('--bq-project', default=DEFAULT_BQ_PROJECT,
+                        help='BigQuery project to query')
     parser.add_argument('-o', '--output', required=True,
                         help='output file')
     args = parser.parse_args()
 
     # School type indicator vars.
-    vitals_df = pd.read_csv(args.vitals)
+    vitals_df = load_vitals(args)
 
     #
     # spend_gen_ed_per_pupil
@@ -298,7 +334,7 @@ def main():
     vitals_df = join_bex(vitals_df)
     vitals_df = join_s275(vitals_df)
 
-    assessment_df = pd.read_csv(args.assessment)
+    assessment_df = load_assessment(args)
     selected_df = select_assessments(assessment_df)
 
     joined_df = assessments_to_wide(selected_df)
