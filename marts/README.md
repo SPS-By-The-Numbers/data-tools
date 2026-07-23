@@ -88,9 +88,10 @@ which no longer run because the `scratch` dataset they read and write is now
 empty. Everything they did is reproduced as CTEs, in the same order and with
 the same semantics.
 
-**It reproduces `attic/vitals.csv` exactly: all 139 columns, in the same
-order, over all 1,185 rows, with 0 disagreements** — no null mismatches and
-no value mismatches on any column.
+**It reproduces all 139 columns of `attic/vitals.csv`, in the same order,
+over all 1,185 rows.** 135 of them match with 0 disagreements; the other
+four are the spend aggregates changed on purpose by the vocational fix
+below.
 
 | block | source |
 |---|---|
@@ -105,20 +106,29 @@ order. It is not *byte*-identical: the pivoted assessment column order
 differs, because the original `assessment.csv` was exported in an arbitrary
 (unordered) row order that cannot be reproduced. Values are unaffected.
 
-Two behaviours of the original are preserved deliberately so that this file
-is a pure reproduction. Both are addressed in later, separately committed
-steps:
+### Fixed: the dropped vocational spend
 
-1. **Vocational spend is dropped.** `expenditures_by_school.sql` computes a
-   `voc` category (programs 31, 34, 38, 39, 45, 46, 47) and then discards it
-   — its `PIVOT` lists only the nine other categories, so `voc` never
-   reaches the output and is excluded from `comp_amount` / `non_comp_amount`
-   and hence from `total_spend`.
-2. **The experience percentiles are approximate.**
-   `s275_school_summary.sql` uses
-   `APPROX_QUANTILES(experience_years, 100)[OFFSET(50)]`, a sketch, which on
-   school-years with exactly 14, 28 or 56 class teachers returns the
-   neighbouring order statistic rather than the true one.
+`expenditures_by_school.sql` computed a `voc` category — programs 31, 34,
+38, 39, 45, 46, 47 (Vocational Basic/Federal/Other-Categorical, Middle
+School CTE, Skill Center Basic/Federal/Facility-Upgrades) — and then
+silently discarded it: its `PIVOT` listed only the nine other categories. So
+vocational spend never reached `vitals.csv`, and was missing from
+`comp_amount`, `non_comp_amount` and `total_spend`.
+
+`vitals.sql` keeps it, adding four columns — `comp_amount_voc`,
+`non_comp_amount_voc`, `total_spend_voc`, `spend_voc_per_pupil` — and
+folding it into the totals. **$97.3M is recovered across 205 school-years.**
+
+Of the original 139 columns this changes exactly four, all of them
+aggregates that should change: `total_spend` (204 rows), `spend_per_pupil`
+(204), `comp_amount` (200) and `non_comp_amount` (138). The other 135 still
+match `attic/vitals.csv` exactly, and the ten buckets now reconcile to
+`total_spend` to 0.000000.
+
+One behaviour of the original is still preserved: the experience percentiles
+use `APPROX_QUANTILES`, an approximate sketch, which on school-years with
+exactly 14, 28 or 56 class teachers returns the neighbouring order statistic
+rather than the true one.
 
 One thing worth knowing about the data:
 

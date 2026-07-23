@@ -12,16 +12,18 @@
 --
 -- Those originals no longer run: the `scratch` dataset they read and write is
 -- empty.  Everything they did is reproduced here as CTEs, in the same order
--- and with the same semantics, so the output matches the CSV exactly --
--- including two behaviours that are arguably bugs and are preserved here
--- deliberately so this file is a pure reproduction:
+-- and with the same semantics, so the output matches the CSV column for
+-- column, with two deliberate exceptions:
 --
---   1. Vocational / CTE / Skill Center spend (programs 31, 34, 38, 39, 45,
---      46, 47) is computed as a `voc` category and then DROPPED: the
---      original's PIVOT listed only the nine other categories, so voc never
---      reached the output and is excluded from comp_amount / non_comp_amount
---      and hence from total_spend.
---   2. The experience percentiles use APPROX_QUANTILES, an approximate
+--   1. FIXED: vocational spend.  The original computed a `voc` category
+--      (programs 31, 34, 38, 39, 45, 46, 47) and then DROPPED it -- its
+--      PIVOT listed only the nine other categories -- so voc never reached
+--      vitals.csv and was missing from comp_amount / non_comp_amount and
+--      hence from total_spend.  It is kept here, adding comp_amount_voc,
+--      non_comp_amount_voc, total_spend_voc and spend_voc_per_pupil, and
+--      making comp_amount / non_comp_amount / total_spend / spend_per_pupil
+--      larger than the CSV's by $97.3M over the covered years.
+--   2. The experience percentiles still use APPROX_QUANTILES, an approximate
 --      sketch, which on school-years with exactly 14, 28 or 56 class teachers
 --      returns the neighbouring order statistic rather than the true one.
 --
@@ -125,7 +127,17 @@ exp_pivoted AS (
     SUM(IF(prog_category = "district_support", IF(object_code IN (2,3,4), amount, 0), NULL)) comp_amount_district_support,
     SUM(IF(prog_category = "district_support", IF(object_code IN (2,3,4), 0, amount), NULL)) non_comp_amount_district_support,
     SUM(IF(prog_category = "other", IF(object_code IN (2,3,4), amount, 0), NULL)) comp_amount_other,
-    SUM(IF(prog_category = "other", IF(object_code IN (2,3,4), 0, amount), NULL)) non_comp_amount_other
+    SUM(IF(prog_category = "other", IF(object_code IN (2,3,4), 0, amount), NULL)) non_comp_amount_other,
+
+    -- BUG FIX vs the original.  expenditures_by_school.sql computed a 'voc'
+    -- category (programs 31, 34, 38, 39, 45, 46, 47 -- Vocational Basic /
+    -- Federal / Other-Categorical, Middle School CTE, and Skill Center
+    -- Basic / Federal / Facility-Upgrades) and then silently discarded it,
+    -- because its PIVOT listed only the nine categories above.  Vocational
+    -- spend therefore never reached vitals.csv and was missing from
+    -- comp_amount, non_comp_amount and total_spend.  It is kept here.
+    SUM(IF(prog_category = "voc", IF(object_code IN (2,3,4), amount, 0), NULL)) comp_amount_voc,
+    SUM(IF(prog_category = "voc", IF(object_code IN (2,3,4), 0, amount), NULL)) non_comp_amount_voc
   FROM exp_simplified
   GROUP BY class_of, school_code, school
 ),
@@ -141,7 +153,8 @@ exp_by_school AS (
      COALESCE(comp_amount_ble, 0) +
      COALESCE(comp_amount_instr_other, 0) +
      COALESCE(comp_amount_district_support, 0) +
-     COALESCE(comp_amount_other, 0)
+     COALESCE(comp_amount_other, 0) +
+     COALESCE(comp_amount_voc, 0)
     ) comp_amount,
     (COALESCE(non_comp_amount_gen_ed, 0) +
      COALESCE(non_comp_amount_spec_ed, 0) +
@@ -151,7 +164,8 @@ exp_by_school AS (
      COALESCE(non_comp_amount_ble, 0) +
      COALESCE(non_comp_amount_instr_other, 0) +
      COALESCE(non_comp_amount_district_support, 0) +
-     COALESCE(non_comp_amount_other, 0)
+     COALESCE(non_comp_amount_other, 0) +
+     COALESCE(non_comp_amount_voc, 0)
     ) non_comp_amount
   FROM exp_pivoted
 ),
@@ -366,6 +380,7 @@ SELECT
   (e.comp_amount_instr_other + e.non_comp_amount_instr_other) total_spend_instr_other,
   (e.comp_amount_district_support + e.non_comp_amount_district_support) total_spend_district_support,
   (e.comp_amount_other + e.non_comp_amount_other) total_spend_other,
+  (e.comp_amount_voc + e.non_comp_amount_voc) total_spend_voc,
 
   (e.comp_amount + e.non_comp_amount) / NULLIF(t.all_students, 0) spend_per_pupil,
   (e.comp_amount_gen_ed + e.non_comp_amount_gen_ed) / NULLIF(t.all_students, 0) spend_gen_ed_per_pupil,
@@ -377,6 +392,7 @@ SELECT
   (e.comp_amount_instr_other + e.non_comp_amount_instr_other) / NULLIF(t.all_students, 0) spend_instr_other_per_pupil,
   (e.comp_amount_district_support + e.non_comp_amount_district_support) / NULLIF(t.all_students, 0) spend_district_support_per_pupil,
   (e.comp_amount_other + e.non_comp_amount_other) / NULLIF(t.all_students, 0) spend_other_per_pupil,
+  (e.comp_amount_voc + e.non_comp_amount_voc) / NULLIF(t.all_students, 0) spend_voc_per_pupil,
 
   (ss.fte) / NULLIF(t.all_students, 0) fte_per_pupil,
   t.* except (ccddd, school_code, class_of),
