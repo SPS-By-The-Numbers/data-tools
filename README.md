@@ -8,8 +8,11 @@ Scripts and tools for ingesting data.
   (`enrollment_reports.py`, `p223_pdf_batch.py`, ...).
 - `bigquery/` — legacy pre-SAFS loaders, kept for reference.
 - `marts/` — downstream joined datasets ("data marts"); `bigsheet.py` merges
-  ALL per-school data we have (vitals, MAP, BEX, S-275 churn, assessments,
-  SQSS) into one wide sheet. See `marts/README.md`.
+  ALL per-school data we have (enrollment, spend, staffing, MAP, BEX
+  building, S-275 churn, assessments, SQSS) into one wide sheet — one row per
+  school per cohort year, ~1,240 columns. Reads from BigQuery by default, so
+  it is reproducible and picks up new school years automatically:
+  `venv/bin/python3 -m marts.bigsheet -o sheet.csv`. See `marts/README.md`.
 - `scripts/` — shell entry points (`load_safs.sh`, `push_data_to_gcs.sh`,
   `pull_data_from_gcs.sh`, ...). Run from anywhere; they `cd` to the repo
   root themselves.

@@ -1,169 +1,127 @@
 # marts
 
 Downstream "data marts" — datasets built by joining multiple pipeline outputs
-together, as opposed to `extractors/` which ingest a single source.
+together, as opposed to `extractors/`, which ingest a single source each.
 
 ## `bigsheet.py`
 
-Key feature: joins ALL per-school data we have — vitals (enrollment, spend,
-staffing, region/type indicators), MAP scores (HC and non-HC), BEX building
-condition/utilization/income, S-275 building staffing churn, assessment
-results, and SQSS — into one wide per-school-per-class-of-year sheet, suitable
-for regression/analysis work.
+Joins **all the per-school data this repo has** into one wide table: one row
+per school per cohort year, ~1,240 columns. Enrollment and demographics,
+per-pupil spend by program, S-275 staffing/salary/experience, MAP scores,
+building condition and utilization, staffing churn, assessment results and
+SQSS — all on the same grain, ready for regression or spreadsheet work.
 
-### Invocation
+Inputs come from BigQuery by default, so the sheet is reproducible end to end
+and picks up new school years automatically as they land.
+
+### Quick start
 
 ```console
-$ venv/bin/python3 -m marts.bigsheet -o sheet.csv                      # BigQuery mode
-$ venv/bin/python3 -m marts.bigsheet --assessment assessment.csv -o sheet.csv   # CSV override
+$ venv/bin/python3 -m marts.bigsheet -o sheet.csv
 ```
 
-`--vitals` and `--assessment` are optional. When omitted, the input is
-fetched from BigQuery (project `--bq-project`, default `sps-btn-data`) using
-the `.sql` files in this directory; when given a CSV path, the file is read
-verbatim, which is the offline/fallback path. `--bq-project` only affects the
+Run it **from the repo root** — some inputs are read from `data/` by relative
+path. Takes a couple of minutes, most of it BigQuery.
+
+Prerequisites:
+
+- `pip install -r requirements.txt` (needs `google-cloud-bigquery` and
+  `db-dtypes`; the latter is required by `to_dataframe()`).
+- BigQuery access to project `sps-btn-data` via Application Default
+  Credentials. If a query fails with an auth error, run
+  `gcloud auth application-default login`.
+- The `data/sps/...` files listed under [Inputs](#inputs).
+
+### Output
+
+One row per (`school_code`, `class_of`) — `class_of` being the year the
+cohort graduates, used throughout the repo as the per-cohort year key. Note
+11 rows per-year are district totals, with a null `school_code`.
+
+| column family | what it is |
+|---|---|
+| identity | `school_code`, `class_of`, `school_name`, `type`, `region`, `is_regular`, `ms_assignment_code` |
+| enrollment | `all_students`, 20 demographic counts and their `pct_*` shares |
+| spend | `total_spend_*` and `spend_*_per_pupil` for ten program buckets, plus the compensation / non-compensation split (`comp_amount_*`) |
+| staffing | headcount, FTE, salary, compensation and experience percentiles per duty group (classroom teacher, other teacher, aide, principal, asst principal, counselor, librarian) |
+| indicators | school-type, region and middle-school-assignment dummies (`Elementary`, `r_NW`, `m_Eckstein`, …) for regression convenience |
+| derived | `spend_grp_*` roll-ups, `*_fte_per_pupil`, `pct_class_teacher_ge_bachelors`, `log_enrollment`, `at_or_after_2021`, various `*_normalized` |
+| MAP | `hc_*` / `nonhc_*` RIT score, std dev and N, pivoted by subject × grade × season |
+| building | BEX condition scores, utilization, income by school |
+| churn | `bldg_staff_*` — transfers in/out, hires, departures, net churn |
+| assessment | `<administration>_<subject>_<group>_<measure>`, pivoted |
+| SQSS | attendance, dual credit, ninth-grade-on-track by student group |
+
+**Coverage**: `class_of` 2015–2025 (school years 2014-15 through 2024-25).
+Spend exists only from `class_of` 2020 — the source has no per-school actuals
+before that. SQSS runs one year behind everything else (through `class_of`
+2024). Nothing for 2025-26 exists upstream yet; when it lands in
+`ospi.rc_enrollment` it will flow through with no query changes.
+
+### Inputs
+
+`--vitals` and `--assessment` are optional and control where the two main
+inputs come from:
+
+| flag | omitted (default) | given a CSV path |
+|---|---|---|
+| `--vitals` | BigQuery via `vitals.sql` | reads the CSV verbatim |
+| `--assessment` | BigQuery via `assessment.sql` | reads the CSV verbatim |
+
+The CSV form is the offline / fallback path and reproduces the historical
+behaviour exactly. `--bq-project` (default `sps-btn-data`) affects only the
 BigQuery path.
 
-BigQuery auth is Application Default Credentials. If a query fails with an
-auth error, run `gcloud auth application-default login`.
+Columns actually consumed from those two inputs:
 
-Runs unchanged as `venv/bin/python3 marts/bigsheet.py ...` too (no
-repo-internal imports), but it must be run **from the repo root** — the
-hard-coded `data/sps/...` input paths below are relative.
+- vitals — `school_code`, `class_of`, `school_name`, `type`, `region`,
+  `is_regular`, `ms_assignment_code`, `all_students`, the nine
+  `spend_*_per_pupil` buckets, `class_teacher_exp_50pctile`,
+  `num_class_teachers`, `num_class_teachers_{bachelors,masters,doctors}`,
+  `class_teacher_fte`, `asst_principal_fte`, `other_teacher_fte`. Everything
+  else in the vitals table is passed through to the output untouched.
+- assessment — `class_of`, `school_code`, `grade_level`,
+  `test_administration`, `test_subject`, `student_group`, `pct_noscore`,
+  `pct_alternative`, `pct_met_standard_numeric`,
+  `pct_met_standard_numeric_nodat`.
 
-### CLI inputs
+These are read from `data/` by relative path and are not configurable:
 
-- `--vitals` (optional; BigQuery via `vitals.sql` when omitted) — CSV with
-  vitals by school. Columns actually read:
-  `school_code`, `class_of`, `school_name`, `type`, `region`, `is_regular`,
-  `ms_assignment_code`, `all_students`,
-  `spend_gen_ed_per_pupil`, `spend_instr_other_per_pupil`,
-  `spend_district_support_per_pupil`, `spend_other_per_pupil`,
-  `spend_spec_ed_per_pupil`, `spend_compensatory_per_pupil`,
-  `spend_title1_per_pupil`, `spend_lap_per_pupil`, `spend_ble_per_pupil`,
-  `class_teacher_exp_50pctile`, `num_class_teachers`,
-  `num_class_teachers_bachelors`, `num_class_teachers_masters`,
-  `num_class_teachers_doctors`, `class_teacher_fte`, `asst_principal_fte`,
-  `other_teacher_fte`.
-- `--assessment` (optional; BigQuery via `assessment.sql` when omitted) — CSV
-  with assessment data. Columns actually read:
-  `class_of`, `school_code`, `grade_level`, `test_administration`,
-  `test_subject`, `student_group`, `pct_noscore`, `pct_alternative`,
-  `pct_met_standard_numeric`, `pct_met_standard_numeric_nodat`.
-- `-o` / `--output` (required) — output CSV path.
+- `data/sps/map/map-score-2017-2024-average-{hc,nonhc}.csv`
+- `data/sps/building/{bex-vi-historic-building-scores,utilization_condition,income_by_school}.csv`
+- `data/sps/s275/building_transitions.csv`
+- `data/sps/sqss/sqss.csv`
 
-Recent copies of the `--vitals` and `--assessment` inputs sat at the repo root
-(`vitals.csv`, `assessment.csv`) before the repo reorg; they now live in
-`attic/` and were the ground truth used to reconstruct the queries below.
+---
 
-### `assessment.sql` — fully reconstructed and verified
+## Provenance of the queries
 
-Source: `ospi.rc_assessment`, filtered to `ccddd = 17001` (Seattle) and
-`grade_level = 'All Grades'`. Those two predicates alone reproduce the CSV's
-row count exactly — the per-grade rows in `rc_assessment` were never part of
-this input.
+The `--vitals` and `--assessment` inputs used to be pre-baked CSVs whose
+derivation was recorded nowhere. `vitals.sql` and `assessment.sql` replace
+them. Both were validated against the last such CSVs, preserved in `attic/`.
 
-`class_of` already exists in `rc_assessment`, so only the two `_numeric`
-columns had to be derived, both from the `pct_met_standard` string:
+### `assessment.sql`
+
+`ospi.rc_assessment`, filtered to `ccddd = 17001` (Seattle) and
+`grade_level = 'All Grades'` — those two predicates alone reproduce the old
+CSV's row count exactly. `class_of` already exists in the table, so only two
+derived columns were needed, both parsed from the `pct_met_standard` string:
 
 | column | rule |
 |---|---|
 | `pct_met_standard_numeric` | `^[<>]?(\d+(\.\d+)?)%$` → value / 100. Bounded markers (`<10%`, `>90%`) ARE converted, using the bound itself. NULL for `Suppressed: N<10`, `N<10`, `No Students`, `N<10 (Count Protected)`. |
 | `pct_met_standard_numeric_nodat` | Same, but bounded markers are ALSO NULL — only exact percentages survive. |
 
-Verification: both rules reproduce `attic/assessment.csv` with **0
-disagreements across all 92,090 rows**, and the query returns exactly those
-92,090 rows (no extra, no missing). End to end, BigQuery mode reproduces
-CSV mode's output with 0 disagreements across 1,185 rows × 1,236 columns.
+Verified: **0 disagreements across all 92,090 rows**, with no extra or
+missing rows. Despite the name, the `dat` column is *not* what distinguishes
+the `_nodat` variant — the distinction is purely whether `pct_met_standard`
+carried a `<`/`>` bound.
 
-Note the `dat` column is a suppression annotation and is NOT
-what distinguishes the `_nodat` variant, despite the name — the distinction
-is purely whether `pct_met_standard` carried a `<`/`>` bound.
+### `vitals.sql`
 
-### `vitals.sql` — reproduces `vitals.csv`, with two bugs fixed
-
-`vitals.sql` is a direct inlining of the three original queries
-(`vitals_org.sql`, `expenditures_by_school.sql`, `s275_school_summary.sql`),
-which no longer run because the `scratch` dataset they read and write is now
-empty. Everything they did is reproduced as CTEs, in the same order and with
-the same semantics.
-
-**It produces all 139 columns of `attic/vitals.csv`, in the same order,
-over all 1,185 rows** (plus four new vocational columns). 134 of the 139
-match with 0 disagreements. The five that differ do so on purpose: the four
-spend aggregates corrected by the vocational fix, and
-`class_teacher_exp_50pctile` corrected by the exact-percentile fix — both
-described below.
-
-| block | source |
-|---|---|
-| identity — `type`, `region`, `is_regular`, `ms_assignment_code`, `school`, `ms_assignment` | `safs_domains.d_school` |
-| row set, `school_name`, `all_students`, demographics + `pct_*` | `ospi.rc_enrollment` (`ccddd=17001`, `grade='All Grades'`) |
-| spend buckets, `comp_amount_*` / `non_comp_amount_*` | `safs_f19x.general_fund_expenditures` (actuals, `has_school`) |
-| staffing, salary, experience, per-duty blocks | `safs_s275.assignment` + `report` + `private_assignment` + `report_employee` |
-
-End to end, BigQuery mode reproduces the original sheet (`attic/wide.csv`)
-over 1,185 rows × 1,236 shared columns, disagreeing only on the six columns
-the two fixes intentionally change (the four spend aggregates,
-`class_teacher_exp_50pctile`, and its derived
-`class_teacher_exp_50pctile_normalized`). It is not *byte*-identical: the
-pivoted assessment column order differs, because the original
-`assessment.csv` was exported in an arbitrary (unordered) row order that
-cannot be reproduced. Values are unaffected by that.
-
-### Fixed: the dropped vocational spend
-
-`expenditures_by_school.sql` computed a `voc` category — programs 31, 34,
-38, 39, 45, 46, 47 (Vocational Basic/Federal/Other-Categorical, Middle
-School CTE, Skill Center Basic/Federal/Facility-Upgrades) — and then
-silently discarded it: its `PIVOT` listed only the nine other categories. So
-vocational spend never reached `vitals.csv`, and was missing from
-`comp_amount`, `non_comp_amount` and `total_spend`.
-
-`vitals.sql` keeps it, adding four columns — `comp_amount_voc`,
-`non_comp_amount_voc`, `total_spend_voc`, `spend_voc_per_pupil` — and
-folding it into the totals. **$97.3M is recovered across 205 school-years.**
-
-Of the original 139 columns this changes exactly four, all of them
-aggregates that should change: `total_spend` (204 rows), `spend_per_pupil`
-(204), `comp_amount` (200) and `non_comp_amount` (138). The other 135 still
-match `attic/vitals.csv` exactly, and the ten buckets now reconcile to
-`total_spend` to 0.000000.
-
-### Fixed: approximate experience percentiles
-
-`s275_school_summary.sql` computed the experience percentiles with
-`APPROX_QUANTILES(experience_years, 100)[OFFSET(n)]` — a *sketch*, not an
-exact quantile. It is verified to be what built the CSV (it reproduces
-`class_teacher_exp_50pctile` and `_80pctile` on 1110/1110 rows), and on
-school-years with exactly 14, 28 or 56 class teachers it returns the
-neighbouring order statistic rather than the true one.
-
-`vitals.sql` therefore returns the raw sorted per-person experience values
-(`class_teacher_exp_years`, `principal_exp_years`) and
-`bigsheet.add_experience_percentiles()` takes the **exact** order statistic
-in numpy with `np.percentile(..., method='inverted_cdf')` — the ceil(q·n)-th
-smallest value, i.e. the smallest observation whose empirical CDF reaches q.
-The computed columns are inserted where the array column was, so the
-original column order is preserved.
-
-This corrects **65 of 1110** `class_teacher_exp_50pctile` values (deviation
-median ~0.9 yr, max 7.3 yr; the sketch was always the higher of the two
-neighbours). `class_teacher_exp_80pctile`, `principal_exp_50pctile` and
-`principal_exp_80pctile` were already exact and are unchanged.
-
-One thing worth knowing about the data:
-
-- **`other_teacher` = duty 33 + 34.** Since duty 34 (Elementary Specialist)
-  was carved out of 31 in 2015-16, `class_teacher_fte` has a structural
-  discontinuity at `class_of` 2016 that is not a real staffing change.
-
-### The original queries, for reference
-
-Three files record how `vitals.csv` was actually built. They are kept for
-provenance and are **not** used by `bigsheet.py`. None of them can run as-is:
-they read/write `scratch.exp_by_school` and `scratch.s275_school_summary`,
-and the `scratch` dataset is now empty.
+A direct inlining of the three original queries, which are kept in this
+directory for reference and can no longer run (the `scratch` dataset they
+read and write is empty):
 
 | file | what it built |
 |---|---|
@@ -171,38 +129,77 @@ and the `scratch` dataset is now empty.
 | `expenditures_by_school.sql` | `scratch.exp_by_school` — the spend buckets |
 | `s275_school_summary.sql` | `scratch.s275_school_summary` — the staffing blocks |
 
-They corroborate everything `vitals.sql` had reverse-engineered — row set,
-`d_school` identity columns, `pct_* = count / NULLIF(all_students, 0)`, the
-duty-code groupings (`class_teacher` 31+32, `other_teacher` 33+34,
-`asst_principal` 22+24, `aide` 91, `principal` 21+23, `counselor` 42+44,
-`librarian` 41), and `fte = SUM(fte_in_assignment)` — and settled two things
-guesswork could not:
+Sources:
 
-1. **The spend buckets**, now copied verbatim. The fitted lists were
-   *narrower* than the real ones (e.g. `ble` is 64+65, not just 65;
-   `title1` is 51+52+53; `spec_ed` is 21–26+29). They agreed on the data at
-   hand only because the extra programs have no mass at these schools — but
-   they would have misfiled future data.
-2. **The percentile**, which was `APPROX_QUANTILES`, explaining the 65-row
-   residual as a sketch artifact.
+| block | from |
+|---|---|
+| row set, `school_name`, `all_students`, demographics | `ospi.rc_enrollment` (`ccddd=17001`, `grade='All Grades'`) |
+| `type`, `region`, `is_regular`, `ms_assignment_code`, `school`, `ms_assignment` | `safs_domains.d_school` |
+| spend buckets and `comp_amount_*` splits | `safs_f19x.general_fund_expenditures` (actuals, `has_school`) |
+| staffing, salary, experience, per-duty blocks | `safs_s275.assignment` + `report` + `private_assignment` + `report_employee` |
 
-They also show where the 58 uncovered columns come from: `exp_by_school`
-split every bucket into compensation (`object_code IN (2,3,4)`) and
-non-compensation halves, and `s275_school_summary` built the per-duty salary
-blocks from `safs_s275.private_assignment`. Those are reconstructible now —
-they simply have not been done, since `bigsheet.py` reads none of them.
+It produces all 139 columns of the old `vitals.csv`, in the same order, over
+the same 1,185 rows, **plus four new vocational columns**. 134 of the 139
+match with 0 disagreements. Five differ deliberately, from the two bug fixes
+below.
 
-### Hard-coded inputs (all under the GCS-synced `data/` tree)
+End to end, BigQuery mode reproduces the historical sheet over 1,185 rows ×
+1,236 shared columns, disagreeing only on those fixes' six columns. It is not
+*byte*-identical: the pivoted assessment column order differs, because the
+original `assessment.csv` was exported in an arbitrary row order that cannot
+be reproduced. Values are unaffected.
 
-- `data/sps/map/map-score-2017-2024-average-hc.csv`
-- `data/sps/map/map-score-2017-2024-average-nonhc.csv`
-- `data/sps/building/bex-vi-historic-building-scores.csv`
-- `data/sps/building/utilization_condition.csv`
-- `data/sps/building/income_by_school.csv`
-- `data/sps/s275/building_transitions.csv`
-- `data/sps/sqss/sqss.csv`
+#### Fix 1 — vocational spend was being dropped
 
-### Join keys
+`expenditures_by_school.sql` computed a `voc` category (programs 31, 34, 38,
+39, 45, 46, 47 — Vocational Basic/Federal/Other-Categorical, Middle School
+CTE, Skill Center Basic/Federal/Facility-Upgrades) and then silently
+discarded it: its `PIVOT` listed only the nine other categories. Vocational
+spend never reached `vitals.csv` and was missing from `comp_amount`,
+`non_comp_amount` and `total_spend`.
 
-`school_code` and `class_of` (school year the row's class graduates, used
-throughout as the per-cohort year key).
+`vitals.sql` keeps it — adding `comp_amount_voc`, `non_comp_amount_voc`,
+`total_spend_voc` and `spend_voc_per_pupil` — and folds it into the totals.
+**$97.3M recovered across 205 school-years.** This changes exactly four of
+the original columns, all aggregates that should change: `total_spend` (204
+rows), `spend_per_pupil` (204), `comp_amount` (200), `non_comp_amount` (138).
+The ten buckets now reconcile to `total_spend` to 0.000000.
+
+#### Fix 2 — experience percentiles were approximate
+
+`s275_school_summary.sql` used
+`APPROX_QUANTILES(experience_years, 100)[OFFSET(n)]` — a sketch, not an exact
+quantile. (It is verified to be what built the CSV: it reproduces both
+percentile columns on 1110/1110 rows.) On school-years with exactly 14, 28 or
+56 class teachers it returns the neighbouring order statistic.
+
+`vitals.sql` returns the raw sorted per-person experience values instead, and
+`bigsheet.add_experience_percentiles()` takes the exact order statistic in
+numpy via `np.percentile(..., method='inverted_cdf')`, inserting the columns
+back in their original positions. This corrects **65 of 1110**
+`class_teacher_exp_50pctile` values (median ~0.9 yr, max 7.3 yr; the sketch
+always picked the higher neighbour). The other three percentile columns were
+already exact.
+
+Note BigQuery's `PERCENTILE_DISC` is a third answer again, disagreeing with
+the CSV on 200 rows at q=0.8 — which is why the definition lives in Python,
+where it is explicit and testable, rather than depending on a SQL dialect.
+
+---
+
+## Gotchas
+
+- **`other_teacher` = duty 33 + 34.** Duty 34 (Elementary Specialist) was
+  carved out of 31 in 2015-16, so `class_teacher_fte` has a structural
+  discontinuity at `class_of` 2016 that is not a real staffing change.
+- **S-275 FTE**: sum `assignment.fte_in_assignment`. The `assignment_fte`
+  table's cert/class FTE is a per-employee marker that over-counts ~5×.
+- **Salary is per person, not per assignment**, and is not FTE-normalized.
+  See `docs/guides/STAFFING_ANALYSIS_GUIDE.md` for the full set of S-275
+  traps.
+- **BigQuery returns nullable/`Decimal` dtypes**, which break `np.where` on
+  `pd.NA`. `bigsheet.to_csv_like_dtypes()` converts them to the numpy dtypes
+  `pd.read_csv` would have produced, so both input modes behave identically.
+- **Spend excludes anything with no school attribution** (`has_school`), so
+  district-level costs — notably Pupil Transportation, $294.9M — never reach
+  this grain at all.

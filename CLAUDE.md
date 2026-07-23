@@ -109,10 +109,28 @@ The same schema dict is converted to SQLAlchemy `Table` (via `orm.py:make_table`
 ### Marts
 
 `marts/bigsheet.py` is a first-class pipeline stage (a data mart built on
-extractor outputs): it joins ALL per-school data we have — vitals, MAP
-scores, BEX building condition/utilization/income, S-275 staffing churn,
-assessments, and SQSS — into one wide per-school sheet for analysis. See
-`marts/README.md` for its CLI/input contract.
+extractor outputs): it joins ALL per-school data we have — enrollment and
+demographics, per-program spend, S-275 staffing/salary/experience, MAP
+scores, BEX building condition/utilization/income, staffing churn,
+assessments, and SQSS — into one wide sheet, one row per school per cohort
+year (`class_of`), ~1,240 columns.
+
+```console
+$ venv/bin/python3 -m marts.bigsheet -o sheet.csv      # from the repo root
+```
+
+Its two main inputs come from BigQuery (`marts/vitals.sql`,
+`marts/assessment.sql`) unless `--vitals` / `--assessment` supply CSVs, which
+is the offline fallback. Everything else is read from `data/sps/...` by
+relative path, so it must run from the repo root. Needs Application Default
+Credentials for project `sps-btn-data`.
+
+`marts/README.md` documents the output columns, both input modes, how the two
+queries were reconstructed and verified against the historical CSVs, and the
+two bugs in the original queries that were fixed (dropped vocational spend;
+approximate experience percentiles). `vitals_org.sql`,
+`expenditures_by_school.sql` and `s275_school_summary.sql` are the original
+queries, kept for provenance — they no longer run.
 
 ### Top-level scripts
 
