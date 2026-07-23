@@ -80,81 +80,47 @@ Note the `dat` column is a suppression annotation and is NOT
 what distinguishes the `_nodat` variant, despite the name — the distinction
 is purely whether `pct_met_standard` carried a `<`/`>` bound.
 
-### `vitals.sql` — reconstructed; 22 of 23 contract columns exact
+### `vitals.sql` — exact reproduction of `vitals.csv`
 
-Row set is `ospi.rc_enrollment` at `ccddd = 17001, grade = 'All Grades'` —
-1,185 rows, exactly the CSV's row set (including 11 district-total rows with
-NULL `school_code`), no extra and none missing. Sources:
+`vitals.sql` is a direct inlining of the three original queries
+(`vitals_org.sql`, `expenditures_by_school.sql`, `s275_school_summary.sql`),
+which no longer run because the `scratch` dataset they read and write is now
+empty. Everything they did is reproduced as CTEs, in the same order and with
+the same semantics.
 
-| group | source |
+**It reproduces `attic/vitals.csv` exactly: all 139 columns, in the same
+order, over all 1,185 rows, with 0 disagreements** — no null mismatches and
+no value mismatches on any column.
+
+| block | source |
 |---|---|
-| `school_name`, `all_students`, demographics | `ospi.rc_enrollment` |
-| `type`, `region`, `is_regular`, `ms_assignment_code` | `safs_domains.d_school` |
-| `spend_*_per_pupil` | `safs_f19x.general_fund_expenditures` (actuals), bucketed by `program_code`, ÷ `all_students` |
-| staffing counts / FTE / experience | `safs_s275.assignment` + `report_employee` |
+| identity — `type`, `region`, `is_regular`, `ms_assignment_code`, `school`, `ms_assignment` | `safs_domains.d_school` |
+| row set, `school_name`, `all_students`, demographics + `pct_*` | `ospi.rc_enrollment` (`ccddd=17001`, `grade='All Grades'`) |
+| spend buckets, `comp_amount_*` / `non_comp_amount_*` | `safs_f19x.general_fund_expenditures` (actuals, `has_school`) |
+| staffing, salary, experience, per-duty blocks | `safs_s275.assignment` + `report` + `private_assignment` + `report_employee` |
 
-**22 of the 23 columns bigsheet reads match `attic/vitals.csv` exactly** (0
-null mismatches, 0 value mismatches). The 23rd,
-`class_teacher_exp_50pctile`, differs on 65 of 1110 rows *on purpose* — see
-below.
+End to end, BigQuery mode reproduces the original sheet (`attic/wide.csv`)
+on **all 1,236 columns × 1,185 rows with 0 disagreements**, in the same row
+order. It is not *byte*-identical: the pivoted assessment column order
+differs, because the original `assessment.csv` was exported in an arbitrary
+(unordered) row order that cannot be reproduced. Values are unaffected.
 
-**Percentiles are computed in numpy, not SQL.** `vitals.sql` returns the raw
-sorted per-teacher experience values as an array and
-`bigsheet.add_experience_percentiles()` takes the order statistic with
-`np.percentile(..., method='inverted_cdf')`.
+Two behaviours of the original are preserved deliberately so that this file
+is a pure reproduction. Both are addressed in later, separately committed
+steps:
 
-The original (`s275_school_summary.sql`) used
-`APPROX_QUANTILES(experience_years, 100)[OFFSET(50)]` — an *approximate*
-sketch. That is verified to be what built the CSV: it reproduces it on
-1110/1110 rows for both p50 and p80. On school-years with exactly 14, 28 or
-56 class teachers the sketch lands on the neighbouring order statistic,
-which is where all 65 differences come from. The numpy value is the exact
-order statistic, so those 65 are **corrected, not wrong**. The two agree
-everywhere else, including p80 on all 1110 rows.
+1. **Vocational spend is dropped.** `expenditures_by_school.sql` computes a
+   `voc` category (programs 31, 34, 38, 39, 45, 46, 47) and then discards it
+   — its `PIVOT` lists only the nine other categories, so `voc` never
+   reaches the output and is excluded from `comp_amount` / `non_comp_amount`
+   and hence from `total_spend`.
+2. **The experience percentiles are approximate.**
+   `s275_school_summary.sql` uses
+   `APPROX_QUANTILES(experience_years, 100)[OFFSET(50)]`, a sketch, which on
+   school-years with exactly 14, 28 or 56 class teachers returns the
+   neighbouring order statistic rather than the true one.
 
-(BigQuery's `PERCENTILE_DISC` is a third answer again — it disagreed with the
-CSV on 200 rows at q=0.8 — which is why the definition lives in Python where
-it is explicit and testable rather than depending on a SQL dialect's
-convention.)
-
-End to end, BigQuery mode reproduces CSV mode on **1,176 shared columns ×
-1,174 shared rows**, disagreeing only on that one column (plus its derived
-`class_teacher_exp_50pctile_normalized`) and on `total_spend` /
-`spend_per_pupil`, which changed deliberately — see below.
-
-### Spend buckets: `total_spend` now includes vocational
-
-The program→bucket mapping is taken **verbatim from
-`expenditures_by_school.sql`**, so it is the real definition rather than one
-fitted to the data. `other` is the `ELSE` catch-all, so every program lands
-in exactly one bucket.
-
-The original computed a `voc` category and then dropped it — its `PIVOT`
-listed only the nine named buckets, so vocational / CTE / skill-center spend
-never reached the CSV and was excluded from its `total_spend`. `vitals.sql`
-keeps it:
-
-- `total_spend_vocational` / `spend_vocational_per_pupil` — programs 31, 34,
-  38, 39, 45, 46, 47.
-- `total_spend` is `SUM(amount)` over all programs, which by construction
-  equals the nine buckets + vocational (verified to 0.000000).
-
-This makes `total_spend` **$97.3M larger** than the old CSV's over the
-covered years, differing on 204 of 643 school-years. The nine buckets —
-the ones bigsheet actually reads — still match the CSV exactly.
-
-Worth knowing: **99 Pupil Transportation ($294.9M)** falls in the `other`
-`ELSE` bucket by this mapping, but never actually reaches this grain — it,
-along with 73 Summer School and 89 Other Community Services, is booked to
-`school_code`/`class_of` pairs absent from `ospi.rc_enrollment`.
-
-**BigQuery mode yields a narrower sheet: 1,178 columns vs 1,236.** The 58
-absent columns are vitals pass-through columns bigsheet never reads — the
-salary/compensation blocks, the principal/counselor/librarian/aide blocks,
-the `comp_amount_*`/`non_comp_amount_*` splits, and `fte`, `fte_per_pupil`,
-`grade`, `school_1`. They were not investigated, not shown to be unavailable.
-
-One more thing worth knowing about the data:
+One thing worth knowing about the data:
 
 - **`other_teacher` = duty 33 + 34.** Since duty 34 (Elementary Specialist)
   was carved out of 31 in 2015-16, `class_teacher_fte` has a structural

@@ -61,41 +61,11 @@ def load_assessment(args):
     return run_query('assessment.sql', args.bq_project)
 
 
-def add_experience_percentiles(df, source='class_teacher_exp_years'):
-    """Turns the raw per-teacher experience array into percentile columns.
-
-    Done in numpy rather than SQL on purpose. BigQuery's PERCENTILE_DISC
-    follows a different convention from numpy's 'inverted_cdf' and disagreed
-    with the pre-baked vitals CSV on 200 rows at q=0.8, where inverted_cdf is
-    exact. vitals.sql therefore returns the raw sorted values and the order
-    statistic is taken here, where the method is explicit.
-
-    'inverted_cdf' is the ceil(q*n)-th smallest value, i.e. the smallest
-    observation whose empirical CDF reaches q. It reproduces the source CSV
-    exactly for the 80th percentile and for the mean; see marts/README.md for
-    the one documented residual at the 50th.
-    """
-    def as_array(v):
-        if v is None or len(v) == 0:
-            return np.array([], dtype=float)
-        return np.asarray(v, dtype=float)
-
-    values = df[source].map(as_array)
-    for name, q in (('class_teacher_exp_50pctile', 50),
-                    ('class_teacher_exp_80pctile', 80)):
-        df[name] = values.map(
-            lambda a: np.percentile(a, q, method='inverted_cdf')
-            if a.size else np.nan)
-    df['class_teacher_exp_avg'] = values.map(
-        lambda a: a.mean() if a.size else np.nan)
-    return df.drop(columns=[source])
-
-
 def load_vitals(args):
     """Per-school vitals, from --vitals if given, else from BigQuery."""
     if args.vitals:
         return pd.read_csv(args.vitals)
-    return add_experience_percentiles(run_query('vitals.sql', args.bq_project))
+    return run_query('vitals.sql', args.bq_project)
 
 
 def rotateLeftColumnName(raw_f):
