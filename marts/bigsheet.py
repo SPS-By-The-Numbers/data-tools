@@ -61,11 +61,46 @@ def load_assessment(args):
     return run_query('assessment.sql', args.bq_project)
 
 
+EXPERIENCE_PERCENTILES = (50, 80)
+
+
+def add_experience_percentiles(df, source, prefix):
+    """Replaces a raw sorted-experience array with exact percentile columns.
+
+    vitals.sql returns the per-person experience values rather than
+    percentiles because the original query used APPROX_QUANTILES, a sketch
+    that returns the neighbouring order statistic on some group sizes. Here
+    the exact order statistic is taken with numpy: 'inverted_cdf' is the
+    ceil(q*n)-th smallest value, i.e. the smallest observation whose
+    empirical CDF reaches q.
+
+    The new columns are inserted where the array column was, so the column
+    order of the original vitals.csv is preserved.
+    """
+    def as_array(v):
+        if v is None or len(v) == 0:
+            return np.array([], dtype=float)
+        return np.asarray(v, dtype=float)
+
+    values = df[source].map(as_array)
+    position = df.columns.get_loc(source)
+    df = df.drop(columns=[source])
+    for offset, q in enumerate(EXPERIENCE_PERCENTILES):
+        df.insert(position + offset, f'{prefix}_exp_{q}pctile',
+                  values.map(lambda a: np.percentile(a, q,
+                                                     method='inverted_cdf')
+                             if a.size else np.nan))
+    return df
+
+
 def load_vitals(args):
     """Per-school vitals, from --vitals if given, else from BigQuery."""
     if args.vitals:
         return pd.read_csv(args.vitals)
-    return run_query('vitals.sql', args.bq_project)
+    df = run_query('vitals.sql', args.bq_project)
+    df = add_experience_percentiles(df, 'class_teacher_exp_years',
+                                    'class_teacher')
+    return add_experience_percentiles(df, 'principal_exp_years', 'principal')
 
 
 def rotateLeftColumnName(raw_f):

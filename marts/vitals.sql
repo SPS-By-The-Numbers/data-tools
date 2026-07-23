@@ -2,9 +2,9 @@
 --
 -- The `--vitals` input consumed by marts/bigsheet.py, built from BigQuery.
 --
--- This is a faithful, column-for-column reproduction of the pre-baked
--- vitals.csv (preserved at attic/vitals.csv).  It is a direct inlining of the
--- three original queries, which are kept alongside it for reference:
+-- It reproduces the pre-baked vitals.csv (preserved at attic/vitals.csv)
+-- column for column, with two bugs fixed -- see below.  It is a direct
+-- inlining of the three original queries, kept alongside it for reference:
 --
 --   vitals_org.sql               -- the final join
 --   expenditures_by_school.sql   -- built scratch.exp_by_school
@@ -23,9 +23,11 @@
 --      non_comp_amount_voc, total_spend_voc and spend_voc_per_pupil, and
 --      making comp_amount / non_comp_amount / total_spend / spend_per_pupil
 --      larger than the CSV's by $97.3M over the covered years.
---   2. The experience percentiles still use APPROX_QUANTILES, an approximate
---      sketch, which on school-years with exactly 14, 28 or 56 class teachers
---      returns the neighbouring order statistic rather than the true one.
+--   2. FIXED: the experience percentiles.  The original used
+--      APPROX_QUANTILES, a sketch, which on school-years with exactly 14,
+--      28 or 56 class teachers returns the neighbouring order statistic.
+--      This query returns the raw sorted values and bigsheet.py takes the
+--      exact order statistic in numpy, correcting 65 of 1110 rows.
 --
 -- GRAIN: one row per (school_code, class_of), from
 --   ospi.rc_enrollment WHERE ccddd = 17001 AND grade = 'All Grades',
@@ -104,8 +106,7 @@ exp_pivoted AS (
   -- non-compensation, each defaulting to 0; a category with no rows at all
   -- stays NULL, which is what the PIVOT produced.
   --
-  -- NOTE: 'voc' is deliberately absent, exactly as in the original -- see the
-  -- file header.
+  -- NOTE: unlike the original, 'voc' IS included -- see the file header.
   SELECT
     class_of,
     school_code,
@@ -202,8 +203,13 @@ classroom_teacher_stats AS (
   SELECT
     t.class_of,
     t.school_code,
-    APPROX_QUANTILES(re.experience_years, 100)[OFFSET(50)] AS class_teacher_exp_50pctile,
-    APPROX_QUANTILES(re.experience_years, 100)[OFFSET(80)] AS class_teacher_exp_80pctile,
+    -- The original used APPROX_QUANTILES(experience_years, 100)[OFFSET(n)],
+    -- a sketch, which returns the neighbouring order statistic on some group
+    -- sizes.  Return the raw sorted values instead; bigsheet.py takes the
+    -- exact order statistic in numpy and replaces this column with
+    -- class_teacher_exp_50pctile / class_teacher_exp_80pctile in place.
+    ARRAY_AGG(re.experience_years IGNORE NULLS
+              ORDER BY re.experience_years) AS class_teacher_exp_years,
     AVG(re.experience_years) class_teacher_exp_avg,
     count(t.report_employee_id) num_class_teachers,
     SUM(CASE WHEN re.highest_degree = "B" THEN 1 ELSE 0 END) num_class_teachers_bachelors,
@@ -274,8 +280,10 @@ principal_stats AS (
   SELECT
     t.class_of,
     t.school_code,
-    APPROX_QUANTILES(re.experience_years, 100)[OFFSET(50)] AS principal_exp_50pctile,
-    APPROX_QUANTILES(re.experience_years, 100)[OFFSET(80)] AS principal_exp_80pctile,
+    -- Same as class_teacher_exp_years above: raw sorted values, turned into
+    -- principal_exp_50pctile / principal_exp_80pctile in numpy.
+    ARRAY_AGG(re.experience_years IGNORE NULLS
+              ORDER BY re.experience_years) AS principal_exp_years,
     AVG(re.experience_years) principal_exp_avg,
     count(t.report_employee_id) num_principal,
     SUM(CASE WHEN re.highest_degree = "B" THEN 1 ELSE 0 END) num_principal_bachelors,

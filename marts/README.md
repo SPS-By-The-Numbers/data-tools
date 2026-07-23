@@ -80,7 +80,7 @@ Note the `dat` column is a suppression annotation and is NOT
 what distinguishes the `_nodat` variant, despite the name — the distinction
 is purely whether `pct_met_standard` carried a `<`/`>` bound.
 
-### `vitals.sql` — exact reproduction of `vitals.csv`
+### `vitals.sql` — reproduces `vitals.csv`, with two bugs fixed
 
 `vitals.sql` is a direct inlining of the three original queries
 (`vitals_org.sql`, `expenditures_by_school.sql`, `s275_school_summary.sql`),
@@ -88,10 +88,12 @@ which no longer run because the `scratch` dataset they read and write is now
 empty. Everything they did is reproduced as CTEs, in the same order and with
 the same semantics.
 
-**It reproduces all 139 columns of `attic/vitals.csv`, in the same order,
-over all 1,185 rows.** 135 of them match with 0 disagreements; the other
-four are the spend aggregates changed on purpose by the vocational fix
-below.
+**It produces all 139 columns of `attic/vitals.csv`, in the same order,
+over all 1,185 rows** (plus four new vocational columns). 134 of the 139
+match with 0 disagreements. The five that differ do so on purpose: the four
+spend aggregates corrected by the vocational fix, and
+`class_teacher_exp_50pctile` corrected by the exact-percentile fix — both
+described below.
 
 | block | source |
 |---|---|
@@ -101,10 +103,13 @@ below.
 | staffing, salary, experience, per-duty blocks | `safs_s275.assignment` + `report` + `private_assignment` + `report_employee` |
 
 End to end, BigQuery mode reproduces the original sheet (`attic/wide.csv`)
-on **all 1,236 columns × 1,185 rows with 0 disagreements**, in the same row
-order. It is not *byte*-identical: the pivoted assessment column order
-differs, because the original `assessment.csv` was exported in an arbitrary
-(unordered) row order that cannot be reproduced. Values are unaffected.
+over 1,185 rows × 1,236 shared columns, disagreeing only on the six columns
+the two fixes intentionally change (the four spend aggregates,
+`class_teacher_exp_50pctile`, and its derived
+`class_teacher_exp_50pctile_normalized`). It is not *byte*-identical: the
+pivoted assessment column order differs, because the original
+`assessment.csv` was exported in an arbitrary (unordered) row order that
+cannot be reproduced. Values are unaffected by that.
 
 ### Fixed: the dropped vocational spend
 
@@ -125,10 +130,27 @@ aggregates that should change: `total_spend` (204 rows), `spend_per_pupil`
 match `attic/vitals.csv` exactly, and the ten buckets now reconcile to
 `total_spend` to 0.000000.
 
-One behaviour of the original is still preserved: the experience percentiles
-use `APPROX_QUANTILES`, an approximate sketch, which on school-years with
-exactly 14, 28 or 56 class teachers returns the neighbouring order statistic
-rather than the true one.
+### Fixed: approximate experience percentiles
+
+`s275_school_summary.sql` computed the experience percentiles with
+`APPROX_QUANTILES(experience_years, 100)[OFFSET(n)]` — a *sketch*, not an
+exact quantile. It is verified to be what built the CSV (it reproduces
+`class_teacher_exp_50pctile` and `_80pctile` on 1110/1110 rows), and on
+school-years with exactly 14, 28 or 56 class teachers it returns the
+neighbouring order statistic rather than the true one.
+
+`vitals.sql` therefore returns the raw sorted per-person experience values
+(`class_teacher_exp_years`, `principal_exp_years`) and
+`bigsheet.add_experience_percentiles()` takes the **exact** order statistic
+in numpy with `np.percentile(..., method='inverted_cdf')` — the ceil(q·n)-th
+smallest value, i.e. the smallest observation whose empirical CDF reaches q.
+The computed columns are inserted where the array column was, so the
+original column order is preserved.
+
+This corrects **65 of 1110** `class_teacher_exp_50pctile` values (deviation
+median ~0.9 yr, max 7.3 yr; the sketch was always the higher of the two
+neighbours). `class_teacher_exp_80pctile`, `principal_exp_50pctile` and
+`principal_exp_80pctile` were already exact and are unchanged.
 
 One thing worth knowing about the data:
 
