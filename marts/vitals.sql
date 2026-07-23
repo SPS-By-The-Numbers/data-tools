@@ -77,6 +77,19 @@ WITH enrollment AS (
 
 spend AS (
   -- Per-school general-fund ACTUALS, bucketed by program code.
+  --
+  -- The nine named buckets below reproduce attic/vitals.csv exactly.  The old
+  -- CSV's total_spend, however, summed ONLY those nine, so every program that
+  -- fell outside them vanished without trace.  Here total_spend is instead
+  -- SUM(amount) over ALL programs, and the leftovers are surfaced in two
+  -- explicit buckets so the parts always reconcile to the whole:
+  --
+  --     total_spend = the nine buckets + vocational + unbucketed
+  --
+  -- This makes total_spend / spend_per_pupil DELIBERATELY LARGER than the
+  -- old CSV's -- by $97.3M over the covered years, all of it vocational.
+  -- Nothing bigsheet.py computes reads those two columns; the nine buckets
+  -- it does read are unchanged and still match the CSV exactly.
   SELECT
     school_code,
     class_of,
@@ -89,9 +102,29 @@ spend AS (
     SUM(IF(program_code IN (79),                                   amount, NULL)) AS total_spend_instr_other,
     SUM(IF(program_code IN (97),                                   amount, NULL)) AS total_spend_district_support,
     SUM(IF(program_code IN (11, 12, 13, 14, 19, 74, 76, 81, 88, 98), amount, NULL)) AS total_spend_other,
-    SUM(IF(program_code IN (1, 2, 3, 21, 22, 23, 24, 56, 57, 58, 61, 55, 51, 52,
-                            65, 79, 97, 11, 12, 13, 14, 19, 74, 76, 81, 88, 98),
-           amount, NULL))                                                         AS total_spend
+
+    -- Vocational / CTE / Skill Center.  Dropped entirely by the old CSV.
+    -- 31 Vocational-Basic-State, 34 Middle School CTE-State, 38 Vocational-
+    -- Federal, 45 Skills Center-Basic-State, 46 Skills Center-Federal.
+    -- (46 was not in the original report of this gap but is plainly the same
+    -- family -- omitting it would recreate the very bug being fixed.)
+    SUM(IF(program_code IN (31, 34, 38, 45, 46), amount, NULL)) AS total_spend_vocational,
+
+    -- Everything in no named bucket, so nothing can silently disappear again.
+    -- Currently exactly $0: the programs that fall outside the named buckets
+    -- (53 ESEA Migrant, 64 Limited English Proficiency-Federal, 68 Indian
+    -- Education-ED, 69 Compensatory-Other, 73 Summer School, 75 Professional
+    -- Development-State, 89 Other Community Services, and notably
+    -- 99 Pupil Transportation at $294.9M) are booked entirely to
+    -- school_code/class_of pairs that are NOT in ospi.rc_enrollment, so they
+    -- never reach this grain.  This column is a tripwire: if it ever goes
+    -- non-zero, a program has appeared at a real school with no bucket.
+    SUM(IF(program_code NOT IN (1, 2, 3, 21, 22, 23, 24, 56, 57, 58, 61, 55,
+                                51, 52, 65, 79, 97, 11, 12, 13, 14, 19, 74,
+                                76, 81, 88, 98, 31, 34, 38, 45, 46),
+           amount, NULL)) AS total_spend_unbucketed,
+
+    SUM(amount) AS total_spend
   FROM `{project}.safs_f19x.general_fund_expenditures`
   WHERE ccddd = 17001
     AND data_type = 'actuals'
@@ -117,7 +150,13 @@ class_teachers AS (
     AND a.duty_root_code IN (31, 32)
 ),
 
-class_teacher_agg AS (
+class_teacher_stats AS (
+  -- Percentiles are deliberately NOT computed here.  BigQuery's
+  -- PERCENTILE_DISC follows a different convention from numpy's and
+  -- disagreed with the source CSV on 200 rows at q=0.8.  Instead this
+  -- returns the raw per-teacher experience values as a sorted array and
+  -- bigsheet.py's add_experience_percentiles() takes the order statistic in
+  -- numpy, where the semantics are explicit and testable.
   SELECT
     ct.class_of,
     ct.school_code,
@@ -125,28 +164,11 @@ class_teacher_agg AS (
     COUNTIF(re.highest_degree = 'B')    AS num_class_teachers_bachelors,
     COUNTIF(re.highest_degree = 'M')    AS num_class_teachers_masters,
     COUNTIF(re.highest_degree = 'D')    AS num_class_teachers_doctors,
-    AVG(re.experience_years)            AS class_teacher_exp_avg,
     ARRAY_AGG(re.experience_years IGNORE NULLS
-              ORDER BY re.experience_years) AS exp_sorted
+              ORDER BY re.experience_years) AS class_teacher_exp_years
   FROM class_teachers ct
   JOIN `{project}.safs_s275.report_employee` re USING (report_employee_id)
   GROUP BY ct.class_of, ct.school_code
-),
-
-class_teacher_stats AS (
-  -- Percentiles are the numpy 'inverted_cdf' order statistic: the
-  -- ceil(q*n)-th smallest value (1-based).  Do NOT use BigQuery's
-  -- PERCENTILE_DISC here -- it follows a different convention and disagrees
-  -- with the source CSV on 200 rows at q=0.8, where this form is exact.
-  -- The index is computed with integer arithmetic (ceil(n/2) = DIV(n+1,2),
-  -- ceil(4n/5) = DIV(4n+4,5)) so no float rounding can shift it.
-  SELECT
-    * EXCEPT (exp_sorted),
-    exp_sorted[SAFE_OFFSET(
-      DIV(ARRAY_LENGTH(exp_sorted) + 1, 2) - 1)] AS class_teacher_exp_50pctile,
-    exp_sorted[SAFE_OFFSET(
-      DIV(4 * ARRAY_LENGTH(exp_sorted) + 4, 5) - 1)] AS class_teacher_exp_80pctile
-  FROM class_teacher_agg
 ),
 
 fte AS (
@@ -248,6 +270,8 @@ SELECT
   sp.total_spend_instr_other,
   sp.total_spend_district_support,
   sp.total_spend_other,
+  sp.total_spend_vocational,
+  sp.total_spend_unbucketed,
   SAFE_DIVIDE(sp.total_spend,                   e.all_students) AS spend_per_pupil,
   SAFE_DIVIDE(sp.total_spend_gen_ed,            e.all_students) AS spend_gen_ed_per_pupil,
   SAFE_DIVIDE(sp.total_spend_spec_ed,           e.all_students) AS spend_spec_ed_per_pupil,
@@ -258,11 +282,13 @@ SELECT
   SAFE_DIVIDE(sp.total_spend_instr_other,       e.all_students) AS spend_instr_other_per_pupil,
   SAFE_DIVIDE(sp.total_spend_district_support,  e.all_students) AS spend_district_support_per_pupil,
   SAFE_DIVIDE(sp.total_spend_other,             e.all_students) AS spend_other_per_pupil,
+  SAFE_DIVIDE(sp.total_spend_vocational,        e.all_students) AS spend_vocational_per_pupil,
+  SAFE_DIVIDE(sp.total_spend_unbucketed,        e.all_students) AS spend_unbucketed_per_pupil,
 
   -- staffing
-  cts.class_teacher_exp_50pctile,
-  cts.class_teacher_exp_80pctile,
-  cts.class_teacher_exp_avg,
+  -- Raw sorted per-teacher experience; bigsheet.py turns this into
+  -- class_teacher_exp_{50pctile,80pctile,avg} in numpy.
+  cts.class_teacher_exp_years,
   cts.num_class_teachers,
   cts.num_class_teachers_bachelors,
   cts.num_class_teachers_masters,

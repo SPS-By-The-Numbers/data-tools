@@ -95,16 +95,53 @@ NULL `school_code`), no extra and none missing. Sources:
 
 **22 of the 23 columns bigsheet reads match `attic/vitals.csv` exactly** (0
 null mismatches, 0 value mismatches). The exception is
-`class_teacher_exp_50pctile` at 1045/1110 (94.1%) — see the SQL header; the
-65 deviations are exactly the school-years with 14, 28 or 56 class teachers,
-where the source CSV took the next-higher order statistic. That is an
-artifact of whatever tool built the CSV, not a defect here: the same index
-formula reproduces `class_teacher_exp_80pctile` on 1110/1110 and
-`class_teacher_exp_avg` on 1110/1110.
+`class_teacher_exp_50pctile` at 1045/1110 (94.1%) — the 65 deviations are
+exactly the school-years with 14, 28 or 56 class teachers, where the source
+CSV took the next-higher order statistic. That is an artifact of whatever
+tool built the CSV, not a defect here: the same method reproduces
+`class_teacher_exp_80pctile` on 1110/1110 and `class_teacher_exp_avg` on
+1110/1110.
+
+**Percentiles are computed in numpy, not SQL.** `vitals.sql` returns the raw
+sorted per-teacher experience values as an array and
+`bigsheet.add_experience_percentiles()` takes the order statistic with
+`np.percentile(..., method='inverted_cdf')`. BigQuery's `PERCENTILE_DISC`
+follows a different convention and disagreed with the source CSV on 200 rows
+at q=0.8, where `inverted_cdf` is exact — so the percentile definition lives
+in Python where it is explicit and testable.
 
 End to end, BigQuery mode reproduces CSV mode on **1,176 shared columns ×
-1,174 shared rows with only that one column disagreeing** (plus its derived
-`class_teacher_exp_50pctile_normalized`).
+1,174 shared rows**, disagreeing only on that one column (plus its derived
+`class_teacher_exp_50pctile_normalized`) and on `total_spend` /
+`spend_per_pupil`, which changed deliberately — see below.
+
+### Spend buckets: `total_spend` now includes vocational
+
+The old CSV's `total_spend` summed only the nine named buckets, so any
+program outside them vanished without trace — notably vocational / CTE /
+skill-center spend. `vitals.sql` fixes that:
+
+- `total_spend` is now `SUM(amount)` over **all** programs.
+- `total_spend_vocational` / `spend_vocational_per_pupil` break out programs
+  31, 34, 38, 45, 46 (Vocational Basic/Federal, Middle-School CTE, Skills
+  Center Basic/Federal). Program 46 was not in the original list of the gap
+  but is plainly the same family; omitting it would recreate the bug.
+- `total_spend_unbucketed` / `spend_unbucketed_per_pupil` catch anything in
+  no named bucket, so the parts always reconcile to the whole:
+  `total_spend = nine buckets + vocational + unbucketed` (verified to 0.000000).
+
+This makes `total_spend` **$97.3M larger** than the old CSV's over the
+covered years, differing on 204 of 643 school-years. The nine original
+buckets — the ones bigsheet actually reads — are untouched and still match
+the CSV exactly.
+
+`total_spend_unbucketed` is currently exactly $0 and acts as a tripwire. The
+programs with no bucket (53 ESEA Migrant, 64 LEP-Federal, 68 Indian
+Education-ED, 69 Compensatory-Other, 73 Summer School, 75 Professional
+Development, 89 Other Community Services, and **99 Pupil Transportation at
+$294.9M**) are booked entirely to `school_code`/`class_of` pairs absent from
+`ospi.rc_enrollment`, so they never reach this grain. If the column ever goes
+non-zero, a program has appeared at a real school with no bucket.
 
 **BigQuery mode yields a narrower sheet: 1,178 columns vs 1,236.** The 58
 absent columns are vitals pass-through columns bigsheet never reads — the
@@ -112,15 +149,30 @@ salary/compensation blocks, the principal/counselor/librarian/aide blocks,
 the `comp_amount_*`/`non_comp_amount_*` splits, and `fte`, `fte_per_pupil`,
 `grade`, `school_1`. They were not investigated, not shown to be unavailable.
 
-Two things worth knowing about the data:
+One more thing worth knowing about the data:
 
-- **`total_spend` silently drops vocational/CTE/skill-center spend.** Programs
-  31, 34, 38 and 45 map to no bucket — $83.1M of program 31 alone. Any
-  "total per-pupil spend" from vitals understates high schools materially.
-  This is faithful to the original CSV, not a new bug.
 - **`other_teacher` = duty 33 + 34.** Since duty 34 (Elementary Specialist)
   was carved out of 31 in 2015-16, `class_teacher_fte` has a structural
   discontinuity at `class_of` 2016 that is not a real staffing change.
+
+### `vitals_org.sql` — the original query, for reference
+
+`marts/vitals_org.sql` is the query that originally produced `vitals.csv`.
+It is kept for provenance and is **not** used by `bigsheet.py`; it no longer
+runs, because it reads two intermediate tables (`scratch.exp_by_school` and
+`scratch.s275_school_summary`) that no longer exist — the `scratch` dataset
+is now empty.
+
+It does confirm several things `vitals.sql` had to reverse-engineer: the row
+set (`ospi.rc_enrollment` at `ccddd=17001, grade='All Grades'`), the
+identity columns coming from `safs_domains.d_school`, and the demographic
+`pct_*` columns being `count / NULLIF(all_students, 0)`. All of those match.
+It also explains the `comp_amount_*` / `non_comp_amount_*` pass-through
+columns: `exp_by_school` split each spend bucket into compensation and
+non-compensation halves, and `total_spend` was `comp_amount + non_comp_amount`
+— which is where the dropped-vocational behaviour originated. The percentile
+definition is not recoverable from it, since that lived in whatever built
+`s275_school_summary`.
 
 ### Hard-coded inputs (all under the GCS-synced `data/` tree)
 
