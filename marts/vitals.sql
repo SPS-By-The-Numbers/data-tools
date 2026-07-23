@@ -39,27 +39,25 @@
 --     safs_domains.d_school (sourced from the SPS-BTN spsbtn.xlsx `schools`
 --     tab), and match the CSV exactly.
 --
--- KNOWN IMPERFECTION (one column, 5.9% of rows):
---   class_teacher_exp_50pctile matches attic/vitals.csv on 1045/1110 rows
---   (94.1%).  The 65 exceptions are EXACTLY the school-years that have 14, 28,
---   or 56 class teachers; there the CSV took the next-HIGHER order statistic
---   (index n/2 instead of n/2 - 1).  No single percentile definition reproduces
---   both families (n=14 needs f>0.5 while n=16 needs f<=0.5), so this is an
---   artifact of whatever tool originally built the CSV.  Evidence that the
---   definition used below is nonetheless the right one: the SAME index formula
---   reproduces class_teacher_exp_80pctile on 1110/1110 rows exactly, and
---   class_teacher_exp_avg matches 1110/1110, so the person set and the value
---   column are correct.  Deviation on the 65 rows is bounded by the gap between
---   adjacent order statistics (median ~0.9 yr, max 7.3 yr), and the CSV is
---   always the higher of the two.
+-- DELIBERATE DIFFERENCE FROM THE CSV (one column, 5.9% of rows):
+--   class_teacher_exp_50pctile differs from attic/vitals.csv on 65 of 1110
+--   rows -- exactly the school-years with 14, 28 or 56 class teachers.  The
+--   cause is now known: the original (marts/s275_school_summary.sql) used
+--       APPROX_QUANTILES(experience_years, 100)[OFFSET(50)]
+--   which is an APPROXIMATE sketch, and on those group sizes it lands on the
+--   neighbouring order statistic.  APPROX_QUANTILES reproduces the CSV on
+--   1110/1110 rows for both p50 and p80, confirming that is what built it.
+--   bigsheet.py deliberately computes the EXACT order statistic in numpy
+--   instead, so these 65 values are corrected, not wrong.  The two agree
+--   everywhere else, including p80 on all 1110 rows.
 --
--- PROGRAM->SPEND-BUCKET MAPPING was solved by least squares against the CSV and
--- then verified to reproduce all 9 buckets to 0.00 on all 643 school-years that
--- have spend.  Note the surprise: vocational / CTE / skill-center programs
--- (31, 34, 38, 45) are DROPPED entirely - they land in no bucket, and
--- total_spend excludes them ($83M of program 31 alone).  Programs never seen in
--- Seattle's per-school actuals (46, 53, 64, 68, 69, 73, 75, 89, 99) are also
--- excluded here; their bucket is genuinely unknowable from the CSV.
+-- PROGRAM->SPEND-BUCKET MAPPING is taken verbatim from the original
+-- marts/expenditures_by_school.sql, so it is the real definition.  It
+-- reproduces all 9 buckets exactly on every school-year that has spend.
+-- The original also computed a 'voc' category and then dropped it: the PIVOT
+-- listed only the nine named buckets, so vocational / CTE / skill-center
+-- spend never reached the CSV and was excluded from its total_spend.  This
+-- query keeps it -- see the spend CTE.
 --
 -- Spend exists only for class_of >= 2020 in the CSV; that is a source-coverage
 -- fact (safs_f19x.general_fund_expenditures has no per-school actuals for
@@ -78,56 +76,57 @@ WITH enrollment AS (
 spend AS (
   -- Per-school general-fund ACTUALS, bucketed by program code.
   --
-  -- The nine named buckets below reproduce attic/vitals.csv exactly.  The old
-  -- CSV's total_spend, however, summed ONLY those nine, so every program that
-  -- fell outside them vanished without trace.  Here total_spend is instead
-  -- SUM(amount) over ALL programs, and the leftovers are surfaced in two
-  -- explicit buckets so the parts always reconcile to the whole:
+  -- The program -> bucket mapping is taken VERBATIM from the original
+  -- marts/expenditures_by_school.sql (which built scratch.exp_by_school), so
+  -- it is the real definition rather than one fitted to the data.  'other' is
+  -- the ELSE catch-all, exactly as in the original, which means every program
+  -- lands in exactly one bucket and the parts always reconcile to the whole:
   --
-  --     total_spend = the nine buckets + vocational + unbucketed
+  --     total_spend = the nine named buckets + vocational
   --
-  -- This makes total_spend / spend_per_pupil DELIBERATELY LARGER than the
-  -- old CSV's -- by $97.3M over the covered years, all of it vocational.
-  -- Nothing bigsheet.py computes reads those two columns; the nine buckets
-  -- it does read are unchanged and still match the CSV exactly.
+  -- The one deliberate change: the original PIVOTed only the nine named
+  -- buckets and summed total_spend over just those, so the 'voc' category it
+  -- had already computed was silently discarded.  Here vocational is kept and
+  -- included in total_spend, making total_spend / spend_per_pupil larger than
+  -- the old CSV's by $97.3M over the covered years.  Nothing bigsheet.py
+  -- computes reads those two columns; the nine buckets it does read are
+  -- unchanged and still match the CSV exactly.
   SELECT
     school_code,
     class_of,
-    SUM(IF(program_code IN (1, 2, 3),                              amount, NULL)) AS total_spend_gen_ed,
-    SUM(IF(program_code IN (21, 22, 23, 24),                       amount, NULL)) AS total_spend_spec_ed,
-    SUM(IF(program_code IN (56, 57, 58, 61),                       amount, NULL)) AS total_spend_compensatory,
-    SUM(IF(program_code IN (55),                                   amount, NULL)) AS total_spend_lap,
-    SUM(IF(program_code IN (51, 52),                               amount, NULL)) AS total_spend_title1,
-    SUM(IF(program_code IN (65),                                   amount, NULL)) AS total_spend_ble,
-    SUM(IF(program_code IN (79),                                   amount, NULL)) AS total_spend_instr_other,
-    SUM(IF(program_code IN (97),                                   amount, NULL)) AS total_spend_district_support,
-    SUM(IF(program_code IN (11, 12, 13, 14, 19, 74, 76, 81, 88, 98), amount, NULL)) AS total_spend_other,
+    SUM(IF(program_code IN (1, 2, 3, 9, 75),                  amount, NULL)) AS total_spend_gen_ed,
+    SUM(IF(program_code IN (21, 22, 23, 24, 25, 26, 29),      amount, NULL)) AS total_spend_spec_ed,
+    SUM(IF(program_code IN (54, 56, 57, 58, 59, 61, 62, 67, 68, 69),
+                                                              amount, NULL)) AS total_spend_compensatory,
+    SUM(IF(program_code IN (55),                              amount, NULL)) AS total_spend_lap,
+    SUM(IF(program_code IN (51, 52, 53),                      amount, NULL)) AS total_spend_title1,
+    SUM(IF(program_code IN (64, 65),                          amount, NULL)) AS total_spend_ble,
+    SUM(IF(program_code IN (79),                              amount, NULL)) AS total_spend_instr_other,
+    SUM(IF(program_code IN (97),                              amount, NULL)) AS total_spend_district_support,
 
-    -- Vocational / CTE / Skill Center.  Dropped entirely by the old CSV.
-    -- 31 Vocational-Basic-State, 34 Middle School CTE-State, 38 Vocational-
-    -- Federal, 45 Skills Center-Basic-State, 46 Skills Center-Federal.
-    -- (46 was not in the original report of this gap but is plainly the same
-    -- family -- omitting it would recreate the very bug being fixed.)
-    SUM(IF(program_code IN (31, 34, 38, 45, 46), amount, NULL)) AS total_spend_vocational,
+    -- Vocational / CTE / Skill Center: 31 Vocational-Basic-State, 34 Middle
+    -- School CTE-State, 38 Vocational-Federal, 39 Vocational-Other
+    -- Categorical, 45 Skills Center-Basic-State, 46 Skills Center-Federal,
+    -- 47 Skills Center-Facility Upgrades.  The original computed this
+    -- category and then dropped it on the way out.
+    SUM(IF(program_code IN (31, 34, 38, 39, 45, 46, 47),      amount, NULL)) AS total_spend_vocational,
 
-    -- Everything in no named bucket, so nothing can silently disappear again.
-    -- Currently exactly $0: the programs that fall outside the named buckets
-    -- (53 ESEA Migrant, 64 Limited English Proficiency-Federal, 68 Indian
-    -- Education-ED, 69 Compensatory-Other, 73 Summer School, 75 Professional
-    -- Development-State, 89 Other Community Services, and notably
-    -- 99 Pupil Transportation at $294.9M) are booked entirely to
-    -- school_code/class_of pairs that are NOT in ospi.rc_enrollment, so they
-    -- never reach this grain.  This column is a tripwire: if it ever goes
-    -- non-zero, a program has appeared at a real school with no bucket.
-    SUM(IF(program_code NOT IN (1, 2, 3, 21, 22, 23, 24, 56, 57, 58, 61, 55,
-                                51, 52, 65, 79, 97, 11, 12, 13, 14, 19, 74,
-                                76, 81, 88, 98, 31, 34, 38, 45, 46),
-           amount, NULL)) AS total_spend_unbucketed,
+    -- ELSE catch-all, matching the original.  Absorbs everything with no
+    -- named bucket -- e.g. 73 Summer School, 89 Other Community Services and
+    -- 99 Pupil Transportation.  (Those three never actually reach this grain:
+    -- they are booked to school_code/class_of pairs absent from
+    -- ospi.rc_enrollment.  99 Pupil Transportation alone is $294.9M.)
+    SUM(IF(program_code NOT IN (1, 2, 3, 9, 75, 79, 97, 54, 56, 57, 58, 59,
+                                61, 62, 67, 68, 69, 64, 65, 55, 21, 22, 23,
+                                24, 25, 26, 29, 51, 52, 53, 31, 34, 38, 39,
+                                45, 46, 47),
+           amount, NULL))                                                    AS total_spend_other,
 
     SUM(amount) AS total_spend
   FROM `{project}.safs_f19x.general_fund_expenditures`
   WHERE ccddd = 17001
     AND data_type = 'actuals'
+    AND has_school = TRUE          -- both filters are from the original
     AND school_code IS NOT NULL
   GROUP BY school_code, class_of
 ),
@@ -271,7 +270,6 @@ SELECT
   sp.total_spend_district_support,
   sp.total_spend_other,
   sp.total_spend_vocational,
-  sp.total_spend_unbucketed,
   SAFE_DIVIDE(sp.total_spend,                   e.all_students) AS spend_per_pupil,
   SAFE_DIVIDE(sp.total_spend_gen_ed,            e.all_students) AS spend_gen_ed_per_pupil,
   SAFE_DIVIDE(sp.total_spend_spec_ed,           e.all_students) AS spend_spec_ed_per_pupil,
@@ -283,7 +281,6 @@ SELECT
   SAFE_DIVIDE(sp.total_spend_district_support,  e.all_students) AS spend_district_support_per_pupil,
   SAFE_DIVIDE(sp.total_spend_other,             e.all_students) AS spend_other_per_pupil,
   SAFE_DIVIDE(sp.total_spend_vocational,        e.all_students) AS spend_vocational_per_pupil,
-  SAFE_DIVIDE(sp.total_spend_unbucketed,        e.all_students) AS spend_unbucketed_per_pupil,
 
   -- staffing
   -- Raw sorted per-teacher experience; bigsheet.py turns this into
