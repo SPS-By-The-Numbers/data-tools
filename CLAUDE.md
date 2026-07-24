@@ -132,6 +132,35 @@ approximate experience percentiles). `vitals_org.sql`,
 `expenditures_by_school.sql` and `s275_school_summary.sql` are the original
 queries, kept for provenance — they no longer run.
 
+### The bqload pipeline (`extractors/bqload/`)
+
+Loads the parsed fiscal + STARS PDF outputs into BigQuery, reusing the SAFS
+schema/AVRO stack. It is **seed-first**: it stages the already-parsed
+`out_fiscal/`/`out_stars/` CSVs into Postgres (`fiscal_prod`/`stars_prod`),
+exports zstandard AVRO, and loads BigQuery datasets `ospi_fiscal` / `ospi_stars`
+(project `sps-btn-data`). It does **not** re-parse the ~142GB PDF corpus —
+assume the fiscal/stars extractors already produced their CSVs.
+
+- Family registries (`extractors/{fiscal,stars}/registry.py`) auto-build one
+  `TableSpec` per schema and annotate the 8 fiscal tables that duplicate SAFS
+  (see `extractors/fiscal/DATA_SOURCE_DIVERGENCE.md`).
+- Core modules: `staging.py` (Postgres seed + `_bqload_manifest` idempotence),
+  `export.py` (AVRO + meta.json skip), `gcs_bq.py` (upload + WRITE_TRUNCATE
+  load + column descriptions), `run.py` (CLI), `gen_dictionary.py`
+  (`docs/DATA_DICTIONARY.md`).
+
+```console
+$ scripts/load_fiscal.sh                                  # local: seed,export
+$ STAGES=seed,export,upload,load scripts/load_fiscal.sh   # + GCS + BigQuery
+$ scripts/load_stars.sh
+$ python3 -m extractors.bqload.run --family fiscal --stages seed,export --tables fiscal_f196_summary
+```
+
+Numeric fidelity is exact end-to-end (CSV → `Decimal` → Postgres `DECIMAL(38,9)`
+→ AVRO decimal bytes → BigQuery NUMERIC). AVRO exports land in
+`out_<family>/tables/` (gitignored). `docs/DATA_DICTIONARY.md` is generated —
+edit the schema modules, not the Markdown.
+
 ### Top-level scripts
 
 `tools/analyze.py`, `tools/plot.py`, `tools/scatter.py`, `tools/boxplot.py`, `tools/to_boss.py`, `tools/odd_salary.py`, `tools/avro_to_csv.py` are ad-hoc analysis/visualization scripts that operate on the CSV/AVRO outputs of the pipeline — they are not part of the production pipeline.
