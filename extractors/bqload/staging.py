@@ -15,7 +15,6 @@ parse already ran and produced the CSVs.
 import csv as csvmod
 import hashlib
 import logging
-import os
 from pathlib import Path
 
 from sqlalchemy import (
@@ -44,9 +43,46 @@ class _MetaHolder:
         self.metadata = metadata
 
 
+def ensure_database(db_name, db_user, db_password="", host="localhost"):
+    """Create the target Postgres database if it does not already exist.
+
+    Connects to a maintenance database (postgres / the login db / template1)
+    with autocommit and issues CREATE DATABASE. No-op if it already exists.
+    """
+    import psycopg2
+    from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
+
+    last_err = None
+    for maint in ("postgres", db_user, "template1"):
+        try:
+            conn = psycopg2.connect(host=host, dbname=maint, user=db_user,
+                                    password=db_password)
+        except Exception as e:                                  # noqa: BLE001
+            last_err = e
+            continue
+        try:
+            conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
+            cur = conn.cursor()
+            cur.execute("SELECT 1 FROM pg_database WHERE datname = %s",
+                        (db_name,))
+            if cur.fetchone() is None:
+                cur.execute(f'CREATE DATABASE "{db_name}"')
+                logger.info("created database %s", db_name)
+            return
+        finally:
+            conn.close()
+    raise RuntimeError(
+        f"could not reach a maintenance database to create {db_name!r}: "
+        f"{last_err}")
+
+
 class StagingDb:
-    def __init__(self, db_name, db_user=None, db_password="", host="localhost"):
-        db_user = db_user or os.getlogin()
+    def __init__(self, db_name, db_user=None, db_password="", host="localhost",
+                 create_db=True):
+        import getpass
+        db_user = db_user or getpass.getuser()
+        if create_db:
+            ensure_database(db_name, db_user, db_password, host)
         self.engine = create_engine(
             f"postgresql+psycopg2://{db_user}:{db_password}@{host}/{db_name}")
         self._md = MetaData()
