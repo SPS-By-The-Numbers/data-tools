@@ -44,19 +44,23 @@ EFFICIENCY_METRIC_FIELDS = [
         "doc": "Number of buses operated.",
     },
     {
-        "name": "basic_riders",
+        "name": "basic_ride_equivalents",
         "field_type": "int",
-        "doc": "Basic program riders (combined AM + PM count divided by two).",
+        "doc": ("Basic-program ride-equivalents (trips + issued transit "
+                "passes; combined AM + PM count divided by two), NOT "
+                "distinct riders. The ln(BasicRiders) formula input."),
     },
     {
-        "name": "special_riders",
+        "name": "special_ride_equivalents",
         "field_type": "int",
-        "doc": "Special education program riders.",
+        "doc": ("Special-program ride-equivalents (trips), NOT distinct "
+                "riders. The ln(SpecialRiders) formula input."),
     },
     {
-        "name": "avg_distance",
+        "name": "avg_stop_to_dest_distance",
         "field_type": "decimal",
-        "doc": "Average route distance, miles.",
+        "doc": ("Average bus-stop-to-destination distance, miles (NOT route "
+                "distance; the AvgDistance formula input)."),
     },
     {
         "name": "num_destinations",

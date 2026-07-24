@@ -31,9 +31,9 @@ logger = logging.getLogger(__name__)
 _METRIC_COLUMNS = (
     "prior_year_expenditures",
     "buses",
-    "basic_riders",
-    "special_riders",
-    "avg_distance",
+    "basic_ride_equivalents",
+    "special_ride_equivalents",
+    "avg_stop_to_dest_distance",
     "num_destinations",
     "land_area",
     "k_rte",
@@ -42,7 +42,10 @@ _METRIC_COLUMNS = (
 )
 
 # Integer-valued metric codes (the rest are decimal).
-_INT_METRICS = {"buses", "basic_riders", "special_riders", "num_destinations", "k_rte"}
+_INT_METRICS = {
+    "buses", "basic_ride_equivalents", "special_ride_equivalents",
+    "num_destinations", "k_rte",
+}
 
 
 @dataclass

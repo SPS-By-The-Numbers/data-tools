@@ -79,15 +79,17 @@ STARS_EFFICIENCY_REVIEW = {
             "doc": "District full-time-equivalent enrollment.",
         },
         {
-            "name": "basic_riders",
+            "name": "basic_ride_equivalents",
             "field_type": "int",
-            "doc": ("Average basic-program riders per day during the "
-                    "reviewed school year."),
+            "doc": ("Average basic-program ride-equivalents (trips + issued "
+                    "transit passes) per day during the reviewed school "
+                    "year, NOT distinct riders."),
         },
         {
-            "name": "special_riders",
+            "name": "special_ride_equivalents",
             "field_type": "int",
-            "doc": "Average special-program riders per day.",
+            "doc": ("Average special-program ride-equivalents (trips) per "
+                    "day, NOT distinct riders."),
         },
         {
             "name": "buses",

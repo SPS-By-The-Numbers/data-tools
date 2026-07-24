@@ -122,7 +122,8 @@ Every fact table also carries:
   FALL + WINTER (SPRING is published end-of-school-year).
 - `value` is `NULL` when the source's data row was *absent* (small
   districts that reported no transportation, charter ROUTE_SUMMARY
-  missing average_distance); `value = 0` is a real "reported zero".
+  missing route_summary_avg_stop_to_dest_distance); `value = 0` is a
+  real "reported zero".
   Distinguishing these matters for ridership analyses.
 
 ### `stars_quarterly_district_route`
@@ -175,7 +176,7 @@ Every fact table also carries:
   | `review_date`, `two_years_prior_rer` | 99%+ |
   | `rtc_name`, `fte_enrollment` | 95%+ |
   | `buses`, `total_cost` | 93% |
-  | `basic_riders`, `special_riders` | 74% |
+  | `basic_ride_equivalents`, `special_ride_equivalents` | 74% |
   | `rtc_esd` | 13% (only the older "from <ESD>" phrasing carries it) |
 
 - `subcategory` is the OSPI band-crossing label; we also decode it
@@ -193,7 +194,8 @@ Every fact table also carries:
 
 - `value = NULL` in `stars_quarterly_district` ⇒ the source PDF/DOCX
   didn't print that section's data row at all (small/zero-activity
-  districts, charters missing avg_distance). `value = 0` ⇒ OSPI
+  districts, charters missing route_summary_avg_stop_to_dest_distance).
+  `value = 0` ⇒ OSPI
   printed a literal zero (e.g. COVID-era zero ridership).
 - `relative_efficiency_rating = NULL` in `stars_efficiency` ⇒ OSPI
   didn't compute one (districts with no transportation).
@@ -241,9 +243,9 @@ SELECT k.*, s.source_filename, s.report_dir
 FROM stars_kpi k
 JOIN d_stars_source s ON s.source_id = k._source_id;
 
--- Cross-table join: route counts vs ridership for a quarter
+-- Cross-table join: route counts vs basic ride-equivalents for a quarter
 SELECT q.ccddd, q.school_year, q.quarter,
-       MAX(CASE WHEN q.metric_code='basic_students_total' THEN q.value END) AS basic_riders,
+       MAX(CASE WHEN q.metric_code='basic_program_total' THEN q.value END) AS basic_ride_equivalents,
        MAX(CASE WHEN q.metric_code='routes_basic' THEN q.value END) AS basic_routes
 FROM stars_quarterly_district q
 GROUP BY 1,2,3;
@@ -270,6 +272,6 @@ JOIN actuals_general_fund_expenditures a USING (class_of, ccddd);
 - Don't union `stars_operations_allocation` and
   `stars_operations_allocation_compact` directly -- they have
   different schemas (long-form vs wide one-row-per-district).
-- Don't treat `stars_efficiency_review.basic_riders` /
-  `special_riders` as a complete column -- they have a ~74% fill
-  rate because of narrative phrasing variations.
+- Don't treat `stars_efficiency_review.basic_ride_equivalents` /
+  `special_ride_equivalents` as a complete column -- they have a ~74%
+  fill rate because of narrative phrasing variations.

@@ -114,7 +114,7 @@ Column reference (in addition to `SCHOOL_YEAR_DISTRICT_FIELDS`):
 | `section_code`    | string      | `A` / `B` / `C` / `D` — which section the item is in. |
 | `item_code`       | string (LK) | Canonical snake_case identifier (e.g. `land_area`, `a6_calculated_expected_allocation`, `d8_actual_allocation_amount`). 30 distinct codes. |
 | `item_label`      | string      | Raw label from the PDF/DOCX. |
-| `item_value`      | decimal     | Section A detail input value (Land Area square miles, Basic Program enrollment, etc.). NULL on summary / dollar rows. |
+| `item_value`      | decimal     | Section A detail input value (Land Area square miles, Basic Program ride-equivalents, etc.). NULL on summary / dollar rows. |
 | `coefficient`     | decimal     | Per-item coefficient/rate. Set for Section A detail rows and C.1 Alt Calendar Modifier. |
 | `calculated_value`| decimal     | Unitless calculated value: Section A detail products + A.1-A.3 / A.5 summary rows. NULL on dollar rows. |
 | `amount`          | decimal     | Dollar amount (Section A.4 / A.6 and every B / C / D row). |
@@ -230,14 +230,17 @@ Logical key: `(school_year, ccddd, quarter, metric_code)`.
 
 The 28 metrics split into:
 
-- **STUDENT DETAIL** (10): basic-program rider counts (`basic_students_*`:
-  `on_buses`, `in_walk_areas`, `transit_buses`, `total`) and special-program
-  rider subdivisions (`special_students_*`: `special_ed`, `bilingual`,
-  `gifted`, `homeless`, `early_ed`, `total`).
+- **STUDENT DETAIL** (10): basic-program ride-equivalents
+  (`basic_ride_equivalents_on_bus`, `basic_rides_in_walk_zone`,
+  `basic_transit_passes_issued`, `basic_program_total`) and special-program
+  ride-equivalents (`special_rides_*`: `special_ed`, `bilingual`, `gifted`,
+  `homeless`, `early_ed`, plus `special_program_total`). These are trips
+  taken (plus issued transit passes for basic), NOT distinct students --
+  the KPI report is the only place that measures actual riders.
 - **ROUTE SUMMARY** (10): route counts by program (`routes_basic`,
   `routes_special`, `routes_bilingual`, `routes_gifted`, `routes_homeless`,
   `routes_early_ed`, `routes_total`) plus `route_summary_destinations`,
-  `route_summary_total_buses`, and `route_summary_average_distance`.
+  `route_summary_total_buses`, and `route_summary_avg_stop_to_dest_distance`.
 - **BUS SUMMARY** (8): bus counts by program (`buses_*` with the same
   six programs) plus `bus_summary_destinations`, `bus_summary_total_buses`.
 
@@ -248,7 +251,7 @@ Notes on the values:
   route -- documented in the next section.
 - **COVID dip is preserved as zero, not NULL.** Districts that genuinely
   reported zero transportation in 2020-2021 (Seattle FALL 2020-2021 has
-  `basic_students_total = 0`) keep the literal zero so consumers can
+  `basic_program_total = 0`) keep the literal zero so consumers can
   compute the recovery curve.
 - **NULL vs 0.** OSPI sometimes generates a report where the data row
   is entirely absent (small districts that didn't transport anyone, or
@@ -340,9 +343,9 @@ and the RER.
 | `class_of` / `ccddd` / `county` / `district` | (from `SCHOOL_YEAR_DISTRICT_FIELDS`) | |
 | `prior_year_expenditures`       | decimal     | Subject's prior-year total transportation expenditures, in dollars. |
 | `buses`                         | int         | Buses operated. |
-| `basic_riders`                  | int         | Basic program riders. |
-| `special_riders`                | int         | Special education riders. |
-| `avg_distance`                  | decimal     | Average route distance, miles. |
+| `basic_ride_equivalents`        | int         | Basic-program ride-equivalents (trips + issued transit passes), not distinct riders. |
+| `special_ride_equivalents`      | int         | Special-program ride-equivalents (trips), not distinct riders. |
+| `avg_stop_to_dest_distance`     | decimal     | Average bus-stop-to-destination distance, miles (not route distance). |
 | `num_destinations`              | int         | Distinct destinations. |
 | `land_area`                     | decimal     | District land area, square miles. |
 | `k_rte`                         | int         | OSPI "K Rte" column. Almost always 0; meaning not documented publicly. |
@@ -406,8 +409,8 @@ One row per (school_year, ccddd).
 | `rtc_name`                   | string      | RTC who conducted the review (NULL when the template's placeholder text was never filled in). |
 | `rtc_esd`                    | string      | RTC's Educational Service District. Only populated for the older format with a `from <ESD>` suffix (16-17, 17-18 reports). |
 | `fte_enrollment`             | decimal     | Full-time-equivalent enrollment. |
-| `basic_riders`               | int         | Average daily basic-program riders. |
-| `special_riders`             | int         | Average daily special-program riders. |
+| `basic_ride_equivalents`     | int         | Average daily basic-program ride-equivalents (trips + issued transit passes), not distinct riders. |
+| `special_ride_equivalents`   | int         | Average daily special-program ride-equivalents (trips), not distinct riders. |
 | `buses`                      | int         | School buses operated. |
 | `total_cost`                 | decimal     | Total transportation expenditures. |
 | `current_rer`                | decimal     | The report's headline RER percentage. |
@@ -425,7 +428,7 @@ Notes on the values:
 - **Fill rates in the current 504-file corpus**: school year / ccddd /
   band metadata / current_rer / prior_rer = 100%; review_date /
   two_years_prior_rer = 99%+; rtc_name / fte_enrollment = 95%+;
-  buses / total_cost = 93%; basic_riders / special_riders = 74%
+  buses / total_cost = 93%; basic_ride_equivalents / special_ride_equivalents = 74%
   (some reports phrase ridership differently); rtc_esd = 13% (only
   the older "from ESD" phrasing).
 - **No structured cohort table.** The Efficiency Review's narrative

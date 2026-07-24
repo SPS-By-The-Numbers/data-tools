@@ -240,29 +240,34 @@ def _qrow(code, section, program, unit, description):
 
 
 D_STARS_QUARTERLY_METRIC_ROWS = [
-    # STUDENT DETAIL -- basic program subdivision (4)
-    _qrow("basic_students_on_buses", "student_detail", "basic", "riders",
-          "Basic-program students transported on district buses."),
-    _qrow("basic_students_in_walk_areas", "student_detail", "basic", "riders",
-          "Basic-program students living in designated walk areas (not "
-          "bused but counted)."),
-    _qrow("basic_students_transit_buses", "student_detail", "basic", "riders",
-          "Basic-program students transported via public transit."),
-    _qrow("basic_students_total", "student_detail", "basic", "riders",
-          "Total basic-program ridership count."),
-    # STUDENT DETAIL -- special program subdivision (6)
-    _qrow("special_students_special_ed", "student_detail", "special_ed", "riders",
-          "Special-education students transported."),
-    _qrow("special_students_bilingual", "student_detail", "bilingual", "riders",
-          "Bilingual-program students transported."),
-    _qrow("special_students_gifted", "student_detail", "gifted", "riders",
-          "Gifted-program students transported."),
-    _qrow("special_students_homeless", "student_detail", "homeless", "riders",
-          "Homeless students transported."),
-    _qrow("special_students_early_ed", "student_detail", "early_ed", "riders",
-          "Early-education-program students transported."),
-    _qrow("special_students_total", "student_detail", None, "riders",
-          "Total special-program ridership count across all subprograms."),
+    # STUDENT DETAIL -- basic program subdivision (4).
+    # These are ride-equivalents (trips taken) plus issued transit passes,
+    # NOT distinct students. See the KPI report for actual rider counts.
+    _qrow("basic_ride_equivalents_on_bus", "student_detail", "basic", "rides",
+          "Basic-program ride-equivalents (trips) on district buses."),
+    _qrow("basic_rides_in_walk_zone", "student_detail", "basic", "rides",
+          "Basic-program ride-equivalents counted in designated walk "
+          "zones (not bused but counted)."),
+    _qrow("basic_transit_passes_issued", "student_detail", "basic", "passes",
+          "Basic-program public-transit passes issued."),
+    _qrow("basic_program_total", "student_detail", "basic", "rides",
+          "Total basic-program ride-equivalents (the ln(BasicRiders) "
+          "allocation-formula input)."),
+    # STUDENT DETAIL -- special program subdivision (6).
+    # Ride-equivalents by subprogram; special has no transit-pass component.
+    _qrow("special_rides_special_ed", "student_detail", "special_ed", "rides",
+          "Special-education ride-equivalents (trips)."),
+    _qrow("special_rides_bilingual", "student_detail", "bilingual", "rides",
+          "Bilingual-program ride-equivalents (trips)."),
+    _qrow("special_rides_gifted", "student_detail", "gifted", "rides",
+          "Gifted-program ride-equivalents (trips)."),
+    _qrow("special_rides_homeless", "student_detail", "homeless", "rides",
+          "Homeless-program ride-equivalents (trips)."),
+    _qrow("special_rides_early_ed", "student_detail", "early_ed", "rides",
+          "Early-education-program ride-equivalents (trips)."),
+    _qrow("special_program_total", "student_detail", None, "rides",
+          "Total special-program ride-equivalents across all subprograms "
+          "(the ln(SpecialRiders) allocation-formula input)."),
     # ROUTE SUMMARY -- routes by program (6) + aggregates (4)
     _qrow("routes_basic", "route_summary", "basic", "routes",
           "Number of basic-program (A) routes operated."),
@@ -282,8 +287,10 @@ D_STARS_QUARTERLY_METRIC_ROWS = [
           "Distinct destinations served (from ROUTE SUMMARY rollup)."),
     _qrow("route_summary_total_buses", "route_summary", None, "buses",
           "Total buses used across all routes (route-summary rollup)."),
-    _qrow("route_summary_average_distance", "route_summary", None, "miles",
-          "Average route distance, miles."),
+    _qrow("route_summary_avg_stop_to_dest_distance", "route_summary", None,
+          "miles",
+          "Average bus-stop-to-destination distance, miles (NOT route "
+          "distance; the AvgDistance allocation-formula input)."),
     # BUS SUMMARY -- buses by program (6) + aggregates (2)
     _qrow("buses_basic", "bus_summary", "basic", "buses",
           "Basic-program (A) buses operated."),
@@ -424,10 +431,11 @@ D_STARS_OPS_ALLOCATION_SECTION = {
 
 D_STARS_OPS_ALLOCATION_SECTION_ROWS = [
     {"section_code": "A", "section_title": "Calculation of Expected Allocation",
-     "description": ("Formula inputs (Land Area, Average Distance, "
-                     "Destinations, Basic Program, Special Program, "
-                     "Non-High flags) plus summary lines A.1-A.6 ending "
-                     "in the calculated expected allocation.")},
+     "description": ("Formula inputs (Land Area, average stop-to-destination "
+                     "Distance, Destinations, Basic Program and Special "
+                     "Program ride-equivalents, Non-High flags) plus summary "
+                     "lines A.1-A.6 ending in the calculated expected "
+                     "allocation.")},
     {"section_code": "B", "section_title": "Alternate Funding System Adjustments",
      "description": ("Five line items that may pull the allocation off the "
                      "formula value (Non-High, Low Ridership, "
@@ -502,13 +510,16 @@ D_STARS_OPS_ALLOCATION_ITEM_ROWS = [
     _orow("land_area", "A", "Land Area (Ln)", "detail",
           "Natural log of district land area, weighted into the allocation formula."),
     _orow("average_distance", "A", "Average Distance", "detail",
-          "Average route distance (miles)."),
+          "Average bus-stop-to-destination distance (miles), NOT route "
+          "distance."),
     _orow("destinations", "A", "Destinations", "detail",
           "Distinct delivery destinations served."),
     _orow("basic_program", "A", "Basic Program (Ln)", "detail",
-          "Natural log of basic-program enrollment."),
+          "Natural log of basic-program ride-equivalents (trips + issued "
+          "transit passes), NOT enrollment."),
     _orow("special_program", "A", "Special Program (Ln)", "detail",
-          "Natural log of special-program enrollment."),
+          "Natural log of special-program ride-equivalents (trips), NOT "
+          "enrollment."),
     _orow("non_high_yes", "A", "Non-High Yes", "non_high",
           "Indicator + coefficient for districts classified as 'Non-High Yes'."),
     _orow("non_high_no", "A", "Non-High No", "non_high",

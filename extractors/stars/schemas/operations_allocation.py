@@ -97,8 +97,8 @@ STARS_OPERATIONS_ALLOCATION = {
             "name": "item_value",
             "field_type": "decimal",
             "doc": ("Input value for Section A detail rows (e.g. Land Area "
-                    "in square miles, Basic Program enrollment). NULL on "
-                    "summary rows."),
+                    "in square miles, Basic Program ride-equivalents). NULL "
+                    "on summary rows."),
         },
         {
             "name": "coefficient",

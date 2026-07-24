@@ -24,18 +24,19 @@ from .common import AUDIT_FIELDS, SCHOOL_YEAR_DISTRICT_FIELDS
 
 
 QUARTERLY_DISTRICT_METRICS = (
-    # STUDENT DETAIL -- Basic Program student count subdivision.
-    "basic_students_on_buses",
-    "basic_students_in_walk_areas",
-    "basic_students_transit_buses",
-    "basic_students_total",
-    # STUDENT DETAIL -- Special Program student count subdivision.
-    "special_students_special_ed",
-    "special_students_bilingual",
-    "special_students_gifted",
-    "special_students_homeless",
-    "special_students_early_ed",
-    "special_students_total",
+    # STUDENT DETAIL -- Basic Program ride-equivalent subdivision
+    # (trips + issued transit passes, not distinct students).
+    "basic_ride_equivalents_on_bus",
+    "basic_rides_in_walk_zone",
+    "basic_transit_passes_issued",
+    "basic_program_total",
+    # STUDENT DETAIL -- Special Program ride-equivalent subdivision.
+    "special_rides_special_ed",
+    "special_rides_bilingual",
+    "special_rides_gifted",
+    "special_rides_homeless",
+    "special_rides_early_ed",
+    "special_program_total",
     # ROUTE SUMMARY -- route counts by program plus totals.
     "routes_basic",
     "routes_special",
@@ -46,7 +47,7 @@ QUARTERLY_DISTRICT_METRICS = (
     "routes_total",
     "route_summary_destinations",
     "route_summary_total_buses",
-    "route_summary_average_distance",
+    "route_summary_avg_stop_to_dest_distance",
     # BUS SUMMARY -- bus counts by program plus totals.
     "buses_basic",
     "buses_special",
