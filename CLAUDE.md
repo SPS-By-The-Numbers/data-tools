@@ -109,6 +109,16 @@ The same schema dict is converted to SQLAlchemy `Table` (via `orm.py:make_table`
 
 ### Marts
 
+**FROZEN as of 2026-07-25:** `bigsheet` now lives in the website repo as a
+BigQuery Cloud Function (`sps-by-the-numbers-website/functions/src/bigsheet/`,
+see that repo's `BIGSHEET_MIGRATION_PLAN.md`). The SQL reproduces this script's
+Seattle output value-for-value (golden diff clean). `marts/bigsheet.py`,
+`vitals.sql`, `assessment.sql` are kept unchanged as the golden-regression
+source. The seven `data/sps` static inputs are published to BigQuery external
+tables via `scripts/publish_bigsheet_inputs.sh` + `create_bigsheet_input_tables.sh`;
+re-run both whenever those CSVs change, then bump `BIGSHEET_SQL_VERSION` in the
+website.
+
 `marts/bigsheet.py` is a first-class pipeline stage (a data mart built on
 extractor outputs): it joins ALL per-school data we have — enrollment and
 demographics, per-program spend, S-275 staffing/salary/experience, MAP
