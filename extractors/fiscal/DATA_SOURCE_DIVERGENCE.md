@@ -10,9 +10,10 @@ data.
 actuals, per-(program × activity × object × NCES × school × sub-fund)
 expenditures, per-account revenues with pre-attributed target programs,
 four-year forecasts — is available from the SAFS pipeline outputs
-under `safs_prod/f19x/`. That path is faster, more stable, updates on
-OSPI's filing cadence, and has richer analytical dimensions than the
-PDF path (per-school, sub-fund, NCES).
+under `safs_prod/f19x/` (also queryable in BigQuery as
+`sps-btn-data.safs_f19x.<table>`). That path is faster, more stable,
+updates on OSPI's filing cadence, and has richer analytical dimensions
+than the PDF path (per-school, sub-fund, NCES).
 
 Only reach for the fiscal PDF path when you need one of the dimensions
 that only lives on the printed forms: salary/staff detail per duty
@@ -32,16 +33,18 @@ in [OVERVIEW.md](OVERVIEW.md) and cataloged in [CSV_GUIDE.md](CSV_GUIDE.md).
                             |                                             safs_prod/f19x/*.avro
                             |                                             (canonical, decoded,
                             |                                              per-school + NCES + sub-fund)
+                            |                                             -> BigQuery dataset safs_f19x
                             |
                             +--> Published PDFs      ---> extractors/fiscal/ ---> CSV out_fiscal/
                                 (F-195 Budget,                                    fiscal_f195_*, fiscal_f196_*,
                                  F-196 All Pages,                                 fiscal_apportionment_*
-                                 Apportionment,
+                                 Apportionment,                                   -> BigQuery dataset ospi_fiscal
                                  1191*, F-780, etc)
 ```
 
 **When code says "SAFS raw", prefer the canonical avros** in
-`safs_prod/f19x/*.avro` over parsing `.accdb` files directly. The
+`safs_prod/f19x/*.avro` (BigQuery dataset `safs_f19x`) over parsing
+`.accdb` files directly. The
 avros have joined dimension tables, decoded labels for every code,
 and `data_type` fields distinguishing actuals from budget in one
 uniform place. See [Recipes](#recipes-from-safs-raw-only) below for
@@ -49,7 +52,7 @@ examples.
 
 ## What's in the SAFS canonical avros
 
-Under `safs_prod/f19x/`:
+Under `safs_prod/f19x/` (BigQuery dataset `safs_f19x`):
 
 **`general_fund_expenditures.avro`** — the P×A×O cube, plus NCES,
 sub-fund, and per-school grain (2019-20+). Both `data_type='budget'`
@@ -232,8 +235,8 @@ Beyond the "PDF-only" table above:
    avros on overlapping dimensions to the penny. If a SAFS-based
    analysis gives a number that seems off, the fiscal PDF path is a
    useful independent check. Any known reconciliation gaps are in
-   [TODO.md](TODO.md)'s coverage-gaps section, keyed to the specific
-   file / district / year.
+   [COVERAGE.md](COVERAGE.md)'s coverage-gaps section, keyed to the
+   specific file / district / year.
 2. **Printed labels and formulas.** The PDF path preserves OSPI's
    printed section headers, item labels, and derivation formulas.
    For audit or explanation purposes those are useful even when the
@@ -284,8 +287,9 @@ purest example) and reconcile every program's inflow to its outflow
 to the penny, with a synthetic "Fund Balance Drawdown" node absorbing
 the deficit-spending gap. Earlier variants that predate the discovery
 of SAFS's `program_code` attribution use `fiscal_f196_resource_to_program`
-via `out_fiscal/*.csv` and produce the same result — but require the
-fiscal PDF pipeline to have been run first.
+via `out_fiscal/*.csv` (also in BigQuery dataset `ospi_fiscal`) and
+produce the same result — but require the fiscal PDF pipeline to have
+been run first.
 
 The lesson: when starting a new analysis, look at
 `safs_prod/f19x/*.avro` first. If everything you need is there, skip

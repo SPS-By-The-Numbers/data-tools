@@ -5,7 +5,7 @@ outputs produced by `extractors/fiscal/`. Read it first to build a mental
 model of what's captured, how the tables fit together, and where the
 analytical value lives. For per-table specifics see
 [CSV_GUIDE.md](CSV_GUIDE.md); for what's *not* captured (with rationale)
-see [TODO.md](TODO.md).
+see [COVERAGE.md](COVERAGE.md).
 
 ## Before you use these tables: check SAFS raw first
 
@@ -64,9 +64,9 @@ If you're building analytics on this data, orient yourself in this order:
 2. Skim [CSV_GUIDE.md](CSV_GUIDE.md) — it has one row per fact CSV with
    the schema, row count, join key, and the analytical quirks each
    table absorbs from OSPI's source PDFs.
-3. Consult [TODO.md](TODO.md) when a specific dimension seems to be
-   missing — it documents deferred sub-reports and coverage gaps with
-   rationale.
+3. Consult [COVERAGE.md](COVERAGE.md) when a specific dimension seems
+   to be missing — it documents deferred sub-reports and coverage gaps
+   with rationale.
 4. For any specific column semantic, read the corresponding schema
    module under [`schemas/`](schemas/) — schemas are the definitive
    source-of-truth for field docs.
@@ -152,9 +152,8 @@ report. Its ~15 sub-reports fully cover accrual-basis actuals.
 | Federal Indirect Cost Rate calculation (pp 72-75) | `fiscal_f196_indirect_rate` |
 | Federal Indirect Cost Rate p1 expenditures partition (pp 72 / 74) | `fiscal_f196_indirect_rate_detail` |
 
-Parsers: [`parsers/f196_summary.py`](parsers/f196_summary.py) (dispatches to
-[`parsers/f196_all_pages.py`](parsers/f196_all_pages.py) for the SUMMARY
-block) plus one file per sub-report at
+Parsers: [`parsers/f196_all_pages.py`](parsers/f196_all_pages.py) (the
+SUMMARY block) plus one file per sub-report at
 [`parsers/f196_*.py`](parsers/). CLI drivers at
 [`extract_f196_*.py`](extract_f196_all_pages.py).
 
@@ -295,7 +294,7 @@ Service) stopped being published mid-corpus.
 
 The parsers pass identity checks on ~100% of files where the source
 PDFs are internally consistent, but OSPI's forms carry some data-entry
-errors and vintage-transition quirks. See TODO.md's "Coverage gaps"
+errors and vintage-transition quirks. See COVERAGE.md's "Coverage gaps"
 section for the complete list. Highlights:
 
 - 177 F-195 salary_exhibits source PDFs (4.5%) have duplicate
@@ -339,15 +338,35 @@ After all fact CSVs are generated, run
 fact CSV's `_source` string column to an integer `_source_id` foreign
 key.
 
+## Loading into BigQuery
+
+`extractors/bqload/` is a separate, seed-first pipeline that takes the
+`out_fiscal/*.csv` fact tables produced above and loads them into
+BigQuery. It seeds them into a `fiscal_prod` Postgres database, exports
+zstd-compressed AVRO to `out_fiscal/tables/`, and loads BigQuery dataset
+`ospi_fiscal` in project `sps-btn-data` (`WRITE_TRUNCATE` — each run
+replaces the dataset's contents rather than appending). Run it via
+`scripts/load_fiscal.sh`, which drives the stages `seed`, `export`,
+`upload`, and `load` in order; set the `STAGES` env var to run a subset
+(e.g. `STAGES=upload,load` to skip re-seeding Postgres). A generated
+per-column data dictionary lives at
+[`docs/DATA_DICTIONARY.md`](../../docs/DATA_DICTIONARY.md).
+
 ## Related documentation
 
 - [CSV_GUIDE.md](CSV_GUIDE.md) — per-table schema, join key, and
   parser notes (the reference).
-- [TODO.md](TODO.md) — deferred sub-reports and per-table coverage
-  gaps with rationale.
+- [COVERAGE.md](COVERAGE.md) — deferred sub-reports and per-table
+  coverage gaps with rationale.
+- [TODO.md](TODO.md) — genuinely open build-pipeline work.
 - [`schemas/`](schemas/) — Python schema modules that are the source
   of truth for field docs (converted to SQLAlchemy `Table` and to AVRO
   by the SAFS pipeline's `orm.py` and `avro_schema.py`).
 - [`parsers/common.py`](parsers/common.py) — shared PDF-parsing
   helpers (dash normalization, digit-fragmentation repair,
   parenthesized-negative parsing, dot-leader handling).
+- [`extractors/bqload/`](../bqload/) — seeds `out_fiscal/*.csv` into
+  Postgres, exports AVRO, and loads BigQuery dataset `ospi_fiscal`.
+- [docs/README.md](../../docs/README.md) — the repo-wide docs index.
+- [docs/DATA_DICTIONARY.md](../../docs/DATA_DICTIONARY.md) — generated
+  per-column data dictionary for the BigQuery-loaded tables.
