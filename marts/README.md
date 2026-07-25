@@ -5,6 +5,23 @@ together, as opposed to `extractors/`, which ingest a single source each.
 
 ## `bigsheet.py`
 
+> **FROZEN — provenance only (2026-07-25).** `bigsheet` has been migrated to the
+> website repo as a BigQuery Cloud Function that builds one SQL string and
+> exports DEFLATE AVRO: `sps-by-the-numbers-website/functions/src/bigsheet/`
+> (see `BIGSHEET_MIGRATION_PLAN.md` there for the full record). The SQL
+> reproduces this script's Seattle output **value-for-value** (golden diff:
+> 1185 rows × 1240 cols, 0 mismatches). `bigsheet.py`, `vitals.sql` and
+> `assessment.sql` are kept UNCHANGED as the golden-regression source of truth
+> and reference; do not delete (owner's call). Regenerate the golden with
+> `venv/bin/python3 -m marts.bigsheet -o reference/regress/bigsheet_golden_seattle.csv`.
+>
+> The seven static inputs under `data/sps/{map,building,s275,sqss}/` are
+> published to BigQuery external tables by `scripts/publish_bigsheet_inputs.sh`
+> + `scripts/create_bigsheet_input_tables.sh`. **Whenever those CSVs change,
+> re-run both scripts and then bump `BIGSHEET_SQL_VERSION` in the website
+> (`functions/src/bigsheet/assemble.ts`)** — the export cache does NOT
+> auto-invalidate on CSV content changes (only on pivot-combo changes).
+
 Joins **all the per-school data this repo has** into one wide table: one row
 per school per cohort year, ~1,240 columns. Enrollment and demographics,
 per-pupil spend by program, S-275 staffing/salary/experience, MAP scores,
