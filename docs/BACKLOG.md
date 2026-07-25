@@ -21,9 +21,10 @@ full executed reorg plan.)
 - **Enrollment → BigQuery:** load `out_enrollment/` CSVs (see
   `docs/guides/ENROLLMENT_GUIDE.md`) via a bqload family; optional canonical
   school-id reconciliation for Section-4 names.
-- **`marts/bigsheet.py` hardening:** turn hard-coded `data/sps/...` input
-  paths into CLI flags; resolve columns not reconstructable from BigQuery
-  (`region`/`ms_assignment_code` look hand-curated).
+- **Bigsheet input provenance:** `region`/`ms_assignment_code` in
+  `safs_domains.d_school` look hand-curated and are not reconstructable from
+  OSPI sources; document or automate their derivation. (The bigsheet
+  generator itself migrated to the website repo; `marts/` is a pointer.)
 - **`extractors/purplebook.py` vs `extractors/purplebook/` package:** the
   package shadows the module on import, so the `.py` is likely dead. Needs
   owner confirmation before removing.

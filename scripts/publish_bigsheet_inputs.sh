@@ -2,7 +2,8 @@
 #
 # Publish the seven bigsheet static inputs to the public cache bucket as CSVs
 # that back BigQuery external tables in sps-btn-data.bigsheet_inputs
-# (see marts/bigsheet.py migration -> website functions/src/bigsheet).
+# consumed by the website's bigsheet Cloud Function (functions/src/bigsheet;
+# see marts/README.md for the pointer).
 #
 # Run from the data-tools repo root:  scripts/publish_bigsheet_inputs.sh
 #
