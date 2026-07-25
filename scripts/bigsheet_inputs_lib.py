@@ -1,17 +1,18 @@
 """Shared logic for publishing the bigsheet static inputs as BigQuery
-external tables (website functions/src/bigsheet migration, task T0.2).
+external tables consumed by the website's bigsheet Cloud Function.
 
 Two consumers:
   - publish_bigsheet_inputs.sh  -> build_staging(): writes the seven CSVs to a
-    staging dir (slim + `_csv_row`-indexed for the three pivot-order-sensitive
-    inputs; verbatim for the four pass-through inputs).
+    staging dir (slim/renamed columns for the three pivot inputs; verbatim
+    copies for the four pass-through inputs).
   - create_bigsheet_input_tables.sh -> emit_ddl(): prints CREATE OR REPLACE
     EXTERNAL TABLE statements with explicit schemas.
 
-`sanitizeName` MUST stay byte-identical to functions/src/bigsheet/names.ts:
-every run of non-[A-Za-z0-9_] -> single '_'; prefix '_' if it starts with a
-digit. (No trailing-underscore stripping -- the golden-diff harness applies the
-same rule to the golden headers, so any transform here must match there.)
+`sanitize_name` MUST stay byte-identical to sanitizeName in the website's
+functions/src/bigsheet/names.ts: every run of non-[A-Za-z0-9_] -> single '_';
+prefix '_' if it starts with a digit. The bex external-table column names are
+produced by this function, and the website's BEX_COLUMNS rename map (its
+columns.ts) keys off exactly those names.
 """
 import re
 import shutil
@@ -32,9 +33,8 @@ def sanitize_name(raw):
     return s
 
 
-# ---- The three pivot-order-sensitive inputs: slim + _csv_row -----------------
-# _csv_row is the 0-based pd.read_csv row index, i.e. the physical CSV order the
-# pandas pivot sees. Column order below IS the external-table schema order.
+# ---- The three pivot inputs: slim + renamed columns --------------------------
+# Column order below IS the external-table schema order.
 
 def _slim_map_hc():
     df = pd.read_csv(DATA / 'map/map-score-2017-2024-average-hc.csv')
@@ -77,15 +77,14 @@ def _slim_sqss():
     return out
 
 
-# schema for the slim tables: (name, bq_type); _csv_row prepended in build.
+# schema for the slim tables: (name, bq_type).
 SLIM = {
     'map_hc': (_slim_map_hc, [
         ('school_code', 'INT64'), ('grade', 'INT64'), ('season', 'STRING'),
         ('academic_subject', 'STRING'), ('avg_rit_score', 'FLOAT64'),
         ('stddev_rit_score', 'FLOAT64')]),
-    # nonhc value columns carry suppression markers ("n<10"), so pandas reads
-    # them as object -> the golden keeps the raw strings. Type them STRING; the
-    # golden diff compares numerically-with-tolerance for the numeric cells.
+    # nonhc value columns carry "n<10" suppression markers, kept verbatim as
+    # STRING (suppression is data, not noise).
     'map_nonhc': (_slim_map_nonhc, [
         ('school_code', 'INT64'), ('grade', 'INT64'), ('season', 'STRING'),
         ('academic_subject', 'STRING'), ('avg_rit_score', 'STRING'),
@@ -141,9 +140,9 @@ PASSTHROUGH = {
 
 
 def table_schema(table):
-    """Full ordered [(name, type), ...] incl. _csv_row for slim tables."""
+    """Full ordered [(name, type), ...] for a table."""
     if table in SLIM:
-        return [('_csv_row', 'INT64')] + SLIM[table][1]
+        return SLIM[table][1]
     return PASSTHROUGH[table][1]()
 
 
@@ -154,7 +153,7 @@ ALL_TABLES = list(SLIM) + list(PASSTHROUGH)
 # source can otherwise coerce the whole column to float -> "2138.0", which
 # fails INT64 parsing on the external table). pandas nullable Int64 writes
 # "2138" and "" (for NaN).
-_INT_COLS = {'school_code', 'grade', 'class_of', '_csv_row'}
+_INT_COLS = {'school_code', 'grade', 'class_of'}
 
 
 def build_staging(staging_dir):
@@ -162,12 +161,11 @@ def build_staging(staging_dir):
     staging.mkdir(parents=True, exist_ok=True)
     for name, (fn, _schema) in SLIM.items():
         df = fn().reset_index(drop=True)
-        df.insert(0, '_csv_row', range(len(df)))
         for c in df.columns:
             if c in _INT_COLS:
                 df[c] = df[c].astype('Int64')
         df.to_csv(staging / f'{name}.csv', index=False)
-        print(f'  built slim {name}.csv ({len(df)} rows, +_csv_row)')
+        print(f'  built slim {name}.csv ({len(df)} rows)')
     for name, (src, _schema) in PASSTHROUGH.items():
         # Byte-for-byte copy: a pandas round-trip would coerce INT columns that
         # carry a stray NaN to float ("1.0"), which fails INT64 parsing.
