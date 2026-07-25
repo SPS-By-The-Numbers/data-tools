@@ -30,7 +30,8 @@ and reports back the derived efficiency metrics. The same input data
 drives both the per-district printed reports we parse here and the
 internal STARS efficiency rating used for transportation allocation.
 
-Coverage and known gaps are tracked in [TODO.md](TODO.md).
+Coverage and known gaps are cataloged in [COVERAGE.md](COVERAGE.md); open
+work items are in [TODO.md](TODO.md).
 
 ## Reports & schemas
 
@@ -485,6 +486,16 @@ the fact CSVs.
    text + heuristics, producing dicts matching `schemas/<report>.py`.
 3. **CLI driver** (`extract_<report>.py`) -- walks a directory, dispatches
    to the right parser, emits CSV / JSON / summary.
+4. **Source dimension** (`build_sources.py`) -- builds `d_stars_source.csv`
+   and rewrites each fact CSV's `_source` filename column to an integer
+   `_source_id` FK.
+5. **BigQuery load** (`extractors/bqload/`) -- seeds the `out_stars/` CSVs
+   into Postgres staging (`stars_prod`), exports zstandard AVRO to
+   `out_stars/tables/`, and loads BigQuery dataset
+   `sps-btn-data.ospi_stars` (WRITE_TRUNCATE, with column descriptions
+   from the schema docs). Run via `scripts/load_stars.sh`; add
+   `STAGES=seed,export,upload,load` for the production load. The generated
+   per-column dictionary is `docs/DATA_DICTIONARY.md`.
 
 Currently implemented: `kpi`, `operations_allocation`, `quarterly_district`,
 `efficiency`, `efficiency_review`.
