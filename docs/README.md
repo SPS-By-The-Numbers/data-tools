@@ -1,0 +1,88 @@
+# Documentation index
+
+Start here. This index answers four questions; each section links to the
+authoritative doc rather than duplicating it. Convention: consumer/developer
+guides live next to the code they describe (`extractors/<family>/`); this
+file is the map; `DATA_DICTIONARY.md` is generated — edit schema modules,
+not the Markdown.
+
+## 1. What data is available
+
+- **[DATA_DICTIONARY.md](DATA_DICTIONARY.md)** — generated dictionary of all
+  88 BigQuery tables (fiscal, STARS, SAFS): location, provenance, canonical
+  source, every column with type and description. The single most complete
+  catalog.
+- Per-dataset catalogs with row counts, grain, and join keys:
+  - [`extractors/fiscal/CSV_GUIDE.md`](../extractors/fiscal/CSV_GUIDE.md) —
+    the ~40 `fiscal_*` tables parsed from OSPI F-195/F-196/apportionment PDFs.
+  - [`extractors/stars/CSV_GUIDE.md`](../extractors/stars/CSV_GUIDE.md) —
+    the 15 `stars_*` pupil-transportation tables.
+  - [`marts/README.md`](../marts/README.md) — `bigsheet.py`, the joined
+    per-school wide sheet (~1,240 columns, one row per school per cohort year).
+  - [`docs/guides/ENROLLMENT_GUIDE.md`](guides/ENROLLMENT_GUIDE.md) — SPS
+    Annual Enrollment Report extracts (Section-4 origin/destination, Table 1-D).
+  - [`data/safs/f196/README.md`](../data/safs/f196/README.md) — raw F-196
+    source-file inventory.
+- Known holes: [`extractors/fiscal/COVERAGE.md`](../extractors/fiscal/COVERAGE.md)
+  and [`extractors/stars/COVERAGE.md`](../extractors/stars/COVERAGE.md) —
+  which years/districts/sub-reports are missing and why. Check before
+  concluding data is absent.
+
+## 2. What it implies (semantics, caveats, canonical source)
+
+- **[`extractors/fiscal/DATA_SOURCE_DIVERGENCE.md`](../extractors/fiscal/DATA_SOURCE_DIVERGENCE.md)**
+  — read first for financial data. OSPI publishes the same district
+  financials twice (SAFS Access DBs vs printed PDFs); this decides which
+  path is canonical for which facts. TL;DR: prefer `safs_f19x`; the fiscal
+  PDF tables are canonical only for PDF-only dimensions (salary exhibits,
+  budgeted FTE, mid-year Final Budget, balance sheet, apportionment,
+  non-district entities).
+- [`docs/guides/STAFFING_ANALYSIS_GUIDE.md`](guides/STAFFING_ANALYSIS_GUIDE.md)
+  — S-275 staffing/salary analysis: joins, report_id→year map, and 15
+  gotchas (per-person vs per-assignment salary, duty-code history, FTE
+  summation traps).
+- NULL conventions and anti-patterns: dedicated sections at the end of each
+  CSV_GUIDE (e.g. STARS `value = NULL` means "row absent from source" while
+  `0` is a reported zero).
+- STARS naming: the allocation-formula inputs are **ride-equivalents**
+  (trips + issued transit passes), not distinct riders; only the KPI report
+  measures actual riders. See the STUDENT DETAIL notes in
+  [`extractors/stars/README.md`](../extractors/stars/README.md).
+
+## 3. How to access it
+
+- **BigQuery (preferred):** project `sps-btn-data`, location `us-west1`.
+  Datasets: `ospi_fiscal`, `ospi_stars` (parsed PDFs), `safs_f19x`,
+  `safs_s275`, `safs_domains`, `safs_enrollment`, `safs_sqss` (Access-DB
+  extracts), `ospi` (assessments). Needs Application Default Credentials
+  (`gcloud auth application-default login`).
+- **The bigsheet mart:** `venv/bin/python3 -m marts.bigsheet -o sheet.csv`
+  joins everything per school (see [`marts/README.md`](../marts/README.md)).
+- **Local artifacts (offline fallback):** `out_fiscal/`, `out_stars/`,
+  `out_enrollment/` CSVs and `out_*/tables/*.avro`; SAFS AVRO under
+  `safs_prod/`. All gitignored — regenerate per the pipeline docs below, or
+  pull from GCS (`gs://sps-btn-data-all-data`).
+
+## 4. How it was generated from primary source
+
+Provenance chain, per family:
+
+| family | primary source | scrape/fetch | raw store | parse/extract | load |
+|---|---|---|---|---|---|
+| fiscal | OSPI F-195/F-196/apportionment PDFs | [`index.html`](index.html) + [`contentscripts/scrappers/ospi-funding-reports.js`](contentscripts/scrappers/ospi-funding-reports.js) | `data/fiscal/` (142 GB, GCS-mirrored) | [`extractors/fiscal/OVERVIEW.md`](../extractors/fiscal/OVERVIEW.md) | `scripts/load_fiscal.sh` → `ospi_fiscal` |
+| STARS | OSPI STARS report PDFs/DOCX | same page + [`ospi-stars-reports.js`](contentscripts/scrappers/ospi-stars-reports.js) | `data/stars/` | [`extractors/stars/README.md`](../extractors/stars/README.md) | `scripts/load_stars.sh` → `ospi_stars` |
+| SAFS | OSPI Access DBs (F-195/F-196/S-275) + enrollment/assessment files | manual download | `data/safs/` | [`extractors/safs/README.md`](../extractors/safs/README.md) + CLAUDE.md §SAFS pipeline | `scripts/load_safs.sh` → `safs_*` |
+| enrollment | SPS Annual Enrollment Report PDFs | manual download | `data/sps/enrollment/` | [`guides/ENROLLMENT_GUIDE.md`](guides/ENROLLMENT_GUIDE.md) | (local CSV only — see BACKLOG) |
+
+- The fiscal/STARS → BigQuery loader (`extractors/bqload/`) is seed-first:
+  Postgres staging → zstd AVRO → GCS → BigQuery WRITE_TRUNCATE, with exact
+  NUMERIC(38,9) end-to-end. See the `extractors/bqload/run.py` docstring and
+  CLAUDE.md § bqload pipeline.
+- `data/` is read-only for tooling and rsynced with GCS via
+  `scripts/push_data_to_gcs.sh` / `pull_data_from_gcs.sh`.
+
+## Open work
+
+Cross-cutting items: [BACKLOG.md](BACKLOG.md). Per-dataset:
+[`extractors/fiscal/TODO.md`](../extractors/fiscal/TODO.md),
+[`extractors/stars/TODO.md`](../extractors/stars/TODO.md).

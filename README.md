@@ -1,5 +1,11 @@
 # data-tools
-Scripts and tools for ingesting data.
+Scripts and tools for ingesting Seattle Public Schools / OSPI data into
+BigQuery (project `sps-btn-data`).
+
+**📚 Documentation index: [docs/README.md](docs/README.md)** — what data is
+available, what it implies, how to access it, and how it was generated. The
+generated per-column dictionary of all BigQuery tables is
+[docs/DATA_DICTIONARY.md](docs/DATA_DICTIONARY.md).
 
 ## Repository layout
 
@@ -13,12 +19,17 @@ Scripts and tools for ingesting data.
   school per cohort year, ~1,240 columns. Reads from BigQuery by default, so
   it is reproducible and picks up new school years automatically:
   `venv/bin/python3 -m marts.bigsheet -o sheet.csv`. See `marts/README.md`.
-- `scripts/` — shell entry points (`load_safs.sh`, `push_data_to_gcs.sh`,
-  `pull_data_from_gcs.sh`, ...). Run from anywhere; they `cd` to the repo
-  root themselves.
+- `scripts/` — shell entry points (`load_safs.sh`, `load_fiscal.sh`,
+  `load_stars.sh`, `push_data_to_gcs.sh`, `pull_data_from_gcs.sh`, ...).
+  Run from anywhere; they `cd` to the repo root themselves.
+  `load_fiscal.sh`/`load_stars.sh` drive `extractors/bqload/`, which loads
+  the parsed PDF outputs into BigQuery datasets `ospi_fiscal`/`ospi_stars`.
 - `tools/` — ad-hoc analysis/CLI scripts operating on pipeline outputs; not
   part of the production pipeline.
-- `docs/` — GitHub Pages site + dev guides (`docs/guides/`).
+- `docs/` — documentation index (`docs/README.md`), generated BigQuery data
+  dictionary (`docs/DATA_DICTIONARY.md`), repo backlog (`docs/BACKLOG.md`),
+  dev guides (`docs/guides/`), and the GitHub Pages site (`docs/index.html`
+  + scrapers).
 - `data/` — raw source data that syncs to
   `gs://sps-btn-data-all-data/raw/<subdir>` via `scripts/push_data_to_gcs.sh` /
   `scripts/pull_data_from_gcs.sh`. **Read-only for tooling** — nothing is ever
@@ -35,7 +46,7 @@ Scripts and tools for ingesting data.
 - `safs_prod/`, `output/`, `out_*/` — generated pipeline outputs, gitignored
   in place. **TODO:** these should move under one output root (e.g. `out/`);
   requires coordinated updates to `scripts/load_safs.sh` and the fiscal/stars
-  extractor paths. See `Reorganize.md` Follow-ups.
+  extractor paths. See `docs/BACKLOG.md`.
 
 ## Two data paths: SAFS raw (start here) vs Fiscal PDF
 
@@ -45,7 +56,8 @@ extracted by [`extractors/safs/`](extractors/safs/) into canonical
 avros under `safs_prod/f19x/*.avro`) and once as printed PDFs (the
 **Fiscal PDF** path, extracted by
 [`extractors/fiscal/`](extractors/fiscal/) into
-`out_fiscal/*.csv`). Both extractors run in this repo, but they
+`out_fiscal/*.csv` and loaded into BigQuery dataset `ospi_fiscal` by
+`extractors/bqload/`). Both extractors run in this repo, but they
 capture **different slices** of the underlying data.
 
 **Start with the SAFS canonical avros.** They cover almost every
