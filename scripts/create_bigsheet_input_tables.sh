@@ -4,6 +4,10 @@
 # the migrated bigsheet SQL. Idempotent; safe to re-run after republishing the
 # CSVs with scripts/publish_bigsheet_inputs.sh.
 #
+# External-table schemas are POSITIONAL over the published CSVs: if the schema
+# lists in bigsheet_inputs_lib.py changed, re-run publish_bigsheet_inputs.sh
+# FIRST so the CSVs and the DDL agree.
+#
 # The dataset is created in the SAME location as ospi/safs_* (us-west1) so
 # cross-dataset joins and EXPORT DATA to the public bucket work.
 #

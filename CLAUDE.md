@@ -9,7 +9,7 @@ Scripts and tools for ingesting Seattle Public Schools / OSPI data (budgets, act
 ## Repository layout
 
 - `extractors/`, `bigquery/` — pipeline source code (`bigquery/` is legacy, pre-SAFS).
-- `marts/` — joined per-school datasets ("data marts"); `bigsheet.py` merges everything we have per school.
+- `marts/` — pointer only: the `bigsheet` per-school data mart migrated to the website repo (see Marts section).
 - `scripts/`, `tools/` — shell entry points and ad-hoc analysis scripts.
 - `docs/` — documentation index (`docs/README.md` — start there), generated BigQuery data dictionary (`docs/DATA_DICTIONARY.md`), repo backlog (`docs/BACKLOG.md`), dev guides (`docs/guides/`), GitHub Pages site + scrapers (`docs/index.html`, `docs/contentscripts/`).
 - `data/` — raw source, syncs to GCS via `scripts/push_data_to_gcs.sh` / `pull_data_from_gcs.sh`. Read-only for tooling; only the owner adds to it. See README.md for the subtree breakdown and sizes.
@@ -109,39 +109,20 @@ The same schema dict is converted to SQLAlchemy `Table` (via `orm.py:make_table`
 
 ### Marts
 
-**FROZEN as of 2026-07-25:** `bigsheet` now lives in the website repo as a
-BigQuery Cloud Function (`sps-by-the-numbers-website/functions/src/bigsheet/`,
-see that repo's `BIGSHEET_MIGRATION_PLAN.md`). The SQL reproduces this script's
-Seattle output value-for-value (golden diff clean). `marts/bigsheet.py`,
-`vitals.sql`, `assessment.sql` are kept unchanged as the golden-regression
-source. The seven `data/sps` static inputs are published to BigQuery external
-tables via `scripts/publish_bigsheet_inputs.sh` + `create_bigsheet_input_tables.sh`;
-re-run both whenever those CSVs change, then bump `BIGSHEET_SQL_VERSION` in the
-website.
+**MIGRATED (2026-07-25):** `bigsheet` — the joined per-school wide sheet —
+lives entirely in the website repo as a BigQuery Cloud Function
+(`sps-by-the-numbers-website/functions/src/bigsheet/`), the single source of
+truth. The Python implementation was deleted from this tree (recover from git
+history if needed); `marts/README.md` is the pointer. Column
+naming/structure: the website's `NAMING.md`; legacy→current mapping:
+`COLUMN_MAPPING.csv` there.
 
-`marts/bigsheet.py` is a first-class pipeline stage (a data mart built on
-extractor outputs): it joins ALL per-school data we have — enrollment and
-demographics, per-program spend, S-275 staffing/salary/experience, MAP
-scores, BEX building condition/utilization/income, staffing churn,
-assessments, and SQSS — into one wide sheet, one row per school per cohort
-year (`class_of`), ~1,240 columns.
-
-```console
-$ venv/bin/python3 -m marts.bigsheet -o sheet.csv      # from the repo root
-```
-
-Its two main inputs come from BigQuery (`marts/vitals.sql`,
-`marts/assessment.sql`) unless `--vitals` / `--assessment` supply CSVs, which
-is the offline fallback. Everything else is read from `data/sps/...` by
-relative path, so it must run from the repo root. Needs Application Default
-Credentials for project `sps-btn-data`.
-
-`marts/README.md` documents the output columns, both input modes, how the two
-queries were reconstructed and verified against the historical CSVs, and the
-two bugs in the original queries that were fixed (dropped vocational spend;
-approximate experience percentiles). `vitals_org.sql`,
-`expenditures_by_school.sql` and `s275_school_summary.sql` are the original
-queries, kept for provenance — they no longer run.
+This repo still owns the seven `data/sps` static inputs, published to
+BigQuery external tables via `scripts/publish_bigsheet_inputs.sh` then
+`create_bigsheet_input_tables.sh` (in that order — schemas are positional
+over the CSVs); re-run both whenever those CSVs change, then bump
+`BIGSHEET_SQL_VERSION` in the website (the export cache does not
+auto-invalidate on CSV content changes).
 
 ### The bqload pipeline (`extractors/bqload/`)
 
