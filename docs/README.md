@@ -41,6 +41,12 @@ not the Markdown.
   — S-275 staffing/salary analysis: joins, report_id→year map, and 15
   gotchas (per-person vs per-assignment salary, duty-code history, FTE
   summation traps).
+- [`docs/guides/COMP_SPLIT_RECONSTRUCTION.md`](guides/COMP_SPLIT_RECONSTRUCTION.md)
+  — the School vs District Office compensation split (Teaching / Student
+  Support / Building Support / Other): activity buckets, the Budget Book /
+  Purple Book carve, chronic-underspend corrections, and why F-196 building
+  codes and S-275 building codes disagree about support staff. Scripts:
+  `tools/bb_summary_from_db.py`, `tools/pb_actuals_reconcile.py`.
 - NULL conventions and anti-patterns: dedicated sections at the end of each
   CSV_GUIDE (e.g. STARS `value = NULL` means "row absent from source" while
   `0` is a reported zero).
