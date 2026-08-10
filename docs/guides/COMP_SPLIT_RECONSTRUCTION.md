@@ -98,6 +98,11 @@ directly observable. Two conventions:
   composition ~1/3 special-ed itinerants, ~1/4 a central bilingual pool
   (strikingly, ~60% the size of all school-side bilingual spend), rest
   levy/Title/pilot/basic-ed pools. 94% of central Teaching actuals is this.
+- **School-coded health/safety staff count as District Office too.** Comp at
+  school buildings in activities 25 (Pupil Management), 26 (Health & Related —
+  the nurses), and 35 (Pupil Safety) is reclassified to the DO side ($2.1M in
+  2023-24, $9.8M in 2024-25): centrally managed roles, and the budget-side
+  construction has no school line for them.
 - S-275 and F-196 disagree on where support staff sit: custodians/food
   service are at central codes in S-275 but charged to school buildings in
   F-196. The S-275 duty×activity cross-check (`pb_actuals_reconcile.py`,
@@ -109,26 +114,34 @@ directly observable. Two conventions:
 
 ## 6. The reconciled table (2024-25; both columns tie to objects 2+3+4 to the dollar)
 
-| Category | Side | Xlsx row | Budget $M | Actuals $M |
-|---|---|---|---:|---:|
-| Teaching Related | School | 51 | 571.5 | 571.6 |
-| Student Support | School | 52+53 | 88.9 | 110.8 |
-| Building Support | School | — | 0.0 | 22.6 |
-| Other comp | School | — | 0.0 | 27.9 |
-| Teaching Related | District Office | 115 | 113.4 | 54.9 |
-| Student Support | District Office | 116 | 84.9 | 59.5 |
-| Building Support | District Office | 117 | 66.7 | 39.7 |
-| Other comp | District Office | 118 | 118.6 | 91.6 |
-| **Total** | | | **1,044.0** | **978.6** |
+`tools/bb_summary_from_db.py` emits this (both years, exact dollars, with
+TOTAL and objects-2+3+4 CHECK rows) as `out_summary/comp_split_school_vs_do.csv`.
+
+| Category | Side | Line item | Xlsx row | Budget $M | Actuals $M |
+|---|---|---|---|---:|---:|
+| Teaching Related | School | | 51 | 571.5 | 571.6 |
+| Student Support | School | Principal's Office | 52 | 68.2 | 66.5 |
+| Student Support | School | Guidance & Counseling — Basic Ed | 53 | 20.7 | 22.9 |
+| Student Support | School | Guidance & Counseling — other funding | — | 0.0 | 11.7 |
+| Building Support | School | | — | 0.0 | 22.6 |
+| Other comp | School | | — | 0.0 | 27.9 |
+| Teaching Related | District Office | | 115 | 113.4 | 54.9 |
+| Student Support | District Office | | 116 | 84.9 | 69.2 |
+| Building Support | District Office | | 117 | 66.7 | 39.7 |
+| Other comp | District Office | | 118 | 118.6 | 91.6 |
+| **Total** | | | | **1,044.0** | **978.6** |
 
 Readings: the WSS teaching allocation was spent almost exactly (571.5 vs
-571.6, closeness real, near-identity coincidence); schools run $70M of
-non-allocated staff (health/safety, custodians, food service) who physically
-sit at schools; every DO row underspends its budget-side estimate — the
+571.6, closeness real, near-identity coincidence), and so were the two Purple
+Book student-support lines. The School rows the allocation model has no cell
+for total ~$62M: $11.7M of guidance staff on program/levy/Title funding
+(counselors beyond the PB allocation — notably NOT special-ed money), $22.6M
+of custodial/maintenance and $27.9M of food-service/support comp charged to
+school buildings. Every DO row underspends its budget-side estimate — the
 $65.4M total gap is the 2024-25 comp underspend. On a like-for-like
-role-and-activity basis, school-allocated actuals ≈ the Budget Book
-allocation (+$0.0M in 2023-24, +$8.2M in 2024-25): **schools spend what they
-are allocated; the surprises live in the parked pools and the underspend.**
+role-and-activity basis: **schools spend what they are allocated; the
+surprises live in the parked pools, the program-funded layer, and the
+underspend.**
 
 ## 7. Caveats
 

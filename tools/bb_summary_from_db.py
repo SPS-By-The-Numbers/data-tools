@@ -40,6 +40,12 @@ BUILDING = [62, 63, 64, 65, 74, 44, 67]  # Grounds, Ops of Bldgs, Maintenance,
                                          # Utilities, Warehousing, Food Svc Ops, Security
 # Other = every remaining activity (computed as residual, like Summary!C35).
 
+# School-coded comp in these activities counts as District Office anyway:
+# pupil management (25), health staff/nurses (26), and pupil safety (35) are
+# centrally managed roles even when their comp is charged to a school
+# building, and the budget-side construction has no school line for them.
+CENTRAL_AT_SCHOOL_ACTIVITIES = [25, 26, 35]
+
 # The "Chronic Underspend 2024" groups (Summary rows 129-146). Same activities
 # the spreadsheet lists, but the dollar values are recomputed from the DB.
 # Teaching / Prof Learn are combined exactly as the workbook's
@@ -134,6 +140,21 @@ def median_underspend():
     return out
 
 
+def load_po_guidance_school_split():
+    """[DB] school-coded actuals comp for Principal's Office (23) and Guidance
+    (24), with Guidance split Basic Education (program 1) vs other funding --
+    the School-side line items of the Student Support bucket."""
+    return _bq_csv('f19x_po_guidance_school.csv', f'''
+        SELECT class_of, activity_code,
+               SUM(IF(program_code = 1, amount, 0)) AS basic_ed,
+               SUM(amount) AS total
+        FROM `{TBL}`
+        WHERE ccddd = {CCDDD} AND class_of IN {YEARS}
+              AND data_type = 'actuals' AND object_code IN (2, 3, 4)
+              AND NOT is_district_office AND activity_code IN (23, 24)
+        GROUP BY 1, 2 ORDER BY 1, 2''')
+
+
 def load_actuals_school_split():
     """[DB] actuals comp by year x activity, split school / district office.
 
@@ -173,6 +194,7 @@ def bucket_sums(df, col):
 def main():
     act = load_activity_totals()
     split = load_actuals_school_split()
+    pog = load_po_guidance_school_split()
 
     bud = {y: act[(act.class_of == y) & (act.data_type == 'budget')] for y in YEARS}
     acts = {y: act[(act.class_of == y) & (act.data_type == 'actuals')] for y in YEARS}
@@ -203,6 +225,7 @@ def main():
           f'{m(sum(XLSX_MEDIAN_UNDERSPEND.values())):>12s}')
 
     # ------------------------------------------------ the Summary chain, per year
+    csv_rows = []
     for y in YEARS:
         by = bud[y]
         comp = bucket_sums(by, 'comp')
@@ -250,12 +273,16 @@ def main():
         # Parked comp (building 1002 in activities 27/23/24/84) counts as
         # CENTRALLY MANAGED -- it is school-serving staff the Budget Book never
         # allocates to a specific school, so it belongs with the DO side.
-        sp = split[split.class_of == y]
+        sp = split[split.class_of == y].copy()
+        cen = sp.activity_code.isin(CENTRAL_AT_SCHOOL_ACTIVITIES)
+        sp.loc[cen, 'district_office'] += sp.loc[cen, 'school']
+        sp.loc[cen, 'school'] = 0.0
         school = bucket_sums(sp, 'school')
         do_flag = bucket_sums(sp, 'district_office_flagged')
         do = bucket_sums(sp, 'district_office')
         print()
-        print(f'  ACTUALS comp split by building code [DB]; parked pools count as central:')
+        print(f'  ACTUALS comp split by building code [DB]; parked pools and school-coded')
+        print(f'  health/safety staff (activities 25/26/35) count as central:')
         print(f'  {"bucket":20s} {"at schools":>10s} {"central":>9s} {"(parked":>9s} {"+ other DO)":>11s} {"vs med est*":>11s}')
         for g in ['Teaching Related', 'Student Support', 'Building Support', 'Other comp']:
             central = do_flag[g] + do[g]
@@ -266,6 +293,54 @@ def main():
               f'{m(do["Total"]):>11s}')
         print('  *  central actuals minus the median-adjusted budget-side estimate; the')
         print('     shortfall is centrally-managed program staff delivered AT schools')
+
+        # ------------------------------------------ the 8-row upload table
+        sch_bud = {'Teaching Related': bb_alloc - pb_po - pb_g,
+                   'Student Support': pb_po + pb_g,
+                   'Building Support': 0, 'Other comp': 0}
+        xr = {('Teaching Related', 'School'): '51',
+              ('Student Support', 'School'): '52+53',
+              ('Teaching Related', 'District Office'): '115',
+              ('Student Support', 'District Office'): '116',
+              ('Building Support', 'District Office'): '117',
+              ('Other comp', 'District Office'): '118'}
+        sy_label = f'{y-1}-{str(y)[2:]}'
+        pg = pog[pog.class_of == y].set_index('activity_code')
+        a23 = pg.total[23]
+        a24_basic, a24_other = pg.basic_ed[24], pg.total[24] - pg.basic_ed[24]
+        # School side: Student Support broken into its line items (they sum to
+        # the bucket; Guidance splits Basic Ed vs program/levy/Title funding).
+        csv_rows.append([y, sy_label, 'Teaching Related', 'School', '', '51',
+                         round(sch_bud['Teaching Related']),
+                         round(school['Teaching Related'])])
+        csv_rows.append([y, sy_label, 'Student Support', 'School',
+                         "Principal's Office", '52', round(pb_po), round(a23)])
+        csv_rows.append([y, sy_label, 'Student Support', 'School',
+                         'Guidance & Counseling - Basic Ed', '53',
+                         round(pb_g), round(a24_basic)])
+        csv_rows.append([y, sy_label, 'Student Support', 'School',
+                         'Guidance & Counseling - other funding', '',
+                         0, round(a24_other)])
+        for g in ('Building Support', 'Other comp'):
+            csv_rows.append([y, sy_label, g, 'School', '', '', 0,
+                             round(school[g])])
+        for g in sch_bud:
+            csv_rows.append([y, sy_label, g, 'District Office', '',
+                             xr.get((g, 'District Office'), ''),
+                             round(comp[g] - sch_bud[g]),
+                             round(do_flag[g] + do[g])])
+        csv_rows.append([y, sy_label, 'TOTAL', '', '', '', round(by.comp.sum()),
+                         round(school['Total'] + do_flag['Total'] + do['Total'])])
+        oc = act[act.class_of == y].groupby('data_type').comp.sum()
+        csv_rows.append([y, sy_label, 'CHECK: objects 2+3+4', '', '', '',
+                         round(oc['budget']), round(oc['actuals'])])
+
+    path = OUT + 'comp_split_school_vs_do.csv'
+    pd.DataFrame(csv_rows, columns=[
+        'class_of', 'school_year', 'category', 'side', 'line_item', 'xlsx_row',
+        'budget_dollars', 'actuals_dollars']).to_csv(path, index=False)
+    print()
+    print(f'wrote {path}')
 
 
 if __name__ == '__main__':
