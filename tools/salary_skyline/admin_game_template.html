@@ -1,0 +1,658 @@
+<title>Who would you axe?</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zilla+Slab:wght@600;700&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+:root{
+  --page:#f9f9f7; --surface:#fcfcfb; --ink:#0b0b0b; --ink2:#52514e; --muted:#898781;
+  --hair:#e1e0d9; --bord:rgba(11,11,11,.10); --btnbg:#f0efec;
+  --central:#184f95; --school:#2a78d6; --critical:#d03b3b; --cutfill:#e4e3dc;
+  --chipB:#eb6834; --chipC:#1baf7a; --chipD:#eda100; --good:#0ca30c;
+  --alertbg:rgba(42,120,214,.09);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --page:#0d0d0d; --surface:#1a1a19; --ink:#ffffff; --ink2:#c3c2b7; --muted:#898781;
+    --hair:#2c2c2a; --bord:rgba(255,255,255,.10); --btnbg:#242423;
+    --central:#86b6ef; --school:#3987e5; --critical:#d03b3b; --cutfill:#2f2f2c;
+    --chipB:#d95926; --chipC:#199e70; --chipD:#c98500; --good:#0ca30c;
+    --alertbg:rgba(134,182,239,.13);
+  }
+}
+:root[data-theme="dark"]{
+  --page:#0d0d0d; --surface:#1a1a19; --ink:#ffffff; --ink2:#c3c2b7; --muted:#898781;
+  --hair:#2c2c2a; --bord:rgba(255,255,255,.10); --btnbg:#242423;
+  --central:#86b6ef; --school:#3987e5; --critical:#d03b3b; --cutfill:#2f2f2c;
+  --chipB:#d95926; --chipC:#199e70; --chipD:#c98500; --good:#0ca30c;
+  --alertbg:rgba(134,182,239,.13);
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--page);color:var(--ink);
+  font:16px/1.55 "Public Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  -webkit-font-smoothing:antialiased}
+.wrap{max-width:1280px;margin:0 auto;padding:0 22px}
+button{font:inherit;color:var(--ink2);background:transparent;border:1px solid var(--bord);
+  border-radius:6px;padding:3px 10px;font-size:.78rem;cursor:pointer}
+button:hover{background:var(--btnbg)}
+button:focus-visible,input:focus-visible{outline:2px solid var(--central);outline-offset:2px}
+
+/* masthead */
+.masthead{padding-top:26px;padding-bottom:18px}
+.masthead h1{font-family:"Zilla Slab",Rockwell,serif;font-weight:700;font-size:2.1rem;
+  margin:0 0 6px;letter-spacing:-.01em;text-wrap:balance}
+.masthead .dek{margin:0;max-width:68ch;color:var(--ink2)}
+.masthead .hint{margin:10px 0 0;max-width:68ch;color:var(--muted);font-size:.85rem}
+.masthead .hint b{color:var(--ink2);font-weight:600}
+
+/* stat strip */
+.statstrip{position:sticky;top:0;z-index:6;background:var(--page);
+  border-top:1px solid var(--hair);border-bottom:1px solid var(--hair)}
+.strip{display:flex;flex-wrap:wrap;gap:10px 34px;align-items:baseline;padding:12px 22px 14px}
+.tile{flex-shrink:0;max-width:100%}
+.tile .v{font-family:"IBM Plex Mono",ui-monospace,monospace;font-weight:600;
+  font-size:1.25rem;line-height:1.15;font-variant-numeric:tabular-nums}
+.tile .l{font-size:.72rem;color:var(--ink2);text-transform:uppercase;letter-spacing:.06em}
+.tile.hero .v{font-family:"Zilla Slab",Rockwell,serif;font-weight:600;font-size:2.5rem}
+.tile.hero .l{color:var(--ink2)}
+.tile .l .sub{color:var(--muted);text-transform:none;letter-spacing:0}
+
+/* main layout */
+.cols{display:grid;grid-template-columns:minmax(0,1fr) 364px;gap:26px;padding-top:22px;padding-bottom:8px}
+@media (max-width:1020px){.cols{grid-template-columns:minmax(0,1fr)}}
+
+/* stage */
+.stage{display:flex;flex-wrap:wrap;gap:16px;align-items:flex-start;align-content:flex-start}
+.cluster{background:var(--surface);border:1px solid var(--bord);border-radius:10px;
+  padding:12px 14px 10px;max-width:100%;min-width:0}
+.cluster header{display:flex;flex-wrap:wrap;justify-content:space-between;gap:6px 12px;align-items:flex-start;margin-bottom:6px}
+.cluster h3{margin:0;font-size:.95rem;font-weight:600}
+.cmeta{display:block;font-size:.74rem;color:var(--muted);margin-top:2px;
+  font-family:"IBM Plex Mono",ui-monospace,monospace}
+.cmeta b{color:var(--critical);font-weight:600}
+.cbtns{display:flex;gap:6px;flex-shrink:0}
+.cluster svg{display:block;max-width:100%;height:auto;touch-action:pan-y;cursor:crosshair;
+  transition:width .25s}
+.dot{fill:var(--dot);stroke:var(--surface);stroke-width:1;transition:fill .12s}
+.emp .x{display:none;text-anchor:middle;dominant-baseline:central;pointer-events:none;
+  font-family:"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif}
+.emp.cut .dot{fill:var(--cutfill)}
+.emp.cut .x{display:block}
+#fx{position:fixed;inset:0;overflow:hidden;pointer-events:none;z-index:30}
+#fx span{position:absolute;will-change:transform,opacity;line-height:1}
+.emp:hover .dot{stroke:var(--ink);stroke-width:1.5}
+.hit{fill:transparent;stroke:none}
+@media (prefers-reduced-motion: reduce){*{transition:none!important}}
+
+/* control panel */
+.panel{display:flex;flex-direction:column;gap:14px;min-width:0}
+.pbox{background:var(--surface);border:1px solid var(--bord);border-radius:10px;padding:14px 16px}
+.pbox h2{margin:0 0 10px;font-size:.72rem;font-weight:700;text-transform:uppercase;
+  letter-spacing:.09em;color:var(--ink2)}
+.phint{margin:-4px 0 10px;font-size:.78rem;color:var(--muted)}
+.comprow{display:grid;grid-template-columns:auto auto minmax(0,1fr) auto;gap:8px;
+  align-items:center;padding:5px 0;cursor:pointer;font-size:.86rem}
+.comprow .swatch{width:11px;height:11px;border-radius:50%}
+.comprow .codes{color:var(--muted);font-size:.74rem;white-space:nowrap}
+.comprow .cn{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:.72rem;
+  color:var(--ink2);white-space:nowrap;font-variant-numeric:tabular-nums}
+.rgrow{display:grid;grid-template-columns:auto auto minmax(0,1fr) auto;
+  grid-template-areas:"cb chip name out" "cb chip meta wctl";
+  column-gap:8px;row-gap:2px;align-items:center;
+  padding:8px 0;border-top:1px solid var(--hair);font-size:.86rem}
+.rgrow:first-of-type{border-top:0}
+.rgrow>input{grid-area:cb}
+.rgrow .chip{grid-area:chip;width:11px;height:11px;border-radius:50%}
+.rgname{grid-area:name;min-width:0;font-weight:500}
+.rgn{grid-area:meta;font-size:.72rem;color:var(--muted);white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis;
+  font-family:"IBM Plex Mono",ui-monospace,monospace;font-variant-numeric:tabular-nums}
+.wctl{grid-area:wctl;display:flex;align-items:center;gap:4px;justify-self:end}
+.wctl button{padding:1px 7px;font-size:.85rem;line-height:1.3}
+.wval{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:.78rem;min-width:36px;text-align:center}
+.rgout{grid-area:out;text-align:right;min-width:88px}
+.rgout b{display:block;font-family:"IBM Plex Mono",ui-monospace,monospace;font-weight:600;
+  font-size:.84rem;font-variant-numeric:tabular-nums}
+.rgout span{font-size:.68rem;color:var(--muted)}
+.rgrow.off .rgname,.rgrow.off .rgn,.rgrow.off .rgout,.rgrow.off .wctl,.rgrow.off .chip{opacity:.35}
+.hctl{flex:none;display:flex;align-items:center;gap:5px;font-size:.74rem;
+  color:var(--ink2);white-space:nowrap;cursor:pointer}
+.moneyin{white-space:nowrap}
+#esfCtl.off label,#esfCtl.off .moneyin{opacity:.45}
+#esfAmt:disabled{opacity:.6}
+#esfAmt{width:56px;font:inherit;font-size:.74rem;text-align:right;padding:0 4px;
+  font-family:"IBM Plex Mono",ui-monospace,monospace;background:var(--page);
+  color:var(--ink);border:1px solid var(--bord);border-radius:4px}
+.topband{background:var(--alertbg);border-bottom:1px solid var(--hair)}
+.tbrow{display:flex;flex-wrap:wrap;gap:6px 18px;align-items:center;
+  padding-top:9px;padding-bottom:9px}
+.tbtitle{font-size:.68rem;font-weight:700;letter-spacing:.08em;
+  text-transform:uppercase;color:var(--ink2);white-space:nowrap}
+.alert{display:flex;gap:6px;padding:3px 9px;border-radius:5px;
+  background:var(--surface);border-left:3px solid var(--central);
+  font-size:.72rem;line-height:1.4;color:var(--ink2);flex:1 1 260px;min-width:0}
+.alert[hidden]{display:none}
+.alert{transition:opacity .35s}
+.alert.fade{opacity:0}
+.alert.ok{border-left-color:var(--good)}
+.alert .ico{flex:none;font-weight:700;color:var(--central)}
+.alert.ok .ico{color:var(--good)}
+.opts{display:flex;flex-direction:column;gap:10px;font-size:.86rem}
+.opts label{display:flex;gap:8px;align-items:center;cursor:pointer}
+.resetbtn{align-self:flex-start;padding:6px 14px;font-size:.84rem}
+
+/* skyline dashboard band: sticky under the stat strip on wide screens,
+   normal flow (tiles stay sticky alone) on narrow ones */
+.skydash{position:sticky;z-index:5;background:var(--page);border-bottom:1px solid var(--hair)}
+.sdband{padding-top:8px;padding-bottom:6px}
+.mhrow{display:flex;gap:6px 16px;align-items:baseline;justify-content:space-between;flex-wrap:wrap}
+.mhrow .hctl{margin-bottom:2px}
+.mh{font-size:.68rem;font-weight:600;color:var(--ink2);text-transform:uppercase;
+  letter-spacing:.06em;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mh span{color:var(--muted);text-transform:none;letter-spacing:0;font-weight:400}
+.capkey{display:inline-block;width:9px;height:9px;background:var(--central);
+  border-radius:2px;vertical-align:-1px;margin-right:3px}
+.holewrap{display:flex;flex-wrap:wrap;gap:4px 10px;align-items:center;margin:3px 0 7px}
+.holeseg{position:relative;height:18px;background:var(--btnbg);border-radius:4px;
+  overflow:hidden;min-width:36px}
+.holefill{position:absolute;top:0;bottom:0;left:0;width:0%;background:var(--central);
+  opacity:.38;transition:width .2s}
+.holeseg.done .holefill{background:var(--good);opacity:.45}
+.holeseg.off{opacity:.35}
+.holelbl{position:relative;z-index:1;display:block;font-size:.66rem;line-height:18px;
+  padding:0 8px;color:var(--ink2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  text-shadow:0 0 3px var(--surface),0 0 3px var(--surface),0 0 4px var(--surface)}
+.holeto{flex:none;font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:.72rem;
+  font-weight:600;color:var(--ink2);white-space:nowrap;font-variant-numeric:tabular-nums}
+.holeto.done{color:var(--good)}
+.skyscroll{overflow-x:auto}
+.skyscroll svg{display:block;width:100%;height:auto}
+@media (max-width:1020px){
+  .skydash{position:static}
+  .skyscroll svg{min-width:660px}
+}
+.grid{stroke:var(--hair);stroke-width:.7}
+.sect{stroke:var(--muted);stroke-width:.8;stroke-dasharray:3 3;opacity:.6}
+.axis{stroke:var(--hair);stroke-width:1}
+.gl{fill:var(--muted);font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:15px;
+  paint-order:stroke;stroke:var(--surface);stroke-width:3.5px}
+.glabel{fill:var(--ink2);font-family:"Public Sans",system-ui,sans-serif;font-size:13.5px;
+  text-anchor:middle;paint-order:stroke;stroke:var(--surface);stroke-width:3px}
+.gsect{fill:var(--muted);font-family:"Public Sans",system-ui,sans-serif;font-size:13.5px;
+  font-weight:600;letter-spacing:.04em;text-transform:uppercase;text-anchor:middle;
+  paint-order:stroke;stroke:var(--surface);stroke-width:3px}
+.bar{fill:var(--dot);cursor:crosshair}
+.bar.cut{fill:var(--cutfill)}
+.sil{stroke:none}
+.cap{fill:var(--central);stroke:none}
+
+/* footnotes */
+.notes{border-top:1px solid var(--hair);margin-top:12px;padding:20px 0 40px;color:var(--ink2)}
+.notes h2{font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.09em;
+  color:var(--muted);margin:0 0 8px}
+.notes ul{margin:0;padding-left:1.2em;max-width:82ch;font-size:.82rem}
+.notes li{margin:5px 0}
+.notes code{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:.92em}
+
+/* tooltip */
+#tip{position:fixed;display:none;z-index:20;pointer-events:none;background:var(--ink);
+  color:var(--page);padding:7px 10px;border-radius:6px;font-size:.78rem;line-height:1.45;
+  max-width:260px;box-shadow:0 3px 12px rgba(0,0,0,.25)}
+#tip b{font-weight:600}
+#tip .cutlbl{color:#ff9d96;font-weight:600}
+</style>
+
+<div class="topband">
+  <div class="wrap tbrow">
+    <span class="tbtitle">The 2026&ndash;27 hole</span>
+    <label class="hctl"><input type="checkbox" checked data-def="0">Fill budget deficit first</label>
+    <span class="hctl" id="esfCtl"><input type="checkbox" id="esfOn" checked>
+      <label for="esfOn">Refill Economic Stabilization Fund by</label>
+      <span class="moneyin">$<input type="number" id="esfAmt" value="@@ESF_START_M@@"
+        min="0" max="999" step="0.1"
+        aria-label="millions of dollars per year to refill">M/yr</span></span>
+    <span class="alert" id="esfAlert" hidden><span class="ico">&#9432;</span><span id="esfAlertTxt"></span></span>
+  </div>
+</div>
+
+<header class="masthead wrap">
+  <h1>Who would you axe?</h1>
+  <p class="dek">Every Seattle Public Schools central-office position, one bubble each,
+  sized by 2024&ndash;25 salary. Cross positions out and their payroll is redistributed
+  to the district&rsquo;s ~@@POOL_N@@ SEA-represented staff &mdash; on your terms.</p>
+  <p class="hint"><b>Click a bubble</b> to cross it out &mdash; or <b>hold and sweep</b>
+  across a cluster. Click again to restore. Decide what counts as &ldquo;central&rdquo;
+  and who shares the money in the panel.</p>
+</header>
+
+<section class="statstrip">
+  <div class="wrap strip">
+    <div class="tile hero"><div class="v" id="heroVal">$0</div>
+      <div class="l">per SEA member per year <span class="sub">(at weight &times;1)</span></div></div>
+    <div class="tile"><div class="v" id="tCut">0</div><div class="l">positions crossed out</div></div>
+    <div class="tile"><div class="v" id="tMoney">$0</div><div class="l">payroll removed</div></div>
+    <div class="tile"><div class="v" id="tHole">@@HOLE0@@</div><div class="l">hole left to fill</div></div>
+    <div class="tile"><div class="v" id="tPool">@@POOL_N@@</div><div class="l">people sharing it</div></div>
+    <div class="tile"><div class="v" id="tMarg">@@MARG0@@</div><div class="l">per member, each $1M removed</div></div>
+  </div>
+</section>
+
+<section class="skydash" id="skyline">
+  <div class="wrap sdband">
+    <div class="mhrow">
+      <div class="mh">On the block &rarr; SEA-represented staff
+        <span>&middot; one bar per person at one $ scale &mdash; widths compare headcounts &middot;
+        cut bars grey out &middot;
+        <span class="capkey"></span>redistributed payroll stacks on top</span></div>
+      <label class="hctl"><input type="checkbox" id="progSplit">Show program splits</label>
+    </div>
+    <div class="holewrap" aria-label="the 2026-27 hole, filling as positions are cut">
+      <div class="holeseg" data-hseg="0"><div class="holefill" id="hfill-0"></div>
+        <span class="holelbl">Budget deficit &middot; @@DEF1M@@</span></div>
+      <div class="holeseg" data-hseg="1"><div class="holefill" id="hfill-1"></div>
+        <span class="holelbl">Economic stabilization &middot; @@ESF_START_$@@</span></div>
+      <span class="holeto" id="hbar-left">@@HOLE0@@ to go</span>
+    </div>
+    <div class="skyscroll">
+@@SKY@@
+    </div>
+  </div>
+</section>
+
+<main class="wrap cols">
+  <div class="stage" id="stage">
+@@CLUSTERS@@
+  </div>
+  <aside class="panel">
+    <section class="pbox">
+      <h2>What counts as &ldquo;central&rdquo;?</h2>
+@@COMP_ROWS@@
+    </section>
+    <section class="pbox">
+      <h2>Who gets the money?</h2>
+      <p class="phint">Weight is per person: at &times;2 each member of that group gets
+      twice what a &times;1 member gets.</p>
+@@RG_ROWS@@
+    </section>
+    <section class="pbox opts">
+      <label><input type="checkbox" id="optben">
+        Count employer benefits too (+@@BEN_PCT@@%, from F-196 actuals &mdash; see fine print)</label>
+      <button type="button" id="reset" class="resetbtn">Restore everyone</button>
+    </section>
+  </aside>
+</main>
+
+<footer class="notes">
+  <div class="wrap">
+    <h2>Fine print</h2>
+    <ul>
+      <li>Data: OSPI S-275 personnel report, Seattle Public Schools, 2024&ndash;25 final
+        (<code>sps-btn-data.safs_s275</code>) &mdash; the same pull as the salary skyline.
+        One bubble per employee; bubble <em>area</em> and bar height are
+        <code>total_final_salary</code>, what payroll actually paid that year.</li>
+      <li>&ldquo;SEA-represented&rdquo; is approximated from OSPI duty codes (teachers
+        31&ndash;34, substitutes 52, certificated support 39&ndash;49 &amp; 63&ndash;64,
+        paraeducators 91, office &amp; clerical 94). Real bargaining-unit rosters differ at
+        the margins. Custodial, trades and food service staff belong to other unions and are
+        left out of both sides of the game.</li>
+      <li><b>The benefits toggle uses F-196 actuals, not a guess.</b> SPS&rsquo;s 2024&ndash;25
+        F-196 reports @@OBJ4M@@ of Object&nbsp;4 (Employee Benefits &amp; Payroll Taxes)
+        against @@OBJ23M@@ of salary Objects&nbsp;2+3. S-275 final salaries total @@S275M@@,
+        so scaling Object&nbsp;4 by that ratio attributes @@BENPOOLM@@ of benefits to
+        S-275-covered pay &mdash; @@BEN_PCT@@&cent; of benefits per salary dollar. With the
+        toggle on, cutting a position frees its salary &times;&nbsp;@@BENMULT3@@, and the
+        chopping-block bubbles grow to match (area &times;&nbsp;@@BENMULT3@@).
+        Source: <code>sps-btn-data.safs_f19x.general_fund_expenditures</code>, actuals,
+        objects 2/3/4.</li>
+      <li>The dashboard skyline draws one bar per person at a single shared width and dollar
+        scale across all sections, so section widths compare headcounts directly (which is why
+        the central-office block is a thin strip next to 5,743 SEA staff) and bar heights compare
+        pay. If you hand a small group an enormous pool, its blue stack can run off the top of
+        the chart &mdash; the panel numbers stay exact.</li>
+      <li>With &ldquo;Show program splits&rdquo; on, the SEA side of the skyline is split by
+        program, assigning each employee to the
+        bucket holding the plurality of their assignment FTE (ties go to basic; zero-FTE
+        staff use assignment-row plurality): <em>LAP</em> is OSPI program 55,
+        <em>Title&nbsp;I</em> is programs 51&ndash;53, and <em>Special education</em> is
+        programs 21+24 (combined because duty-46 school psychologists moved from program 24
+        to 21 in 2022&ndash;23); everything else is basic ed + other. Among SEA-represented
+        staff that gives @@PGROUP_COUNTS@@. Redistribution weights stay per staff group
+        &mdash; the program split is a lens, not a control.</li>
+      <li><b>The hole comes from the district&rsquo;s own 2026&ndash;27 budget book</b>
+        (<code>26-27-Budget-Book-Online.pdf</code>). The $@@DEFICIT@@ budget deficit is the
+        General Fund gap between 2026&ndash;27 expenditures and revenues + other financing
+        (PDF p.14, confirmed as the &ldquo;calculated gap&rdquo; on p.20). The Economic
+        Stabilization Fund shows $0 committed in every 2026&ndash;27 fund-balance column
+        (PDF p.21); board policy floors it at 3% of the total budget, and 3% of the
+        $@@GF_BUDGET@@ General Fund expenditure budget is $@@ESF_TARGET@@. One honesty note:
+        the deficit gap and the stabilization refill are one-time 2026&ndash;27 amounts,
+        while a cut position frees money every year &mdash; this game shows a single year.</li>
+      <li>Small bubbles and short bars are usually partial-year hires, not low-paid roles.</li>
+      <li>This is a thought experiment: crossing out a position moves its money and ignores
+        its work. Nothing here is a budget proposal.</li>
+    </ul>
+  </div>
+</footer>
+
+<div id="tip" role="tooltip"></div>
+<div id="fx" aria-hidden="true"></div>
+
+<script>
+"use strict";
+var EMP=@@EMP@@;
+var DUTIES=@@DUTIES@@;
+var COMPS=@@COMPS@@;
+var RG=@@RG@@;
+var BENMULT=@@BENMULT@@;
+var DEFS=@@DEFS@@;
+var ESF_FLOOR=@@ESF_FLOOR@@;
+var holeLeftG=0;
+var clusterSvgs=[];
+document.querySelectorAll('.cluster svg').forEach(function(sv){
+  clusterSvgs.push([sv,+sv.getAttribute('width')]);});
+function applyBenScale(){
+  var k=optBen.checked?Math.sqrt(BENMULT):1;   /* area scales by BENMULT */
+  clusterSvgs.forEach(function(p){p[0].style.width=(p[1]*k).toFixed(1)+'px';});
+}
+document.querySelectorAll('.holeseg').forEach(function(el,i){
+  if(DEFS[i])el.style.flexGrow=DEFS[i].total;});
+var SCALE2=@@SCALE2@@;   /* dollars per viewBox unit in skyline row 2 */
+
+var cut=new Set(), painting=false, mode=true;
+function $(id){return document.getElementById(id);}
+var stage=$('stage'), sky=$('skyline'), tip=$('tip'), optBen=$('optben');
+var els=[], barEls=[], capEls=[];
+document.querySelectorAll('g.emp[data-id]').forEach(function(g){els[+g.dataset.id]=g;});
+document.querySelectorAll('rect.bar[data-id]').forEach(function(r){barEls[+r.dataset.id]=r;});
+document.querySelectorAll('path.cap').forEach(function(p){
+  var g=+p.getAttribute('data-cap');(capEls[g]=capEls[g]||[]).push(p);});
+
+function money(n){return '$'+Math.round(n).toLocaleString('en-US');}
+function moneyM(n){return n>=995000 ? '$'+(n/1e6).toFixed(1)+'M' : money(n);}
+function denomNow(){
+  var d=0; RG.forEach(function(g){if(g.on&&g.w>0)d+=g.n*g.w;}); return d;
+}
+
+var heroCur=0, heroAnim=null;
+var reduceMotion=matchMedia('(prefers-reduced-motion: reduce)').matches;
+function setHero(v){
+  if(reduceMotion||document.hidden||Math.abs(v-heroCur)<1){
+    heroCur=v;$('heroVal').textContent=money(v);return;
+  }
+  if(heroAnim)cancelAnimationFrame(heroAnim);
+  var from=heroCur,t0=performance.now();
+  (function step(t){
+    var k=Math.min(1,(t-t0)/220); k=1-(1-k)*(1-k);
+    heroCur=from+(v-from)*k;
+    $('heroVal').textContent=money(heroCur);
+    if(k<1)heroAnim=requestAnimationFrame(step); else heroAnim=null;
+  })(t0);
+}
+
+function recompute(){
+  var T=0,N=0,counts=[];
+  COMPS.forEach(function(){counts.push(0);});
+  cut.forEach(function(id){
+    var e=EMP[id];
+    if(COMPS[e[1]].on){T+=e[0];N++;counts[e[1]]++;}
+  });
+  var mult=optBen.checked?BENMULT:1;
+  var pool=T*mult;
+  /* waterfall: the freed payroll fills the deficits in order; only the
+     surplus is redistributed to staff */
+  var fillLeft=pool, holeLeft=0;
+  DEFS.forEach(function(d,i){
+    var take=d.on?Math.min(fillLeft,d.total):0;
+    fillLeft-=take;
+    if(d.on)holeLeft+=d.total-take;
+    var pct=(d.on&&d.total>0?take/d.total*100:0)+'%';
+    var seg=document.querySelector('[data-hseg="'+i+'"]');
+    if(seg){
+      seg.classList.toggle('done',d.on&&take>=d.total);
+      seg.classList.toggle('off',!d.on);
+      $('hfill-'+i).style.width=pct;
+    }
+  });
+  holeLeftG=holeLeft;
+  var hb=$('hbar-left');
+  hb.textContent=holeLeft>0?moneyM(holeLeft)+' to go':'filled \u2713';
+  hb.classList.toggle('done',holeLeft<=0);
+  var surplus=fillLeft;
+  var denom=denomNow(), poolN=0;
+  RG.forEach(function(g){if(g.on&&g.w>0)poolN+=g.n;});
+  var per=denom>0?surplus/denom:0;
+  setHero(per);
+  $('tCut').textContent=N.toLocaleString('en-US');
+  $('tMoney').textContent=moneyM(pool);
+  $('tHole').textContent=moneyM(holeLeft);
+  $('tPool').textContent=poolN.toLocaleString('en-US');
+  $('tMarg').textContent=denom>0?money(1e6/denom):'—';
+  COMPS.forEach(function(c,i){$('cutn-'+i).textContent=counts[i]+' cut';});
+  RG.forEach(function(g,i){
+    var active=g.on&&g.w>0;
+    $('per-'+i).textContent=active?money(per*g.w)+'/yr':'—';
+    $('pct-'+i).textContent=(active&&g.median&&per>0)
+      ? '+'+(per*g.w/g.median*100).toFixed(1)+'% of median':' ';
+    var h=active?Math.min(per*g.w/SCALE2,1990):0;
+    (capEls[i]||[]).forEach(function(p){
+      p.setAttribute('transform','translate(0,-'+h.toFixed(2)+')');});
+  });
+}
+
+var fx=$('fx'), activeBills=0;
+function spawnBills(id){
+  if(reduceMotion||activeBills>420)return;
+  var src=els[id]&&els[id].offsetParent!==null?els[id]:barEls[id];
+  var r=src?src.getBoundingClientRect():null;
+  if(!r||!r.width)return;
+  var cx=r.left+r.width/2, cy=r.top+r.height/2;
+  var n=9+Math.min(11,Math.round(EMP[id][0]/35000));
+  for(var i=0;i<n;i++){
+    var bill=document.createElement('span');
+    bill.textContent=Math.random()<0.8?'\uD83D\uDCB8':'\uD83D\uDCB5';
+    bill.style.fontSize=(16+Math.random()*18)+'px';
+    bill.style.left=cx+'px'; bill.style.top=cy+'px';
+    fx.appendChild(bill); activeBills++;
+    /* full spray, biased hard upward; a few screamers go extra far */
+    var ang=(-90+(Math.random()*220-110))*Math.PI/180;
+    var dist=130+Math.random()*230+(Math.random()<0.25?180:0);
+    var dx=Math.cos(ang)*dist, dy=Math.sin(ang)*dist;
+    var rot=(Math.random()*560-280);
+    var anim=bill.animate([
+      {transform:'translate(-50%,-50%) scale(.35) rotate(0deg)',opacity:1},
+      {transform:'translate(calc(-50% + '+(dx*0.7)+'px), calc(-50% + '+(dy*0.75-36)+'px)'
+        +' scale(1.35) rotate('+(rot*0.6)+'deg)',opacity:1,offset:0.45},
+      {transform:'translate(calc(-50% + '+dx+'px), calc(-50% + '+(dy+70)+'px)'
+        +' scale(1) rotate('+rot+'deg)',opacity:0}
+    ],{duration:420+Math.random()*260,easing:'cubic-bezier(.12,.85,.25,1)'});
+    anim.onfinish=(function(el){return function(){el.remove();activeBills--;};})(bill);
+  }
+  if(window.__billsSpawned!==undefined)window.__billsSpawned+=n;
+}
+function setCutId(id,val){
+  if(cut.has(id)===val)return false;
+  if(val)cut.add(id);else cut.delete(id);
+  if(els[id])els[id].classList.toggle('cut',val);
+  if(barEls[id])barEls[id].classList.toggle('cut',val);
+  if(val)spawnBills(id);
+  return true;
+}
+function setCut(id,val){if(setCutId(id,val))recompute();}
+
+/* Touch never gets preventDefault on pointerdown — in Safari that kills native
+   scrolling for the whole gesture, and bubbles cover most of a phone screen.
+   Instead a touch is held as "pending": a mostly-horizontal drag commits it as
+   a sweep-cut, a vertical drag hands the gesture to native scrolling (pan-y on
+   the cluster svg), and a clean tap toggles on pointerup. */
+var pendTouch=null;
+function onDown(e){
+  var t=e.target.closest?e.target.closest('[data-id]'):null;
+  if(!t)return;
+  var id=+t.dataset.id;
+  if(e.pointerType==='touch'){
+    if(!t.classList.contains('emp'))return;  /* skyline strip: touch = scroll */
+    pendTouch={id:id,x:e.clientX,y:e.clientY,mode:!cut.has(id)};
+    return;
+  }
+  e.preventDefault();
+  painting=true;
+  mode=!cut.has(id);
+  setCut(id,mode);
+}
+function onMove(e){
+  if(pendTouch&&!painting){
+    var dx=Math.abs(e.clientX-pendTouch.x), dy=Math.abs(e.clientY-pendTouch.y);
+    if(dx>10&&dx>dy*1.2){                    /* horizontal intent: sweep-cut */
+      painting=true; mode=pendTouch.mode; setCut(pendTouch.id,mode);
+    }else if(dy>10){
+      pendTouch=null;                        /* vertical: native scroll owns it */
+    }
+  }
+  if(painting){
+    var el=document.elementFromPoint(e.clientX,e.clientY);
+    var t=el&&el.closest?el.closest('[data-id]'):null;
+    if(t)setCut(+t.dataset.id,mode);
+    hideTip();
+  }else if(e.pointerType!=='touch'){
+    var t2=e.target.closest?e.target.closest('[data-id]'):null;
+    if(t2)showTip(t2,e);else hideTip();
+  }
+}
+function onUp(e){
+  if(pendTouch&&!painting&&e.pointerType==='touch'){
+    setCut(pendTouch.id,pendTouch.mode);     /* clean tap toggles */
+  }
+  pendTouch=null;painting=false;
+}
+stage.addEventListener('pointerdown',onDown);
+stage.addEventListener('pointermove',onMove);
+sky.addEventListener('pointerdown',onDown);
+sky.addEventListener('pointermove',onMove);
+addEventListener('pointerup',onUp);
+var dash=document.querySelector('.statstrip');
+function fixSkyTop(){sky.style.top=(dash?dash.offsetHeight-1:0)+'px';}
+addEventListener('resize',fixSkyTop);
+addEventListener('load',fixSkyTop);
+fixSkyTop();
+addEventListener('pointercancel',function(){pendTouch=null;painting=false;});
+stage.addEventListener('pointerleave',hideTip);
+sky.addEventListener('pointerleave',hideTip);
+
+function showTip(t,e){
+  var id=+t.dataset.id, emp=EMP[id];
+  var mult=optBen.checked?BENMULT:1;
+  var denom=denomNow();
+  var line=holeLeftG>0
+    ?'cut &rarr; pays down the hole ('+moneyM(holeLeftG)+' to go)'
+    :(denom>0?'cut &rarr; +'+money(emp[0]*mult/denom)+' per &times;1 member':'');
+  tip.innerHTML='<b>'+DUTIES[emp[2]]+'</b><br>'+money(emp[0])
+    +(mult>1?' &middot; frees '+money(emp[0]*mult):'')
+    +(cut.has(id)?' &middot; <span class="cutlbl">cut</span>':'')
+    +(line?'<br>'+line:'');
+  tip.style.display='block';
+  var x=e.clientX+14,y=e.clientY+16;
+  if(x+tip.offsetWidth>innerWidth-8)x=e.clientX-tip.offsetWidth-10;
+  if(y+tip.offsetHeight>innerHeight-8)y=e.clientY-tip.offsetHeight-12;
+  tip.style.left=x+'px';tip.style.top=y+'px';
+}
+function hideTip(){tip.style.display='none';}
+
+function rangeSet(ci,val){
+  var c=COMPS[ci];
+  for(var i=c.a;i<c.b;i++)setCutId(i,val);
+  recompute();
+}
+document.addEventListener('click',function(e){
+  var b=e.target.closest?e.target.closest('button'):null;
+  if(!b)return;
+  if(b.hasAttribute('data-cutall')){rangeSet(+b.getAttribute('data-cutall'),true);return;}
+  if(b.hasAttribute('data-restore')){rangeSet(+b.getAttribute('data-restore'),false);return;}
+  if(b.hasAttribute('data-dw')){
+    var gi=+b.getAttribute('data-g'),g=RG[gi];
+    g.w=Math.min(5,Math.max(0,g.w+0.5*(+b.getAttribute('data-dw'))));
+    $('w-'+gi).textContent='×'+g.w.toFixed(1);
+    recompute();return;
+  }
+  if(b.id==='reset'){
+    cut.forEach(function(id){
+      if(els[id])els[id].classList.remove('cut');
+      if(barEls[id])barEls[id].classList.remove('cut');
+    });
+    cut.clear();recompute();return;
+  }
+});
+document.addEventListener('change',function(e){
+  var t=e.target;
+  if(t.hasAttribute('data-comp')){
+    var ci=+t.getAttribute('data-comp');
+    COMPS[ci].on=t.checked;
+    var art=document.getElementById('cl-'+COMPS[ci].key);
+    if(art)art.style.display=t.checked?'':'none';
+    var r1=document.getElementById('r1-'+COMPS[ci].key);
+    if(r1)r1.style.display=t.checked?'':'none';
+    recompute();return;
+  }
+  if(t.hasAttribute('data-def')){
+    DEFS[+t.getAttribute('data-def')].on=t.checked;
+    recompute();return;
+  }
+  if(t.hasAttribute('data-rg')){
+    var gi=+t.getAttribute('data-rg');
+    RG[gi].on=t.checked;
+    t.closest('.rgrow').classList.toggle('off',!t.checked);
+    recompute();return;
+  }
+  if(t.id==='optben'){applyBenScale();recompute();}
+});
+var esfTimer=null;
+document.getElementById('progSplit').addEventListener('change',function(){
+  document.getElementById('seaSplit').style.display=this.checked?'':'none';
+  document.getElementById('seaAll').style.display=this.checked?'none':'';
+});
+document.getElementById('esfOn').addEventListener('change',function(){
+  var amt=document.getElementById('esfAmt');
+  amt.disabled=!this.checked;
+  document.getElementById('esfCtl').classList.toggle('off',!this.checked);
+  DEFS[1].on=this.checked&&DEFS[1].total>0;
+  if(!this.checked){
+    clearTimeout(esfTimer);
+    var al=$('esfAlert');al.hidden=true;al.classList.remove('fade');
+  }
+  recompute();
+});
+document.getElementById('esfAmt').addEventListener('input',function(){
+  var v=parseFloat(this.value);
+  if(!isFinite(v)||v<0)v=0; if(v>999)v=999;
+  var nt=Math.round(v*1e6);
+  var changed=nt!==DEFS[1].total;
+  DEFS[1].total=nt;
+  DEFS[1].on=document.getElementById('esfOn').checked&&DEFS[1].total>0;
+  var seg=document.querySelector('[data-hseg="1"]');
+  if(seg){
+    seg.style.flexGrow=Math.max(DEFS[1].total,1);
+    seg.querySelector('.holelbl').innerHTML='Economic stabilization &middot; '+moneyM(DEFS[1].total);
+  }
+  if(changed){
+    var al=$('esfAlert');
+    al.hidden=false;
+    al.classList.remove('fade');
+    al.classList.toggle('ok',nt>=ESF_FLOOR);
+    var yrs=nt>0?ESF_FLOOR/nt:0;
+    $('esfAlertTxt').textContent=nt<=0
+      ? 'At $0 per year, the Stabilization Fund never reaches its 3% floor ('
+        +moneyM(ESF_FLOOR)+').'
+      : (nt>=ESF_FLOOR
+        ? 'At '+moneyM(nt)+' per year, the Stabilization Fund reaches its 3% floor ('
+          +moneyM(ESF_FLOOR)+') in a single year.'
+        : 'At '+moneyM(nt)+' per year, the Stabilization Fund reaches its 3% floor ('
+          +moneyM(ESF_FLOOR)+') in about '
+          +(yrs<9.95?yrs.toFixed(1):Math.round(yrs))+' years.');
+    clearTimeout(esfTimer);
+    esfTimer=setTimeout(function(){
+      al.classList.add('fade');
+      setTimeout(function(){al.hidden=true;al.classList.remove('fade');},380);
+    },3000);
+  }
+  recompute();
+});
+recompute();
+</script>

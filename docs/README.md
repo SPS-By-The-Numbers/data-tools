@@ -47,6 +47,11 @@ not the Markdown.
   Purple Book carve, chronic-underspend corrections, and why F-196 building
   codes and S-275 building codes disagree about support staff. Scripts:
   `tools/bb_summary_from_db.py`, `tools/pb_actuals_reconcile.py`.
+- [`docs/guides/S275_SALARY_SKYLINE.md`](guides/S275_SALARY_SKYLINE.md) —
+  per-employee `total_final_salary` charted one bar per person, and the duty
+  banding it uses: which OSPI duty roots count as central office vs school
+  administration vs classified support, and why `is_classified` is not the
+  test. Scripts: `tools/salary_skyline/`.
 - NULL conventions and anti-patterns: dedicated sections at the end of each
   CSV_GUIDE (e.g. STARS `value = NULL` means "row absent from source" while
   `0` is a reported zero).
