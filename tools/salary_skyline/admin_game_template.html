@@ -1,4 +1,4 @@
-<title>Who would you axe?</title>
+<title>Who (or what) would you axe? 🪓</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zilla+Slab:wght@600;700&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
@@ -7,7 +7,7 @@
   --page:#f9f9f7; --surface:#fcfcfb; --ink:#0b0b0b; --ink2:#52514e; --muted:#898781;
   --hair:#e1e0d9; --bord:rgba(11,11,11,.10); --btnbg:#f0efec;
   --central:#184f95; --school:#2a78d6; --critical:#d03b3b; --cutfill:#e4e3dc;
-  --chipB:#eb6834; --chipC:#1baf7a; --chipD:#eda100; --good:#0ca30c;
+  --chipB:#eb6834; --chipC:#1baf7a; --chipD:#eda100; --good:#0ca30c; --svc:#4a3aa7;
   --alertbg:rgba(42,120,214,.09);
 }
 @media (prefers-color-scheme: dark){
@@ -15,7 +15,7 @@
     --page:#0d0d0d; --surface:#1a1a19; --ink:#ffffff; --ink2:#c3c2b7; --muted:#898781;
     --hair:#2c2c2a; --bord:rgba(255,255,255,.10); --btnbg:#242423;
     --central:#86b6ef; --school:#3987e5; --critical:#d03b3b; --cutfill:#2f2f2c;
-    --chipB:#d95926; --chipC:#199e70; --chipD:#c98500; --good:#0ca30c;
+    --chipB:#d95926; --chipC:#199e70; --chipD:#c98500; --good:#0ca30c; --svc:#9085e9;
     --alertbg:rgba(134,182,239,.13);
   }
 }
@@ -23,7 +23,7 @@
   --page:#0d0d0d; --surface:#1a1a19; --ink:#ffffff; --ink2:#c3c2b7; --muted:#898781;
   --hair:#2c2c2a; --bord:rgba(255,255,255,.10); --btnbg:#242423;
   --central:#86b6ef; --school:#3987e5; --critical:#d03b3b; --cutfill:#2f2f2c;
-  --chipB:#d95926; --chipC:#199e70; --chipD:#c98500; --good:#0ca30c;
+  --chipB:#d95926; --chipC:#199e70; --chipD:#c98500; --good:#0ca30c; --svc:#9085e9;
   --alertbg:rgba(134,182,239,.13);
 }
 *{box-sizing:border-box}
@@ -72,6 +72,10 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--central);outlin
 .cbtns{display:flex;gap:6px;flex-shrink:0}
 .cluster svg{display:block;max-width:100%;height:auto;touch-action:pan-y;cursor:crosshair;
   transition:width .25s}
+.cwarn{display:flex;gap:7px;align-items:flex-start;margin:0 0 8px;padding:6px 10px;
+  border-radius:6px;background:rgba(208,59,59,.08);border-left:3px solid var(--critical);
+  font-size:.76rem;line-height:1.45;color:var(--ink2);max-width:52ch}
+.cwarn .wico{flex:none;color:var(--critical)}
 .dot{fill:var(--dot);stroke:var(--surface);stroke-width:1;transition:fill .12s}
 .emp .x{display:none;text-anchor:middle;dominant-baseline:central;pointer-events:none;
   font-family:"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif}
@@ -122,9 +126,8 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--central);outlin
 #esfAmt{width:56px;font:inherit;font-size:.74rem;text-align:right;padding:0 4px;
   font-family:"IBM Plex Mono",ui-monospace,monospace;background:var(--page);
   color:var(--ink);border:1px solid var(--bord);border-radius:4px}
-.topband{background:var(--alertbg);border-bottom:1px solid var(--hair)}
-.tbrow{display:flex;flex-wrap:wrap;gap:6px 18px;align-items:center;
-  padding-top:9px;padding-bottom:9px}
+.tbrow{display:flex;flex-wrap:wrap;gap:6px 18px;align-items:center}
+.settings{background:var(--alertbg);border-radius:6px;padding:6px 12px;margin:8px 0 2px}
 .tbtitle{font-size:.68rem;font-weight:700;letter-spacing:.08em;
   text-transform:uppercase;color:var(--ink2);white-space:nowrap}
 .alert{display:flex;gap:6px;padding:3px 9px;border-radius:5px;
@@ -151,32 +154,29 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--central);outlin
 .mh span{color:var(--muted);text-transform:none;letter-spacing:0;font-weight:400}
 .capkey{display:inline-block;width:9px;height:9px;background:var(--central);
   border-radius:2px;vertical-align:-1px;margin-right:3px}
-.holewrap{display:flex;flex-wrap:wrap;gap:4px 10px;align-items:center;margin:3px 0 7px}
-.holeseg{position:relative;height:18px;background:var(--btnbg);border-radius:4px;
-  overflow:hidden;min-width:36px}
-.holefill{position:absolute;top:0;bottom:0;left:0;width:0%;background:var(--central);
-  opacity:.38;transition:width .2s}
-.holeseg.done .holefill{background:var(--good);opacity:.45}
-.holeseg.off{opacity:.35}
-.holelbl{position:relative;z-index:1;display:block;font-size:.66rem;line-height:18px;
-  padding:0 8px;color:var(--ink2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
-  text-shadow:0 0 3px var(--surface),0 0 3px var(--surface),0 0 4px var(--surface)}
-.holeto{flex:none;font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:.72rem;
-  font-weight:600;color:var(--ink2);white-space:nowrap;font-variant-numeric:tabular-nums}
-.holeto.done{color:var(--good)}
+.hrect{fill:var(--btnbg);stroke:var(--hair);stroke-width:.8}
+.svbase{fill:var(--svc);stroke:var(--surface);stroke-width:.8}
+.svcut{fill:var(--cutfill)}
+.hfillr{fill:var(--central)}
+.hfillr.done{fill:var(--good)}
+.hrect.off,.hfillr.off{opacity:.3}
 .skyscroll{overflow-x:auto}
 .skyscroll svg{display:block;width:100%;height:auto}
 @media (max-width:1020px){
   .skydash{position:static}
   .skyscroll svg{min-width:660px}
 }
+@media (max-height:820px){.skydash{position:static}}
 .grid{stroke:var(--hair);stroke-width:.7}
 .sect{stroke:var(--muted);stroke-width:.8;stroke-dasharray:3 3;opacity:.6}
 .axis{stroke:var(--hair);stroke-width:1}
 .gl{fill:var(--muted);font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:15px;
-  paint-order:stroke;stroke:var(--surface);stroke-width:3.5px}
+  text-anchor:end;paint-order:stroke;stroke:var(--surface);stroke-width:3.5px}
 .glabel{fill:var(--ink2);font-family:"Public Sans",system-ui,sans-serif;font-size:13.5px;
   text-anchor:middle;paint-order:stroke;stroke:var(--surface);stroke-width:3px}
+.rowt{fill:var(--muted);font-family:"Public Sans",system-ui,sans-serif;font-size:11px;
+  font-weight:700;letter-spacing:.09em;text-transform:uppercase;
+  paint-order:stroke;stroke:var(--surface);stroke-width:3px}
 .gsect{fill:var(--muted);font-family:"Public Sans",system-ui,sans-serif;font-size:13.5px;
   font-weight:600;letter-spacing:.04em;text-transform:uppercase;text-anchor:middle;
   paint-order:stroke;stroke:var(--surface);stroke-width:3px}
@@ -201,35 +201,23 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--central);outlin
 #tip .cutlbl{color:#ff9d96;font-weight:600}
 </style>
 
-<div class="topband">
-  <div class="wrap tbrow">
-    <span class="tbtitle">The 2026&ndash;27 hole</span>
-    <label class="hctl"><input type="checkbox" checked data-def="0">Fill budget deficit first</label>
-    <span class="hctl" id="esfCtl"><input type="checkbox" id="esfOn" checked>
-      <label for="esfOn">Refill Economic Stabilization Fund by</label>
-      <span class="moneyin">$<input type="number" id="esfAmt" value="@@ESF_START_M@@"
-        min="0" max="999" step="0.1"
-        aria-label="millions of dollars per year to refill">M/yr</span></span>
-    <span class="alert" id="esfAlert" hidden><span class="ico">&#9432;</span><span id="esfAlertTxt"></span></span>
-  </div>
-</div>
-
 <header class="masthead wrap">
-  <h1>Who would you axe?</h1>
-  <p class="dek">Every Seattle Public Schools central-office position, one bubble each,
-  sized by 2024&ndash;25 salary. Cross positions out and their payroll is redistributed
-  to the district&rsquo;s ~@@POOL_N@@ SEA-represented staff &mdash; on your terms.</p>
-  <p class="hint"><b>Click a bubble</b> to cross it out &mdash; or <b>hold and sweep</b>
-  across a cluster. Click again to restore. Decide what counts as &ldquo;central&rdquo;
-  and who shares the money in the panel.</p>
+  <h1>Who (or what) would you axe? 🪓</h1>
+  <p class="dek">Everyone says we should cut central or cut contracts and redistribute
+  that money. Well, here&rsquo;s your chance. <b>Click a bubble</b> to axe it &mdash; or
+  <b>hold and sweep</b> across a cluster. Click again to restore. Decide if the money gets
+  redistributed to filling the deficit first or ignore that like we&rsquo;ve been doing and
+  pass it off to whatever cluster of staff you want. Want to axe the Superintendent? How about foregoing electricity? Go for it! YOU get to be the decider!</p>
+  <p class="hint">(defaults to filling the deficit first as well as refilling the drained
+  Economic Stabilization Account by $8M a year, bringing it back to compliance in 5 years)</p>
 </header>
 
 <section class="statstrip">
   <div class="wrap strip">
     <div class="tile hero"><div class="v" id="heroVal">$0</div>
       <div class="l">per SEA member per year <span class="sub">(at weight &times;1)</span></div></div>
-    <div class="tile"><div class="v" id="tCut">0</div><div class="l">positions crossed out</div></div>
-    <div class="tile"><div class="v" id="tMoney">$0</div><div class="l">payroll removed</div></div>
+    <div class="tile"><div class="v" id="tCut">0</div><div class="l">items crossed out</div></div>
+    <div class="tile"><div class="v" id="tMoney">$0</div><div class="l">money freed</div></div>
     <div class="tile"><div class="v" id="tHole">@@HOLE0@@</div><div class="l">hole left to fill</div></div>
     <div class="tile"><div class="v" id="tPool">@@POOL_N@@</div><div class="l">people sharing it</div></div>
     <div class="tile"><div class="v" id="tMarg">@@MARG0@@</div><div class="l">per member, each $1M removed</div></div>
@@ -239,21 +227,22 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--central);outlin
 <section class="skydash" id="skyline">
   <div class="wrap sdband">
     <div class="mhrow">
-      <div class="mh">On the block &rarr; SEA-represented staff
-        <span>&middot; one bar per person at one $ scale &mdash; widths compare headcounts &middot;
-        cut bars grey out &middot;
-        <span class="capkey"></span>redistributed payroll stacks on top</span></div>
-      <label class="hctl"><input type="checkbox" id="progSplit">Show program splits</label>
-    </div>
-    <div class="holewrap" aria-label="the 2026-27 hole, filling as positions are cut">
-      <div class="holeseg" data-hseg="0"><div class="holefill" id="hfill-0"></div>
-        <span class="holelbl">Budget deficit &middot; @@DEF1M@@</span></div>
-      <div class="holeseg" data-hseg="1"><div class="holefill" id="hfill-1"></div>
-        <span class="holelbl">Economic stabilization &middot; @@ESF_START_$@@</span></div>
-      <span class="holeto" id="hbar-left">@@HOLE0@@ to go</span>
+      <div class="mh"><span>one bar per person, one $ scale &middot; cut = grey &middot;
+        <span class="capkey"></span>= redistribution</span></div>
     </div>
     <div class="skyscroll">
 @@SKY@@
+    </div>
+    <div class="tbrow settings">
+      <span class="tbtitle">Simulator Settings</span>
+      <label class="hctl"><input type="checkbox" checked data-def="0">Fill budget deficit first</label>
+      <span class="hctl" id="esfCtl"><input type="checkbox" id="esfOn" checked>
+        <label for="esfOn">Refill Economic Stabilization Fund by</label>
+        <span class="moneyin">$<input type="number" id="esfAmt" value="@@ESF_START_M@@"
+          min="0" max="999" step="0.1"
+          aria-label="millions of dollars per year to refill">M/yr</span></span>
+      <label class="hctl"><input type="checkbox" id="progSplit">Show program splits</label>
+      <span class="alert" id="esfAlert" hidden><span class="ico">&#9432;</span><span id="esfAlertTxt"></span></span>
     </div>
   </div>
 </section>
@@ -264,18 +253,12 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--central);outlin
   </div>
   <aside class="panel">
     <section class="pbox">
-      <h2>What counts as &ldquo;central&rdquo;?</h2>
-@@COMP_ROWS@@
-    </section>
-    <section class="pbox">
       <h2>Who gets the money?</h2>
       <p class="phint">Weight is per person: at &times;2 each member of that group gets
       twice what a &times;1 member gets.</p>
 @@RG_ROWS@@
     </section>
     <section class="pbox opts">
-      <label><input type="checkbox" id="optben">
-        Count employer benefits too (+@@BEN_PCT@@%, from F-196 actuals &mdash; see fine print)</label>
       <button type="button" id="reset" class="resetbtn">Restore everyone</button>
     </section>
   </aside>
@@ -287,36 +270,37 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--central);outlin
     <ul>
       <li>Data: OSPI S-275 personnel report, Seattle Public Schools, 2024&ndash;25 final
         (<code>sps-btn-data.safs_s275</code>) &mdash; the same pull as the salary skyline.
-        One bubble per employee; bubble <em>area</em> and bar height are
-        <code>total_final_salary</code>, what payroll actually paid that year.</li>
+        One bubble per employee; bubble <em>area</em>, bar heights, and medians are
+        <b>total compensation</b> &mdash; <code>total_final_salary</code> plus the
+        F-196-derived benefits load (see below).</li>
       <li>&ldquo;SEA-represented&rdquo; is approximated from OSPI duty codes (teachers
         31&ndash;34, substitutes 52, certificated support 39&ndash;49 &amp; 63&ndash;64,
         paraeducators 91, office &amp; clerical 94). Real bargaining-unit rosters differ at
         the margins. Custodial, trades and food service staff belong to other unions and are
         left out of both sides of the game.</li>
-      <li><b>The benefits toggle uses F-196 actuals, not a guess.</b> SPS&rsquo;s 2024&ndash;25
+      <li><b>Benefits are always included, from F-196 actuals.</b> SPS&rsquo;s 2024&ndash;25
         F-196 reports @@OBJ4M@@ of Object&nbsp;4 (Employee Benefits &amp; Payroll Taxes)
         against @@OBJ23M@@ of salary Objects&nbsp;2+3. S-275 final salaries total @@S275M@@,
         so scaling Object&nbsp;4 by that ratio attributes @@BENPOOLM@@ of benefits to
-        S-275-covered pay &mdash; @@BEN_PCT@@&cent; of benefits per salary dollar. With the
-        toggle on, cutting a position frees its salary &times;&nbsp;@@BENMULT3@@, and the
-        chopping-block bubbles grow to match (area &times;&nbsp;@@BENMULT3@@).
-        Source: <code>sps-btn-data.safs_f19x.general_fund_expenditures</code>, actuals,
-        objects 2/3/4.</li>
+        S-275-covered pay &mdash; @@BEN_PCT@@&cent; per salary dollar. Every staff figure in
+        the game &mdash; bubble areas, skyline bars, medians, and the money a cut frees
+        &mdash; is salary &times;&nbsp;@@BENMULT3@@. Purchased services carry no benefits
+        load. Source: <code>sps-btn-data.safs_f19x.general_fund_expenditures</code>,
+        actuals, objects 2/3/4.</li>
       <li>The dashboard skyline draws one bar per person at a single shared width and dollar
         scale across all sections, so section widths compare headcounts directly (which is why
         the central-office block is a thin strip next to 5,743 SEA staff) and bar heights compare
         pay. If you hand a small group an enormous pool, its blue stack can run off the top of
         the chart &mdash; the panel numbers stay exact.</li>
       <li>With &ldquo;Show program splits&rdquo; on, the SEA side of the skyline is split by
-        program, assigning each employee to the
-        bucket holding the plurality of their assignment FTE (ties go to basic; zero-FTE
-        staff use assignment-row plurality): <em>LAP</em> is OSPI program 55,
-        <em>Title&nbsp;I</em> is programs 51&ndash;53, and <em>Special education</em> is
-        programs 21+24 (combined because duty-46 school psychologists moved from program 24
-        to 21 in 2022&ndash;23); everything else is basic ed + other. Among SEA-represented
-        staff that gives @@PGROUP_COUNTS@@. Redistribution weights stay per staff group
-        &mdash; the program split is a lens, not a control.</li>
+        program, assigning each employee to the bucket holding the plurality of their
+        assignment FTE (ties go to basic; zero-FTE staff use assignment-row
+        plurality): <em>LAP</em> is OSPI program 55, <em>Title&nbsp;I</em> is programs
+        51&ndash;53, and <em>Special education</em> is programs 21+24 (combined because
+        duty-46 school psychologists moved from program 24 to 21 in 2022&ndash;23);
+        everything else is basic ed + other.
+        Among SEA-represented staff that gives @@PGROUP_COUNTS@@. Redistribution weights stay
+        per staff group &mdash; the program split is a lens, not a control.</li>
       <li><b>The hole comes from the district&rsquo;s own 2026&ndash;27 budget book</b>
         (<code>26-27-Budget-Book-Online.pdf</code>). The $@@DEFICIT@@ budget deficit is the
         General Fund gap between 2026&ndash;27 expenditures and revenues + other financing
@@ -326,6 +310,15 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--central);outlin
         $@@GF_BUDGET@@ General Fund expenditure budget is $@@ESF_TARGET@@. One honesty note:
         the deficit gap and the stabilization refill are one-time 2026&ndash;27 amounts,
         while a cut position frees money every year &mdash; this game shows a single year.</li>
+      <li><b>Purchased services</b> come from the same F-196 actuals: General Fund
+        Object&nbsp;7, split into a special-ed partition (programs 21+24) and everything
+        else, one bubble per NCES spending class sized by the summed annual amount
+        (<code>tools/salary_skyline/services_query.sql</code>). The same dollars-per-area
+        scale as the salary bubbles, so contracted student transportation ($59.7M) dwarfs
+        any administrator. The benefits toggle does not apply to services, and they are
+        excluded from the one-bar-per-person skyline. Cutting a service class zeroes a
+        whole year of that spending &mdash; judge for yourself which contracts a district
+        could actually live without.</li>
       <li>Small bubbles and short bars are usually partial-year hires, not low-paid roles.</li>
       <li>This is a thought experiment: crossing out a position moves its money and ignores
         its work. Nothing here is a budget proposal.</li>
@@ -345,21 +338,13 @@ var RG=@@RG@@;
 var BENMULT=@@BENMULT@@;
 var DEFS=@@DEFS@@;
 var ESF_FLOOR=@@ESF_FLOOR@@;
+var WPD=@@WPD@@, ESF_SLOT_W=@@ESF_SLOT_W@@, ESF_SLOT_X=@@ESF_SLOT_X@@;
 var holeLeftG=0;
-var clusterSvgs=[];
-document.querySelectorAll('.cluster svg').forEach(function(sv){
-  clusterSvgs.push([sv,+sv.getAttribute('width')]);});
-function applyBenScale(){
-  var k=optBen.checked?Math.sqrt(BENMULT):1;   /* area scales by BENMULT */
-  clusterSvgs.forEach(function(p){p[0].style.width=(p[1]*k).toFixed(1)+'px';});
-}
-document.querySelectorAll('.holeseg').forEach(function(el,i){
-  if(DEFS[i])el.style.flexGrow=DEFS[i].total;});
 var SCALE2=@@SCALE2@@;   /* dollars per viewBox unit in skyline row 2 */
 
 var cut=new Set(), painting=false, mode=true;
 function $(id){return document.getElementById(id);}
-var stage=$('stage'), sky=$('skyline'), tip=$('tip'), optBen=$('optben');
+var stage=$('stage'), sky=$('skyline'), tip=$('tip');
 var els=[], barEls=[], capEls=[];
 document.querySelectorAll('g.emp[data-id]').forEach(function(g){els[+g.dataset.id]=g;});
 document.querySelectorAll('rect.bar[data-id]').forEach(function(r){barEls[+r.dataset.id]=r;});
@@ -367,6 +352,7 @@ document.querySelectorAll('path.cap').forEach(function(p){
   var g=+p.getAttribute('data-cap');(capEls[g]=capEls[g]||[]).push(p);});
 
 function money(n){return '$'+Math.round(n).toLocaleString('en-US');}
+function moneyK(n){return n>=9500?'$'+Math.round(n/1000)+'k':money(n);}
 function moneyM(n){return n>=995000 ? '$'+(n/1e6).toFixed(1)+'M' : money(n);}
 function denomNow(){
   var d=0; RG.forEach(function(g){if(g.on&&g.w>0)d+=g.n*g.w;}); return d;
@@ -389,14 +375,25 @@ function setHero(v){
 }
 
 function recompute(){
-  var T=0,N=0,counts=[];
-  COMPS.forEach(function(){counts.push(0);});
+  var T=0,Tsvc=0,N=0,counts=[],sums=[];
+  COMPS.forEach(function(){counts.push(0);sums.push(0);});
   cut.forEach(function(id){
     var e=EMP[id];
-    if(COMPS[e[1]].on){T+=e[0];N++;counts[e[1]]++;}
+    if(COMPS[e[1]].on){
+      if(COMPS[e[1]].svc)Tsvc+=e[0]; else T+=e[0];
+      N++;counts[e[1]]++;sums[e[1]]+=e[0];
+    }
   });
-  var mult=optBen.checked?BENMULT:1;
-  var pool=T*mult;
+  COMPS.forEach(function(c,i){
+    if(!c.svc)return;
+    var bg=$('svbg-'+i),ov=$('svcut-'+i);
+    if(!bg||!ov)return;
+    var rh=+bg.getAttribute('height'),top=+bg.getAttribute('y');
+    var f=c.total>0?sums[i]/c.total:0;
+    ov.setAttribute('y',(top+rh*(1-f)).toFixed(2));
+    ov.setAttribute('height',(rh*f).toFixed(2));
+  });
+  var pool=T+Tsvc;   /* staff values already include benefits (×BENMULT) */
   /* waterfall: the freed payroll fills the deficits in order; only the
      surplus is redistributed to staff */
   var fillLeft=pool, holeLeft=0;
@@ -404,18 +401,18 @@ function recompute(){
     var take=d.on?Math.min(fillLeft,d.total):0;
     fillLeft-=take;
     if(d.on)holeLeft+=d.total-take;
-    var pct=(d.on&&d.total>0?take/d.total*100:0)+'%';
-    var seg=document.querySelector('[data-hseg="'+i+'"]');
-    if(seg){
-      seg.classList.toggle('done',d.on&&take>=d.total);
-      seg.classList.toggle('off',!d.on);
-      $('hfill-'+i).style.width=pct;
+    var f=(d.on&&d.total>0)?take/d.total:0;
+    var bg=$('hbg-'+i), fr=$('hfr-'+i);
+    if(bg&&fr){
+      var rh=+bg.getAttribute('height'), top=+bg.getAttribute('y');
+      fr.setAttribute('y',(top+rh*(1-f)).toFixed(2));
+      fr.setAttribute('height',(rh*f).toFixed(2));
+      fr.classList.toggle('done',d.on&&take>=d.total);
+      bg.classList.toggle('off',!d.on);
+      fr.classList.toggle('off',!d.on);
     }
   });
   holeLeftG=holeLeft;
-  var hb=$('hbar-left');
-  hb.textContent=holeLeft>0?moneyM(holeLeft)+' to go':'filled \u2713';
-  hb.classList.toggle('done',holeLeft<=0);
   var surplus=fillLeft;
   var denom=denomNow(), poolN=0;
   RG.forEach(function(g){if(g.on&&g.w>0)poolN+=g.n;});
@@ -539,13 +536,18 @@ sky.addEventListener('pointerleave',hideTip);
 
 function showTip(t,e){
   var id=+t.dataset.id, emp=EMP[id];
-  var mult=optBen.checked?BENMULT:1;
   var denom=denomNow();
   var line=holeLeftG>0
     ?'cut &rarr; pays down the hole ('+moneyM(holeLeftG)+' to go)'
-    :(denom>0?'cut &rarr; +'+money(emp[0]*mult/denom)+' per &times;1 member':'');
-  tip.innerHTML='<b>'+DUTIES[emp[2]]+'</b><br>'+money(emp[0])
-    +(mult>1?' &middot; frees '+money(emp[0]*mult):'')
+    :(denom>0?'cut &rarr; +'+money(emp[0]/denom)+' per &times;1 member':'');
+  var amt;
+  if(COMPS[emp[1]].svc){
+    amt=moneyM(emp[0]);
+  }else{
+    var sal=Math.round(emp[0]/BENMULT);
+    amt=moneyK(sal)+' sal + '+moneyK(emp[0]-sal)+' ben';
+  }
+  tip.innerHTML='<b>'+DUTIES[emp[2]]+'</b><br>'+amt
     +(cut.has(id)?' &middot; <span class="cutlbl">cut</span>':'')
     +(line?'<br>'+line:'');
   tip.style.display='block';
@@ -601,7 +603,6 @@ document.addEventListener('change',function(e){
     t.closest('.rgrow').classList.toggle('off',!t.checked);
     recompute();return;
   }
-  if(t.id==='optben'){applyBenScale();recompute();}
 });
 var esfTimer=null;
 document.getElementById('progSplit').addEventListener('change',function(){
@@ -626,11 +627,13 @@ document.getElementById('esfAmt').addEventListener('input',function(){
   var changed=nt!==DEFS[1].total;
   DEFS[1].total=nt;
   DEFS[1].on=document.getElementById('esfOn').checked&&DEFS[1].total>0;
-  var seg=document.querySelector('[data-hseg="1"]');
-  if(seg){
-    seg.style.flexGrow=Math.max(DEFS[1].total,1);
-    seg.querySelector('.holelbl').innerHTML='Economic stabilization &middot; '+moneyM(DEFS[1].total);
-  }
+  var w=Math.max(Math.min(DEFS[1].total*WPD,ESF_SLOT_W),1.5);
+  var rx=(ESF_SLOT_X+(ESF_SLOT_W-w)/2).toFixed(2);
+  ['hbg-1','hfr-1'].forEach(function(id){
+    var el=$(id);
+    el.setAttribute('width',w.toFixed(2));
+    el.setAttribute('x',rx);
+  });
   if(changed){
     var al=$('esfAlert');
     al.hidden=false;

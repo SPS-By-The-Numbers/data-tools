@@ -19,7 +19,7 @@ CUTTABLE = [
     ("dist",   "District administration",             "11–13",  (11, 12, 13),         True),
     ("dirsup", "Classified directors & supervisors",  "99",          (99,),                True),
     ("prof",   "Classified professional staff",       "96",          (96,),                True),
-    ("school", "School administration",               "21–25",  (21, 22, 23, 24, 25), False),
+    ("school", "School administration",               "21–25",  (21, 22, 23, 24, 25), True),
 ]
 
 # key, label, duty roots, chip color family (matches salary_bands GROUPS)

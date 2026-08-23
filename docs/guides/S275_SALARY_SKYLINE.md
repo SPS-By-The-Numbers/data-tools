@@ -159,7 +159,7 @@ existing URL** (`url=`), because the output files have since moved to
 - The wide chart draws 7,156 SVG `<rect>`s and hit-tests hover by binary search
   on bar x, rather than attaching listeners per bar.
 
-## 7. "Who would you axe?" — the redistribution game
+## 7. "Who (or what) would you axe? 🪓" — the redistribution game
 
 `out_salary_skyline/admin_game.html`, built from the same `staff.csv` pull.
 One bubble per central-office employee (area = `total_final_salary`); click or
@@ -169,8 +169,17 @@ artifact (republish must pass this URL):
 `https://claude.ai/code/artifact/23cdfc74-68ed-476a-ad49-34e9790a1f23`.
 
 ```console
+$ bq query --project_id=sps-btn-data --use_legacy_sql=false \
+      --max_rows=1000 --format=csv \
+      --parameter=ccddd:INT64:17001 \
+      --parameter=school_year:STRING:2024-2025 \
+      < tools/salary_skyline/services_query.sql > out_salary_skyline/services.csv
 $ python3 tools/salary_skyline/build_admin_game.py     # from the repo root
 ```
+
+(The main `staff.csv` pull is in §1 — note both queries must be fed via
+stdin: their leading `--` comment lines get eaten as flags if passed as an
+argument.)
 
 - `tools/salary_skyline/sea_units.py` defines both sides of the game:
   **CUTTABLE** components (district admin 11–13, classified dir/sup 99,
@@ -199,16 +208,25 @@ $ python3 tools/salary_skyline/build_admin_game.py     # from the repo root
   resize/relabel the hole-bar segment, and raise a slim info alert in the
   band stating how many years the chosen annual amount takes to reach the 3%
   floor; the alert appears only on a genuinely new value and auto-dismisses
-  after 3 s. A segmented hole bar
-  (deficit | stabilization, widths ∝ amounts) sits above the skyline in the
-  dashboard and fills live; translucent fills keep its labels legible in both
-  themes. With the benefits toggle on, the chopping-block cluster SVGs scale
+  after 3 s. The hole is drawn *inside*
+  the skyline as a "The hole" section between the block and SEA staff: two
+  area-true rectangles (deficit, ESF) whose height is pinned to the max SEA
+  salary and whose width = dollars ÷ max_sea in person-widths — so their
+  footprint is directly comparable to the salary bars — filling bottom-up as
+  money is cut (green when full). The ESF rect resizes with the $[x]M/yr
+  input inside a slot reserved at the 3%-floor width; the per-person `step`
+  accounts for the slot. With the benefits toggle on, the chopping-block cluster SVGs scale
   by √1.3265 so bubble *area* grows by exactly the multiplier (the skyline
   bars do not scale — they sit on a real $ axis). Notable result: cutting
   all 441 central-office staff (salary only) fills the deficit but leaves the
   ESF $475k short — staff get $0; with the benefits toggle on there is a
   $19.4M surplus (~$3,382/member).
-- **The benefits toggle is F-196-derived, not a flat guess.** Constants in
+- **Benefits are always on and F-196-derived** (the toggle was removed
+  2026-08-23): every staff dollar in the game — bubble areas, EMP values,
+  skyline bars/silhouettes, medians, freed money — is total compensation =
+  salary × 1.3265, baked in by the generator (`rg_salaries`/`rg_split`/
+  component items are multiplied up front; purchased services are exempt).
+  Tooltips show the split ("$357k sal + $117k ben"). Constants in
   `build_admin_game.py` hold SPS 2024–25 actuals from
   `safs_f19x.general_fund_expenditures`: Object 4 (benefits + payroll taxes)
   $240.9M, Objects 2+3 (salaries) $737.7M. Object 4 is attributed to S-275
@@ -217,11 +235,13 @@ $ python3 tools/salary_skyline/build_admin_game.py     # from the repo root
   every cut by ×1.3265. Re-query the constants when changing year/district.
 - **Combined skyline** lives in the dashboard: one SVG in a band that sticks
   just below the stat tiles on wide screens (its `top` is set from the tile
-  strip's measured height); under 1020px it drops out of the sticky stack and
-  scrolls horizontally (min-width 660px). Every person — cuttable or SEA —
-  gets the **same bar width and the same dollar axis**, so section widths
-  compare headcounts directly (638 central-office positions are a thin strip
-  beside 5,743 SEA staff) and heights compare pay. Left section: per-position
+  strip's measured height); under 1020px — or viewports shorter than 820px —
+  it drops out of the sticky stack (min-width 660px, horizontal scroll).
+  It is **three stacked rows** — On the block / The hole / SEA staff — each
+  full-width on its own line, all sharing one dollar scale and one
+  per-person bar width, so row *lengths* compare headcounts (638 cuttable
+  positions vs 5,743 SEA staff) and heights compare pay; each row carries
+  its own $100k gridlines. Left section: per-position
   bars (sub-pixel wide; cut bars grey out), then two SEA program sections —
   **Basic ed + other** and **Special education** — each holding that
   program's recipient-group step-silhouettes with the redistributed amount
@@ -252,6 +272,20 @@ $ python3 tools/salary_skyline/build_admin_game.py     # from the repo root
   sweep-cut, vertical drag falls through to native scroll, a clean tap
   toggles on pointerup, pointercancel abandons it. Don't reintroduce either
   `touch-action: none` or an unconditional preventDefault.
+- **Purchased-services chopping block:** two extra cuttable clusters (violet)
+  from F-196 General Fund Object 7 actuals via `services_query.sql` —
+  special-ed partition (programs 21+24, 10 NCES classes, $44.3M in 2024–25)
+  vs everything else (34 classes, $135.2M; contracted student transportation
+  alone is $59.7M). One bubble per NCES class, same dollars-per-area scale as
+  the salary bubbles. Services are benefits-exempt (`svc` flag in COMPS) and
+  **always on** — the "What's on the block?" component checkboxes were
+  removed 2026-08-23; all six components (4 staff incl. school admin + 2
+  service partitions) are permanently enabled. The service partitions appear only as bubble
+  clusters — their skyline block-row rects were added and then removed
+  (owner-directed 2026-08-23); the guarded `svcut-` JS update no-ops. The SpEd
+  cluster carries an owner-directed warning callout: cuts there impact
+  vulnerable students and may just decrease revenue (SpEd services are
+  substantially reimbursement-funded), leading to no deficit impact.
 - Cut feedback: an axe emoji (per-bubble deterministic tilt, baked into the
   SVG) replaces the earlier red X, and cutting sparks a capped burst of
   flying-money emoji via the Web Animations API (`spawnBills` in the

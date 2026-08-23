@@ -25,10 +25,15 @@ from sea_units import CUTTABLE, RECIPIENTS
 
 ap = argparse.ArgumentParser(description=__doc__)
 ap.add_argument("--data", default="out_salary_skyline/staff.csv")
+ap.add_argument("--services", default="out_salary_skyline/services.csv",
+                help="F-196 object-7 CSV from services_query.sql")
 ap.add_argument("-o", "--out", default="out_salary_skyline/admin_game.html")
 args = ap.parse_args()
 
 SRC, OUT = Path(args.data), Path(args.out)
+SVC = Path(args.services)
+if not SVC.exists():
+    raise SystemExit("missing %s — run services_query.sql (see file header)" % SVC)
 OUT.parent.mkdir(parents=True, exist_ok=True)
 
 K = 0.039        # bubble radius = max(MIN_R, K * sqrt(salary)) px
@@ -184,6 +189,12 @@ ben_rate = F196_OBJ4 / obj23
 ben_mult = 1.0 + ben_rate
 ben_pool = F196_OBJ4 * s275_total / obj23
 
+# Benefits are ALWAYS included: every staff dollar downstream — bubble areas,
+# skyline bars/silhouettes, medians, EMP values, freed money — is total
+# compensation = salary × ben_mult. Purchased services carry no benefits.
+rg_salaries = [[v * ben_mult for v in l] for l in rg_salaries]
+rg_split = [[[v * ben_mult for v in sl] for sl in g] for g in rg_split]
+
 # --- pack each component, build bubble svg + data ----------------------------
 
 def fmt_m(v):
@@ -194,10 +205,32 @@ emp = []            # [salary, comp index, duty index]
 cluster_html = []
 comps_js = []
 
-for ci, (key, label, codes, _roots, default_on) in enumerate(CUTTABLE):
-    staff = sorted(comp_staff[ci], reverse=True)
+# unified component list: staff clusters from CUTTABLE, then the F-196
+# object-7 purchased-services partitions (one bubble per NCES class)
+SPED_SVC_WARN = ("warning: cuts here impact vulnerable students and may just "
+                 "decrease revenue leading to no deficit impact. This simulator "
+                 "incorrectly treats it all as redistributable funds but at "
+                 "least $20M is Safety Net that would just go away.")
+component_defs = [
+    (key, label, "duty " + codes,
+     sorted(((sal * ben_mult, dname) for sal, dname in comp_staff[ci]), reverse=True),
+     default_on, False, None)
+    for ci, (key, label, codes, _roots, default_on) in enumerate(CUTTABLE)
+]
+svc_parts = [[], []]
+for r in csv.DictReader(SVC.open()):
+    svc_parts[int(r["sped"])].append(
+        (float(r["amount"]), "NCES %s · %s" % (r["nces"], r["nces_name"])))
+component_defs.append(("svcother", "Purchased services — other programs",
+                       "F-196 obj 7", sorted(svc_parts[0], reverse=True),
+                       True, True, None))
+component_defs.append(("svcsped", "Purchased services — SpEd",
+                       "F-196 obj 7 · prog 21+24", sorted(svc_parts[1], reverse=True),
+                       True, True, SPED_SVC_WARN))
+
+for ci, (key, label, caption, items, default_on, is_svc, warn) in enumerate(component_defs):
     circles = []
-    for sal, dname in staff:
+    for sal, dname in items:
         rr = max(MIN_R, K * math.sqrt(sal))
         circles.append({"pr": rr + PACK_GAP / 2, "r": rr, "s": sal, "d": dname})
     pack_siblings(circles)
@@ -208,7 +241,8 @@ for ci, (key, label, codes, _roots, default_on) in enumerate(CUTTABLE):
     y1 = max(c["y"] + c["r"] for c in circles) + pad
     w, h = x1 - x0, y1 - y0
     total = sum(c["s"] for c in circles)
-    color = "var(--school)" if key == "school" else "var(--central)"
+    color = ("var(--svc)" if is_svc
+             else "var(--school)" if key == "school" else "var(--central)")
     parts = []
     start_id = len(emp)
     for c in circles:
@@ -217,8 +251,8 @@ for ci, (key, label, codes, _roots, default_on) in enumerate(CUTTABLE):
         eid = len(emp)
         emp.append([round(c["s"]), ci, duty_ix[c["d"]]])
         x, y, rr = c["x"], c["y"], c["r"]
-        fs = max(rr * 1.5, 7.0)          # axe glyph size, floor for tiny bubbles
-        rot = (eid * 37) % 44 - 22       # deterministic per-bubble tilt
+        fs = min(max(rr * 1.5, 7.0), 64.0)   # axe glyph size, floored + capped
+        rot = (eid * 37) % 44 - 22           # deterministic per-bubble tilt
         parts.append(
             '<g class="emp" data-id="%d">'
             '<circle class="dot" cx="%.1f" cy="%.1f" r="%.1f"/>'
@@ -229,23 +263,33 @@ for ci, (key, label, codes, _roots, default_on) in enumerate(CUTTABLE):
             % (eid, x, y, rr, x, y, fs, rot, x, y,
                x, y, max(rr + 1.5, 6.0))
         )
+    meta = ("%s · %d spend classes · %s actuals" % (caption, len(circles), fmt_m(total))
+            if is_svc else
+            "%s · %d staff · %s comp" % (caption, len(circles), fmt_m(total)))
+    aria = ("%d purchased-services classes, one bubble each, sized by annual spend"
+            % len(circles) if is_svc else
+            "%d %s positions, one bubble each, sized by total compensation" % (len(circles), label))
     cluster_html.append(
-        '<article class="cluster" id="cl-%s" data-c="%d"%s>\n'
+        '<article class="cluster" id="cl-%s" data-c="%d"%s%s>\n'
         '<header><div class="chead"><h3>%s</h3>'
-        '<span class="cmeta">duty %s · %d staff · %s payroll · <b class="cutn" id="cutn-%d">0 cut</b></span></div>'
+        '<span class="cmeta">%s · <b class="cutn" id="cutn-%d">0 cut</b></span></div>'
         '<div class="cbtns"><button type="button" data-cutall="%d">Cut all</button>'
         '<button type="button" data-restore="%d">Restore</button></div></header>\n'
+        '%s'
         '<svg viewBox="%.1f %.1f %.1f %.1f" width="%.0f" height="%.0f" style="--dot:%s" role="img" '
-        'aria-label="%d %s positions, one bubble each, sized by salary">\n%s\n</svg>\n'
+        'aria-label="%s">\n%s\n</svg>\n'
         "</article>"
-        % (key, ci, "" if default_on else ' style="display:none"',
-           label, codes, len(circles), fmt_m(total), ci, ci, ci,
-           x0, y0, w, h, w, h, color, len(circles), label, "\n".join(parts))
+        % (key, ci, ' data-svc="1"' if is_svc else "",
+           "" if default_on else ' style="display:none"',
+           label, meta, ci, ci, ci,
+           ('<p class="cwarn"><span class="wico">&#9888;</span> %s</p>\n' % warn) if warn else "",
+           x0, y0, w, h, w, h, color, aria, "\n".join(parts))
     )
     comps_js.append({
         "key": key, "label": label, "n": len(circles), "total": round(total),
-        "on": default_on, "a": start_id, "b": len(emp),
+        "on": default_on, "a": start_id, "b": len(emp), "svc": is_svc,
     })
+n_staff = comps_js[len(CUTTABLE) - 1]["b"]
 
 # --- recipient stats + control rows ------------------------------------------
 
@@ -261,33 +305,21 @@ for gi, (key, label, _roots, fam) in enumerate(RECIPIENTS):
         '<input type="checkbox" checked data-rg="%d" aria-label="include %s">'
         '<span class="chip" style="background:%s"></span>'
         '<div class="rgname">%s</div>'
-        '<span class="rgn">%s staff · med $%s</span>'
+        '<span class="rgn">%s staff · med comp $%sk</span>'
         '<div class="wctl"><button type="button" data-g="%d" data-dw="-1" aria-label="less weight">&minus;</button>'
         '<span class="wval" id="w-%d">&times;1.0</span>'
         '<button type="button" data-g="%d" data-dw="1" aria-label="more weight">+</button></div>'
         '<div class="rgout"><b id="per-%d">$0</b><span id="pct-%d">&nbsp;</span></div>'
         "</div>"
         % (gi, gi, label, CHIP[fam], label, format(len(sals), ","),
-           format(round(med), ","), gi, gi, gi, gi, gi)
+           format(round(med / 1000)), gi, gi, gi, gi, gi)
     )
 
-comp_rows = []
-for ci, (key, label, codes, _roots, default_on) in enumerate(CUTTABLE):
-    color = "var(--school)" if key == "school" else "var(--central)"
-    comp_rows.append(
-        '<label class="comprow"><input type="checkbox" data-comp="%d"%s>'
-        '<span class="swatch" style="background:%s"></span>'
-        '<span class="cl">%s <span class="codes">duty %s</span></span>'
-        '<span class="cn">%d · %s</span></label>'
-        % (ci, " checked" if default_on else "", color, label, codes,
-           comps_js[ci]["n"], fmt_m(comps_js[ci]["total"]))
-    )
-
-# --- dashboard skyline: one svg, one $ scale, one per-person bar width -------
-# Every person — cuttable or SEA — gets the same bar width and the same dollar
-# axis, so section widths compare headcounts directly and heights compare pay.
-# The SEA side is split by program — Basic ed + other, LAP, Title I, Special
-# education — by FTE plurality over each person's assignments (see query.sql).
+# --- dashboard skyline: three stacked rows, one $ scale, one bar width -------
+# Row 1: every cuttable position. Row 2: the hole (area-true rects). Row 3:
+# every SEA salary. All rows share the same dollars-per-unit scale and the
+# same per-person bar width, so lengths compare headcounts across rows and
+# heights compare pay.
 
 SKY_W = 1160.0
 GROUP_GAP = 10.0
@@ -295,23 +327,32 @@ SECTION_GAP = 26.0
 PROGRAMS = [(0, "Basic ed + other"), (1, "LAP"), (2, "Title I"),
             (3, "Special education")]
 
-n_cut = len(emp)
+n_cut = n_staff
 n_sea = sum(len(sl) for g in rg_split for sl in g)
 max_sea = max(max(sl) for g in rg_split for sl in g if sl)
-AX = max(max(e[0] for e in emp) * 1.03, max_sea * 1.45)
-H = 120.0
-LBL = 32.0            # two label lines under the baseline: groups + sections
-scale = AX / H        # dollars per viewBox unit
-CAP_SKIRT = 2000.0    # cap paths extend this far below the baseline so a
-                      # translate(0,-h) never opens a gap under a short bar
-
 seg_counts = [[len(rg_split[gi][p]) for gi in range(len(RECIPIENTS))]
               for p, _ in PROGRAMS]
 n_segs = sum(1 for row in seg_counts for c in row if c)
-gaps_total = (GROUP_GAP * (len(CUTTABLE) - 1)      # between cuttable groups
-              + SECTION_GAP * len(PROGRAMS)        # block|basic and basic|sped
-              + GROUP_GAP * (n_segs - len(PROGRAMS)))
-step = (SKY_W - gaps_total) / (n_cut + n_sea)   # width of one person
+sea_gaps = SECTION_GAP * (len(PROGRAMS) - 1) + GROUP_GAP * (n_segs - len(PROGRAMS))
+# the hole shares the SEA row, so solve the per-person step jointly with the
+# hole rects' area-true width (8.0 = gap between the two rects)
+HOLE_X0 = 34.0
+hole_dollars = DEFICIT_2627 + (ESF_TARGET - ESF_COMMITTED)
+step = ((SKY_W - HOLE_X0 - 8.0 - SECTION_GAP - sea_gaps)
+        / (n_sea + hole_dollars / max_sea))     # width of one person
+
+AX_BLK = max(e[0] for e in emp[:n_staff]) * 1.03
+H_BLK = 75.0
+scale = AX_BLK / H_BLK                          # dollars per viewBox unit
+HRECT_GAP = 8.0
+CAP_SKIRT = 2000.0
+rect_h = max_sea / scale                        # area-true rect height = max SEA salary
+wpd = step / max_sea                            # viewBox units per dollar at that height
+H_SEA = max_sea * 1.45 / scale                  # headroom for the blue stacks
+LBL3 = 32.0                                     # labels under the shared row
+B1 = H_BLK                                      # row baselines; titles go BELOW rows
+B2 = B1 + 18.0 + H_SEA                          # shared baseline: hole + SEA
+TOTAL_H = B2 + LBL3
 
 # short in-chart names; full names live in the panel, headers and fine print
 SHORT = {"teach": "Teachers", "subs": "Subs", "cert": "Cert",
@@ -325,48 +366,75 @@ def fit_label(label, cx, gw, y, cls):
     cx = min(max(cx, halfw + 2), SKY_W - halfw - 2)
     return '<text class="%s" x="%.1f" y="%.1f">%s</text>' % (cls, cx, y, label)
 
-def gridlines(axmax, height, sc, width):
+def row_grid(base, height, texts=True):
+    """Per-row $100k gridlines + axis, labels with the shared scale."""
     out = []
-    step_d = 100_000
-    v = step_d
-    while v < axmax:
-        y = height - v / sc
+    v = 100_000
+    while v / scale < height:
+        y = base - v / scale
         out.append('<line class="grid" x1="0" y1="%.1f" x2="%.1f" y2="%.1f"/>'
-                   % (y, width, y))
-        out.append('<text class="gl" x="3" y="%.1f">$%dk</text>' % (y - 2.5, v // 1000))
-        v += step_d
+                   % (y, SKY_W, y))
+        if texts:
+            out.append('<text class="gl" x="%.1f" y="%.1f">$%dk</text>'
+                       % (SKY_W - 3, y - 2.5, v // 1000))
+        v += 100_000
     out.append('<line class="axis" x1="0" y1="%.1f" x2="%.1f" y2="%.1f"/>'
-               % (height, width, height))
+               % (base, SKY_W, base))
     return "\n".join(out)
 
-parts = [gridlines(AX, H, scale, SKY_W)]
+parts = [row_grid(B1, H_BLK), row_grid(B2, H_SEA)]
 
-# cuttable section: individual bars (sub-pixel wide, but per-person state shows)
+# row 1 — cuttable positions
 x = 0.0
-for ci, c in enumerate(comps_js):
+for ci, c in enumerate(comps_js[:len(CUTTABLE)]):
     key = c["key"]
     bars = []
     for eid in range(c["a"], c["b"]):
         bh = emp[eid][0] / scale
         bars.append('<rect class="bar" data-id="%d" x="%.3f" y="%.2f" width="%.3f" height="%.2f"/>'
-                    % (eid, x, H - bh, step * 0.92, bh))
+                    % (eid, x, B1 - bh, step * 0.92, bh))
         x += step
     color = "var(--school)" if key == "school" else "var(--central)"
     style = "--dot:%s%s" % (color, "" if c["on"] else ";display:none")
     parts.append('<g id="r1-%s" style="%s">%s</g>' % (key, style, "".join(bars)))
-    if ci < len(comps_js) - 1:
+    if ci < len(CUTTABLE) - 1:
         x += GROUP_GAP
 admin_end = x
+parts.append('<text class="rowt" x="0" y="%.1f">On the block</text>' % (B1 + 13))
 
-# SEA side: silhouette per (section, group) + translatable blue cap, rendered
-# twice — one combined layer (default) and one program-split layer, toggled by
-# the "Show program splits" control. Both share `step`, so bar width holds.
+# row 2 — the hole: two area-true rects (height = max SEA salary)
+w_def = DEFICIT_2627 * wpd
+w_esf_slot = (ESF_TARGET - ESF_COMMITTED) * wpd   # reserved slot (the 3% floor)
+w_esf_start = max(ESF_START * wpd, 1.5)
+esf_x = HOLE_X0 + w_def + HRECT_GAP
+esf_rx = esf_x + (w_esf_slot - w_esf_start) / 2   # centered in its slot
+for i, (rx, rw) in enumerate([(HOLE_X0, w_def), (esf_rx, w_esf_start)]):
+    parts.append('<rect class="hrect" id="hbg-%d" x="%.2f" y="%.2f" width="%.2f" height="%.2f"/>'
+                 % (i, rx, B2 - rect_h, rw, rect_h))
+    parts.append('<rect class="hfillr" id="hfr-%d" x="%.2f" y="%.2f" width="%.2f" height="0"/>'
+                 % (i, rx, B2, rw))
+last_end = 0.0
+for hlabel, cx0 in [("Deficit", HOLE_X0 + w_def / 2), ("ESF", esf_x + w_esf_slot / 2)]:
+    halfw = len(hlabel) * 3.75
+    cx = min(max(cx0, last_end + 2 + halfw), SKY_W - halfw - 2)
+    parts.append('<text class="glabel" x="%.1f" y="%.1f">%s</text>' % (cx, B2 + 13, hlabel))
+    last_end = cx + halfw
+parts.append('<text class="rowt" x="0" y="%.1f">The hole</text>' % (B2 + 27))
+sea_x0 = esf_x + w_esf_slot + SECTION_GAP
+SEA_TITLE_END = sea_x0 + 150.0
+parts.append('<line class="sect" x1="%.1f" y1="%.1f" x2="%.1f" y2="%.1f"/>'
+             % (sea_x0 - SECTION_GAP / 2, B2 - H_SEA, sea_x0 - SECTION_GAP / 2, B2))
+
+# row 3 — SEA staff: silhouettes + translatable blue caps, two toggleable layers
+parts.append('<defs><clipPath id="clip2"><rect x="0" y="%.1f" width="%.0f" height="%.1f"/></clipPath></defs>'
+             % (B2 - H_SEA, SKY_W, H_SEA))
+
 def silhouette(sals, gx, bottom):
     """Compact step-function path (H/V commands) for desc-sorted salaries."""
-    pts = []               # (x_start, y_top) runs, merged when y is ~equal
+    pts = []
     xx = gx
     for sal in sals:
-        y = H - sal / scale
+        y = B2 - sal / scale
         if pts and abs(pts[-1][1] - y) < 0.15:
             pass
         else:
@@ -381,17 +449,6 @@ def silhouette(sals, gx, bottom):
     d.append("V%.1fZ" % bottom)
     return "".join(d)
 
-parts.append('<defs><clipPath id="clip2"><rect x="0" y="0" width="%.0f" height="%.1f"/></clipPath></defs>'
-             % (SKY_W, H))
-parts.append('<line class="sect" x1="%.1f" y1="0" x2="%.1f" y2="%.1f"/>'
-             % (admin_end + SECTION_GAP / 2, admin_end + SECTION_GAP / 2, H))
-sea_x0 = admin_end + SECTION_GAP
-
-blk_halfw = len("On the block") * 3.75
-blk_cx = min(max(admin_end / 2, blk_halfw + 2), SKY_W - blk_halfw - 2)
-parts.append('<text class="gsect" x="%.1f" y="%.1f">On the block</text>' % (blk_cx, H + 27))
-blk_end = blk_cx + blk_halfw
-
 def sea_layer(sections, layer_id, visible):
     """One SEA rendering: sections = [(label, per-group salary lists)]."""
     lp, caps, bases, labels = [], [], [], []
@@ -399,8 +456,8 @@ def sea_layer(sections, layer_id, visible):
     sect_spans = []
     for si, (plabel, per_group) in enumerate(sections):
         if si > 0:
-            lp.append('<line class="sect" x1="%.1f" y1="0" x2="%.1f" y2="%.1f"/>'
-                      % (x + SECTION_GAP / 2, x + SECTION_GAP / 2, H))
+            lp.append('<line class="sect" x1="%.1f" y1="%.1f" x2="%.1f" y2="%.1f"/>'
+                      % (x + SECTION_GAP / 2, B2 - H_SEA, x + SECTION_GAP / 2, B2))
             x += SECTION_GAP
         px0 = x
         first = True
@@ -413,34 +470,38 @@ def sea_layer(sections, layer_id, visible):
             first = False
             gw = len(sals) * step
             caps.append('<path class="cap" data-cap="%d" d="%s"/>'
-                        % (gi, silhouette(sals, x, H + CAP_SKIRT)))
+                        % (gi, silhouette(sals, x, B2 + CAP_SKIRT)))
             bases.append('<path class="sil" style="fill:%s" d="%s"/>'
-                         % (CHIP[fam], silhouette(sals, x, H)))
-            lbl = fit_label(SHORT[key], x + gw / 2, gw, H + 13, "glabel")
+                         % (CHIP[fam], silhouette(sals, x, B2)))
+            lbl = fit_label(SHORT[key], x + gw / 2, gw, B2 + 13, "glabel")
             if lbl:
                 labels.append(lbl)
             x += gw
         sect_spans.append((plabel, px0, x))
     lp.append('<g clip-path="url(#clip2)">%s</g>' % "\n".join(caps + bases))
     lp += labels
-    last_end = blk_end
+    last_end = SEA_TITLE_END
     for plabel, sx0, sx1 in sect_spans:
+        if not plabel:
+            continue
         halfw = len(plabel) * 3.75
         cx = min(max((sx0 + sx1) / 2, last_end + 10 + halfw), SKY_W - halfw - 2)
-        lp.append('<text class="gsect" x="%.1f" y="%.1f">%s</text>' % (cx, H + 27, plabel))
+        lp.append('<text class="gsect" x="%.1f" y="%.1f">%s</text>' % (cx, B2 + 27, plabel))
         last_end = cx + halfw
     return ('<g id="%s"%s>%s</g>'
             % (layer_id, "" if visible else ' style="display:none"', "\n".join(lp)))
 
+parts.append('<text class="rowt" x="%.1f" y="%.1f">SEA-represented staff</text>'
+             % (sea_x0, B2 + 27))
 parts.append(sea_layer(
-    [("SEA-represented staff", [rg_salaries[gi] for gi in range(len(RECIPIENTS))])],
+    [("", [rg_salaries[gi] for gi in range(len(RECIPIENTS))])],
     "seaAll", True))
 parts.append(sea_layer(
     [(plabel, [rg_split[gi][p] for gi in range(len(RECIPIENTS))]) for p, plabel in PROGRAMS],
     "seaSplit", False))
 sky_svg = ('<svg viewBox="0 0 %.0f %.0f" role="img" '
-           'aria-label="salary skyline: every cuttable position and every SEA-represented salary at one shared bar width and dollar scale, SEA split into basic and special education">\n%s\n</svg>'
-           % (SKY_W, H + LBL, "\n".join(parts)))
+           'aria-label="two-row salary skyline: cuttable positions, then the 2026-27 hole beside every SEA-represented salary, one shared bar width and dollar scale">\n%s\n</svg>'
+           % (SKY_W, TOTAL_H, "\n".join(parts)))
 
 pg_counts = [sum(len(rg_split[gi][p]) for gi in range(len(RECIPIENTS)))
              for p, _ in PROGRAMS]
@@ -457,7 +518,6 @@ html = (Path(__file__).resolve().parent / "admin_game_template.html").read_text(
 
 for token, value in [
     ("@@CLUSTERS@@", "\n".join(cluster_html)),
-    ("@@COMP_ROWS@@", "\n".join(comp_rows)),
     ("@@RG_ROWS@@", "\n".join(rg_rows)),
     ("@@SKY@@", sky_svg),
     ("@@PGROUP_COUNTS@@", pgroup_counts_str),
@@ -475,11 +535,12 @@ for token, value in [
         {"label": "2026\u201327 budget deficit", "total": DEFICIT_2627, "on": True},
         {"label": "Economic Stabilization Fund", "total": ESF_START, "on": True},
     ], separators=(",", ":"))),
-    ("@@DEF1M@@", "$%.1fM" % (DEFICIT_2627 / 1e6)),
-    ("@@ESF_START_$@@", "$%.1fM" % (ESF_START / 1e6)),
     ("@@HOLE0@@", "$%.1fM" % ((DEFICIT_2627 + ESF_START) / 1e6)),
     ("@@ESF_TARGET@@", format(ESF_TARGET, ",")),
     ("@@ESF_FLOOR@@", str(ESF_TARGET - ESF_COMMITTED)),
+    ("@@WPD@@", "%.9f" % wpd),
+    ("@@ESF_SLOT_W@@", "%.2f" % w_esf_slot),
+    ("@@ESF_SLOT_X@@", "%.2f" % esf_x),
     ("@@ESF_START_M@@", "%.1f" % (ESF_START / 1e6)),
     ("@@GF_BUDGET@@", format(GF_BUDGET_2627, ",")),
     ("@@DEFICIT@@", format(DEFICIT_2627, ",")),
