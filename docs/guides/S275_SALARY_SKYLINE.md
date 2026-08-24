@@ -194,12 +194,15 @@ argument.)
   (per ×1-weighted member) is also the marginal rate — each extra dollar cut
   adds `1/Σn·w` per member.
 - **Deficit waterfall (added 2026-08-22):** before anything reaches staff, the
-  freed payroll fills two 2026-27 holes, in order and each toggleable:
-  the **$21,247,124 budget deficit** (GF expenditures over revenues +
-  financing; 26-27 Budget Book PDF p.14, confirmed p.20) and the **Economic
-  Stabilization Fund refill** ($0 committed per PDF p.21; 3% floor on the
-  $1,338,853,189 GF expenditure budget = $40,165,596). Constants live in
-  `build_admin_game.py` next to the F-196 numbers. The controls sit in a
+  freed money fills two holes, in order and each toggleable: the
+  **$23,706,321 recurring budget deficit** (GF expenditures over revenues +
+  other financing in the latest F-196 *actuals*, 2024-25 — switched from the
+  budget book's $21.25M budgeted figure 2026-08-23; update the constant when
+  2025-26 actuals land) and the **Economic Stabilization Fund refill** ($0
+  committed per Budget Book PDF p.21; 3% floor on the $1,338,853,189 GF
+  expenditure budget = $40,165,596, refilled at a chosen $/yr pace). Framing:
+  the game shows recurring yearly cash flow, NOT a one-time year. Constants
+  live in `build_admin_game.py` next to the F-196 numbers. The controls sit in a
   highlighted band at the literal top of the page (non-sticky — it scrolls
   off): a "Fill budget deficit first" checkbox and a checkbox + "Refill
   Economic Stabilization Fund by $[x]M/yr" number input (default = the 3%
@@ -249,14 +252,18 @@ argument.)
   so one translate per group moves every one of its silhouettes). The SEA
   side is rendered as **two toggleable layers** sharing the same per-person
   step: the default combined view, and a program-split view behind the
-  "Show program splits" checkbox (default off) with four sections —
-  **Basic ed + other**, **LAP** (program 55), **Title I** (51–53),
-  **Special education** (21+24, combined per the psychologist recode) —
-  assigned by FTE *plurality* over each person's assignments via
-  `query.sql`'s `pgroup` column (ties → basic; zero-FTE staff use row
-  plurality). 2024–25 SEA-side counts: 3,771 basic / 93 LAP / 51 Title I /
-  1,828 special ed. Sliver sections keep their labels via greedy
-  left-to-right placement.
+  "Show program splits" checkbox (default off) with five sections —
+  **Basic ed + other**, **LAP** (program 55), **Title I** (51–53), **MLL**
+  (multilingual learners, 64+65), **Special education** (21+24, combined per
+  the psychologist recode) — assigned by FTE *plurality* per person via
+  `query.sql`'s 5-bucket `pgroup` column (ties → basic; zero-FTE staff use
+  row plurality; `SEC_BUCKETS` maps buckets → chart sections). 2024–25
+  SEA-side counts: 3,408 basic / 97 LAP / 53 Title I / 357 MLL / 1,828
+  special ed. Sliver sections keep their labels via greedy placement.
+- **Body Count** (button beside Restore): a lightbox tabulating current cuts
+  by duty title in three columns — Special education / Basic / LAP + Title I
+  + MLL — from a per-item body-count bucket baked into EMP (`PG2BC` in the
+  generator; services map by partition). Close via ×, backdrop, or Esc.
 - Gotcha fixed 2026-08-22: the info alert's `display:flex` overrode the
   `hidden` attribute, so it never visually dismissed — `.alert[hidden]
   {display:none}` is load-bearing. Test visibility with computed style, not
@@ -280,9 +287,11 @@ argument.)
   the salary bubbles. Services are benefits-exempt (`svc` flag in COMPS) and
   **always on** — the "What's on the block?" component checkboxes were
   removed 2026-08-23; all six components (4 staff incl. school admin + 2
-  service partitions) are permanently enabled. The service partitions appear only as bubble
-  clusters — their skyline block-row rects were added and then removed
-  (owner-directed 2026-08-23); the guarded `svcut-` JS update no-ops. The SpEd
+  service partitions) are permanently enabled. In the skyline block row each partition is an
+  area-true violet rect at the block row's AVERAGE comp height, greying
+  bottom-up with the cut fraction (`svcut-` JS); the hole tanks likewise use
+  the SEA row's average comp as their height — synthetic blocks read as
+  "N average people" wide. The SpEd
   cluster carries an owner-directed warning callout: cuts there impact
   vulnerable students and may just decrease revenue (SpEd services are
   substantially reimbursement-funded), leading to no deficit impact.

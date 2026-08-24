@@ -45,16 +45,16 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--central);outlin
 .masthead .hint b{color:var(--ink2);font-weight:600}
 
 /* stat strip */
-.statstrip{position:sticky;top:0;z-index:6;background:var(--page);
+.statstrip{position:sticky;top:0;z-index:6;background:var(--btnbg);
   border-top:1px solid var(--hair);border-bottom:1px solid var(--hair)}
 .strip{display:flex;flex-wrap:wrap;gap:10px 34px;align-items:baseline;padding:12px 22px 14px}
 .tile{flex-shrink:0;max-width:100%}
 .tile .v{font-family:"IBM Plex Mono",ui-monospace,monospace;font-weight:600;
   font-size:1.25rem;line-height:1.15;font-variant-numeric:tabular-nums}
 .tile .l{font-size:.72rem;color:var(--ink2);text-transform:uppercase;letter-spacing:.06em}
-.tile.hero .v{font-family:"Zilla Slab",Rockwell,serif;font-weight:600;font-size:2.5rem}
-.tile.hero .l{color:var(--ink2)}
 .tile .l .sub{color:var(--muted);text-transform:none;letter-spacing:0}
+.bcbtn{margin-left:auto;align-self:center;padding:5px 12px;font-size:.8rem;
+  background:var(--surface)}
 
 /* main layout */
 .cols{display:grid;grid-template-columns:minmax(0,1fr) 364px;gap:26px;padding-top:22px;padding-bottom:8px}
@@ -128,6 +128,8 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--central);outlin
   color:var(--ink);border:1px solid var(--bord);border-radius:4px}
 .tbrow{display:flex;flex-wrap:wrap;gap:6px 18px;align-items:center}
 .settings{background:var(--alertbg);border-radius:6px;padding:6px 12px;margin:8px 0 2px}
+.hnote{flex-basis:100%;font-size:.7rem;color:var(--muted)}
+.hnote b{font-weight:600;color:var(--ink2)}
 .tbtitle{font-size:.68rem;font-weight:700;letter-spacing:.08em;
   text-transform:uppercase;color:var(--ink2);white-space:nowrap}
 .alert{display:flex;gap:6px;padding:3px 9px;border-radius:5px;
@@ -193,12 +195,44 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--central);outlin
 .notes li{margin:5px 0}
 .notes code{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:.92em}
 
+/* body-count lightbox */
+#lbx[hidden]{display:none}
+#lbx{position:fixed;inset:0;z-index:40;display:flex;align-items:center;justify-content:center}
+.lbxback{position:absolute;inset:0;background:rgba(0,0,0,.45)}
+.lbxpanel{position:relative;background:var(--surface);border:1px solid var(--bord);
+  border-radius:12px;padding:16px 20px 18px;max-width:min(92vw,940px);
+  max-height:82vh;overflow:auto;box-shadow:0 10px 40px rgba(0,0,0,.3)}
+.lbxhead{display:flex;gap:14px;align-items:baseline;margin-bottom:10px}
+.lbxhead h2{margin:0;font-family:"Zilla Slab",Rockwell,serif;font-size:1.3rem}
+#lbxsub{color:var(--ink2);font-size:.82rem;flex:1}
+#lbxclose{font-size:1.1rem;line-height:1;padding:2px 9px}
+.lbxcols{display:flex;flex-wrap:wrap;gap:18px;align-items:flex-start}
+.lbxcol{flex:1 1 240px;min-width:0}
+.lbxcol h3{margin:0 0 6px;font-size:.72rem;font-weight:700;text-transform:uppercase;
+  letter-spacing:.08em;color:var(--ink2);border-bottom:1px solid var(--hair);
+  padding-bottom:4px}
+.lbxcol h3 span{color:var(--muted);font-weight:400;text-transform:none;letter-spacing:0}
+.lbxcol ul{margin:0;padding:0;list-style:none;font-size:.82rem}
+.lbxcol li{display:flex;gap:8px;padding:2px 0}
+.lbxcol li b{font-family:"IBM Plex Mono",ui-monospace,monospace;font-weight:600;
+  min-width:34px;text-align:right;font-variant-numeric:tabular-nums}
+.lbxempty{color:var(--muted);font-size:.85rem;padding:8px 0}
+.optrow{display:flex;gap:10px;flex-wrap:wrap}
+
 /* tooltip */
 #tip{position:fixed;display:none;z-index:20;pointer-events:none;background:var(--ink);
   color:var(--page);padding:7px 10px;border-radius:6px;font-size:.78rem;line-height:1.45;
   max-width:260px;box-shadow:0 3px 12px rgba(0,0,0,.25)}
 #tip b{font-weight:600}
 #tip .cutlbl{color:#ff9d96;font-weight:600}
+#toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);z-index:26;
+  background:var(--ink);color:var(--page);padding:8px 14px;border-radius:8px;
+  font-size:.82rem;line-height:1.4;pointer-events:none;max-width:min(90vw,440px);
+  text-align:center;transition:opacity .35s}
+#toast[hidden]{display:none}
+#toast.fade{opacity:0}
+#toast b{font-weight:600}
+.cluster svg,.skyscroll svg{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
 </style>
 
 <header class="masthead wrap">
@@ -214,13 +248,12 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--central);outlin
 
 <section class="statstrip">
   <div class="wrap strip">
-    <div class="tile hero"><div class="v" id="heroVal">$0</div>
-      <div class="l">per SEA member per year <span class="sub">(at weight &times;1)</span></div></div>
-    <div class="tile"><div class="v" id="tCut">0</div><div class="l">items crossed out</div></div>
-    <div class="tile"><div class="v" id="tMoney">$0</div><div class="l">money freed</div></div>
     <div class="tile"><div class="v" id="tHole">@@HOLE0@@</div><div class="l">hole left to fill</div></div>
-    <div class="tile"><div class="v" id="tPool">@@POOL_N@@</div><div class="l">people sharing it</div></div>
-    <div class="tile"><div class="v" id="tMarg">@@MARG0@@</div><div class="l">per member, each $1M removed</div></div>
+    <div class="tile"><div class="v" id="heroVal">$0</div>
+      <div class="l">addition per SEA per year <span class="sub">(at weight &times;1)</span></div></div>
+    <div class="tile"><div class="v" id="tCut">0</div><div class="l"># axed</div></div>
+    <div class="tile"><div class="v" id="tMoney">$0</div><div class="l">money freed</div></div>
+    <button type="button" id="bodycount" class="bcbtn">Show Body Count</button>
   </div>
 </section>
 
@@ -243,6 +276,8 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--central);outlin
           aria-label="millions of dollars per year to refill">M/yr</span></span>
       <label class="hctl"><input type="checkbox" id="progSplit">Show program splits</label>
       <span class="alert" id="esfAlert" hidden><span class="ico">&#9432;</span><span id="esfAlertTxt"></span></span>
+      <span class="hnote">Est SEA employees: <b id="espN">@@POOL_N@@</b>. Spread means every
+        $1M gives each member <b id="esMarg">@@MARG0@@</b>.</span>
     </div>
   </div>
 </section>
@@ -257,9 +292,6 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--central);outlin
       <p class="phint">Weight is per person: at &times;2 each member of that group gets
       twice what a &times;1 member gets.</p>
 @@RG_ROWS@@
-    </section>
-    <section class="pbox opts">
-      <button type="button" id="reset" class="resetbtn">Restore everyone</button>
     </section>
   </aside>
 </main>
@@ -296,38 +328,49 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--central);outlin
         program, assigning each employee to the bucket holding the plurality of their
         assignment FTE (ties go to basic; zero-FTE staff use assignment-row
         plurality): <em>LAP</em> is OSPI program 55, <em>Title&nbsp;I</em> is programs
-        51&ndash;53, and <em>Special education</em> is programs 21+24 (combined because
-        duty-46 school psychologists moved from program 24 to 21 in 2022&ndash;23);
-        everything else is basic ed + other.
+        51&ndash;53, <em>MLL</em> (multilingual learners) is programs 64+65, and
+        <em>Special education</em> is programs 21+24 (combined because duty-46 school
+        psychologists moved from program 24 to 21 in 2022&ndash;23); everything else is
+        basic ed + other.
         Among SEA-represented staff that gives @@PGROUP_COUNTS@@. Redistribution weights stay
         per staff group &mdash; the program split is a lens, not a control.</li>
-      <li><b>The hole comes from the district&rsquo;s own 2026&ndash;27 budget book</b>
-        (<code>26-27-Budget-Book-Online.pdf</code>). The $@@DEFICIT@@ budget deficit is the
-        General Fund gap between 2026&ndash;27 expenditures and revenues + other financing
-        (PDF p.14, confirmed as the &ldquo;calculated gap&rdquo; on p.20). The Economic
-        Stabilization Fund shows $0 committed in every 2026&ndash;27 fund-balance column
-        (PDF p.21); board policy floors it at 3% of the total budget, and 3% of the
-        $@@GF_BUDGET@@ General Fund expenditure budget is $@@ESF_TARGET@@. One honesty note:
-        the deficit gap and the stabilization refill are one-time 2026&ndash;27 amounts,
-        while a cut position frees money every year &mdash; this game shows a single year.</li>
+      <li><b>The hole is real and it recurs.</b> The $@@DEFICIT@@ budget deficit is the
+        General Fund gap between expenditures and revenues + other financing sources in the
+        latest F-196 actuals (2024&ndash;25, <code>sps-btn-data.safs_f19x</code>; the
+        2025&ndash;26 F-196 has not been filed yet) &mdash; a structural gap that repeats
+        every year until something changes. The Economic Stabilization Fund shows $0
+        committed in every 2026&ndash;27 fund-balance column of the district&rsquo;s budget
+        book (PDF p.21); board policy floors it at 3% of the total budget, and 3% of the
+        $@@GF_BUDGET@@ General Fund expenditure budget is $@@ESF_TARGET@@, refilled at your
+        chosen $/yr pace until the floor is met. What the game shows is the yearly cash
+        flow for the foreseeable future.</li>
       <li><b>Purchased services</b> come from the same F-196 actuals: General Fund
         Object&nbsp;7, split into a special-ed partition (programs 21+24) and everything
         else, one bubble per NCES spending class sized by the summed annual amount
         (<code>tools/salary_skyline/services_query.sql</code>). The same dollars-per-area
         scale as the salary bubbles, so contracted student transportation ($59.7M) dwarfs
-        any administrator. The benefits toggle does not apply to services, and they are
-        excluded from the one-bar-per-person skyline. Cutting a service class zeroes a
-        whole year of that spending &mdash; judge for yourself which contracts a district
-        could actually live without.</li>
+        any administrator. Services carry no benefits load. In the skyline they appear as
+        area-true rectangles drawn at the block row&rsquo;s average compensation height,
+        greying with the cut fraction. Cutting a service class zeroes a whole year of that
+        spending &mdash; judge for yourself which contracts a district could actually live
+        without.</li>
       <li>Small bubbles and short bars are usually partial-year hires, not low-paid roles.</li>
-      <li>This is a thought experiment: crossing out a position moves its money and ignores
-        its work. Nothing here is a budget proposal.</li>
     </ul>
   </div>
 </footer>
 
 <div id="tip" role="tooltip"></div>
 <div id="fx" aria-hidden="true"></div>
+<div id="toast" hidden role="status"></div>
+<div id="lbx" hidden>
+  <div class="lbxback"></div>
+  <div class="lbxpanel" role="dialog" aria-label="body count">
+    <div class="lbxhead"><h2>Body Count</h2>
+      <span id="lbxsub"></span>
+      <button type="button" id="lbxclose" aria-label="close">&times;</button></div>
+    <div class="lbxcols" id="lbxcols"></div>
+  </div>
+</div>
 
 <script>
 "use strict";
@@ -421,8 +464,20 @@ function recompute(){
   $('tCut').textContent=N.toLocaleString('en-US');
   $('tMoney').textContent=moneyM(pool);
   $('tHole').textContent=moneyM(holeLeft);
-  $('tPool').textContent=poolN.toLocaleString('en-US');
-  $('tMarg').textContent=denom>0?money(1e6/denom):'—';
+  $('espN').textContent=poolN.toLocaleString('en-US');
+  $('esMarg').textContent=denom>0?money(1e6/denom):'—';
+  /* value colors shift toward status green/red with "how well it's going" */
+  function mixTo(el,color,t){
+    t=Math.max(0,Math.min(1,t));
+    el.style.color=t<=0?''
+      :'color-mix(in srgb, var(--ink) '+Math.round((1-t)*100)+'%, '+color+' '+Math.round(t*100)+'%)';
+  }
+  mixTo($('heroVal'),'var(--good)',per/5000);
+  mixTo($('tMoney'),'var(--good)',pool/5e7);
+  var holeTotal=0;DEFS.forEach(function(d){if(d.on)holeTotal+=d.total;});
+  if(holeTotal<=0)$('tHole').style.color='';
+  else if(holeLeft<=0)$('tHole').style.color='var(--good)';
+  else mixTo($('tHole'),'var(--critical)',0.3+0.7*holeLeft/holeTotal);
   COMPS.forEach(function(c,i){$('cutn-'+i).textContent=counts[i]+' cut';});
   RG.forEach(function(g,i){
     var active=g.on&&g.w>0;
@@ -473,14 +528,32 @@ function setCutId(id,val){
   if(val)spawnBills(id);
   return true;
 }
-function setCut(id,val){if(setCutId(id,val))recompute();}
+var toast=$('toast'), toastTimer=null;
+function toastShow(html){
+  toast.innerHTML=html;toast.hidden=false;toast.classList.remove('fade');
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(function(){
+    toast.classList.add('fade');
+    setTimeout(function(){toast.hidden=true;toast.classList.remove('fade');},380);
+  },2600);
+}
+function toastCut(id){
+  var prog=COMPS[EMP[id][1]].svc?'':' &middot; '+PGN[EMP[id][3]||0];
+  toastShow('\uD83E\uDE93 Just axed <b>'+DUTIES[EMP[id][2]]+'</b>'+prog+' &middot; '+empAmt(id));
+}
+function setCut(id,val){
+  if(setCutId(id,val)){
+    if(val)toastCut(id);
+    recompute();
+  }
+}
 
 /* Touch never gets preventDefault on pointerdown — in Safari that kills native
    scrolling for the whole gesture, and bubbles cover most of a phone screen.
    Instead a touch is held as "pending": a mostly-horizontal drag commits it as
    a sweep-cut, a vertical drag hands the gesture to native scrolling (pan-y on
    the cluster svg), and a clean tap toggles on pointerup. */
-var pendTouch=null;
+var pendTouch=null,inspecting=false,lpTimer=null;
 function onDown(e){
   var t=e.target.closest?e.target.closest('[data-id]'):null;
   if(!t)return;
@@ -488,6 +561,10 @@ function onDown(e){
   if(e.pointerType==='touch'){
     if(!t.classList.contains('emp'))return;  /* skyline strip: touch = scroll */
     pendTouch={id:id,x:e.clientX,y:e.clientY,mode:!cut.has(id)};
+    clearTimeout(lpTimer);
+    lpTimer=setTimeout(function(){   /* held still: inspect, don't cut */
+      if(pendTouch&&!painting){inspecting=true;showTipXY(pendTouch.id,pendTouch.x,pendTouch.y);}
+    },450);
     return;
   }
   e.preventDefault();
@@ -496,11 +573,19 @@ function onDown(e){
   setCut(id,mode);
 }
 function onMove(e){
+  if(inspecting){                            /* scrub: slide to inspect bubbles */
+    var el2=document.elementFromPoint(e.clientX,e.clientY);
+    var gi=el2&&el2.closest?el2.closest('.emp'):null;
+    if(gi)showTipXY(+gi.dataset.id,e.clientX,e.clientY);
+    return;
+  }
   if(pendTouch&&!painting){
     var dx=Math.abs(e.clientX-pendTouch.x), dy=Math.abs(e.clientY-pendTouch.y);
     if(dx>10&&dx>dy*1.2){                    /* horizontal intent: sweep-cut */
+      clearTimeout(lpTimer);
       painting=true; mode=pendTouch.mode; setCut(pendTouch.id,mode);
     }else if(dy>10){
+      clearTimeout(lpTimer);
       pendTouch=null;                        /* vertical: native scroll owns it */
     }
   }
@@ -515,6 +600,12 @@ function onMove(e){
   }
 }
 function onUp(e){
+  clearTimeout(lpTimer);
+  if(inspecting){                            /* inspect ends quietly: no cut */
+    inspecting=false;hideTip();
+    pendTouch=null;painting=false;
+    return;
+  }
   if(pendTouch&&!painting&&e.pointerType==='touch'){
     setCut(pendTouch.id,pendTouch.mode);     /* clean tap toggles */
   }
@@ -530,42 +621,95 @@ function fixSkyTop(){sky.style.top=(dash?dash.offsetHeight-1:0)+'px';}
 addEventListener('resize',fixSkyTop);
 addEventListener('load',fixSkyTop);
 fixSkyTop();
-addEventListener('pointercancel',function(){pendTouch=null;painting=false;});
+addEventListener('pointercancel',function(){
+  clearTimeout(lpTimer);inspecting=false;hideTip();
+  pendTouch=null;painting=false;
+});
 stage.addEventListener('pointerleave',hideTip);
 sky.addEventListener('pointerleave',hideTip);
 
-function showTip(t,e){
-  var id=+t.dataset.id, emp=EMP[id];
+function empAmt(id){
+  var emp=EMP[id];
+  if(COMPS[emp[1]].svc)return moneyM(emp[0]);
+  var sal=Math.round(emp[0]/BENMULT);
+  return moneyK(sal)+' sal + '+moneyK(emp[0]-sal)+' ben';
+}
+function tipBody(id){
+  var emp=EMP[id];
   var denom=denomNow();
   var line=holeLeftG>0
     ?'cut &rarr; pays down the hole ('+moneyM(holeLeftG)+' to go)'
     :(denom>0?'cut &rarr; +'+money(emp[0]/denom)+' per &times;1 member':'');
-  var amt;
-  if(COMPS[emp[1]].svc){
-    amt=moneyM(emp[0]);
-  }else{
-    var sal=Math.round(emp[0]/BENMULT);
-    amt=moneyK(sal)+' sal + '+moneyK(emp[0]-sal)+' ben';
-  }
-  tip.innerHTML='<b>'+DUTIES[emp[2]]+'</b><br>'+amt
+  var prog=COMPS[emp[1]].svc?'':' &middot; '+PGN[emp[3]||0];
+  return '<b>'+DUTIES[emp[2]]+'</b>'+prog+'<br>'+empAmt(id)
     +(cut.has(id)?' &middot; <span class="cutlbl">cut</span>':'')
     +(line?'<br>'+line:'');
+}
+function showTip(t,e){
+  tip.innerHTML=tipBody(+t.dataset.id);
   tip.style.display='block';
   var x=e.clientX+14,y=e.clientY+16;
   if(x+tip.offsetWidth>innerWidth-8)x=e.clientX-tip.offsetWidth-10;
   if(y+tip.offsetHeight>innerHeight-8)y=e.clientY-tip.offsetHeight-12;
   tip.style.left=x+'px';tip.style.top=y+'px';
 }
+function showTipXY(id,x,y){
+  tip.innerHTML=tipBody(id);
+  tip.style.display='block';
+  var tx=Math.max(6,Math.min(x-tip.offsetWidth/2,innerWidth-tip.offsetWidth-6));
+  var ty=y-tip.offsetHeight-18;
+  if(ty<6)ty=y+24;
+  tip.style.left=tx+'px';tip.style.top=ty+'px';
+}
 function hideTip(){tip.style.display='none';}
 
 function rangeSet(ci,val){
-  var c=COMPS[ci];
-  for(var i=c.a;i<c.b;i++)setCutId(i,val);
+  var c=COMPS[ci],last=-1;
+  for(var i=c.a;i<c.b;i++)if(setCutId(i,val)&&val)last=i;
+  if(last>=0)toastCut(last);
   recompute();
 }
+var PGN=['Basic ed','LAP','Title I','Special ed','MLL'];
+var BCMAP={0:0,1:1,2:1,3:2,4:1};   /* pgroup -> body-count column */
+var BC_ORDER=[2,0,1];
+var BC_NAMES={0:'Basic',1:'LAP + Title I + MLL',2:'Special education'};
+function openBodyCount(){
+  var tallies=[{},{},{}],counts=[0,0,0],total=0;
+  cut.forEach(function(id){
+    var e=EMP[id];
+    if(!COMPS[e[1]].on)return;
+    var bc=BCMAP[e[3]||0],name=DUTIES[e[2]];
+    tallies[bc][name]=(tallies[bc][name]||0)+1;
+    counts[bc]++;total++;
+  });
+  $('lbxsub').textContent=total?total.toLocaleString('en-US')+' axed':'';
+  var html='';
+  if(!total){
+    html='<div class="lbxempty">Nothing axed yet \u2014 go swing at something.</div>';
+  }else{
+    BC_ORDER.forEach(function(bc){
+      var names=Object.keys(tallies[bc]);
+      if(!names.length)return;
+      names.sort(function(a,b2){return tallies[bc][b2]-tallies[bc][a]||a.localeCompare(b2);});
+      html+='<div class="lbxcol"><h3>'+BC_NAMES[bc]
+        +' <span>&middot; '+counts[bc].toLocaleString('en-US')+'</span></h3><ul>';
+      names.forEach(function(n){
+        html+='<li><b>'+tallies[bc][n]+'&times;</b><span>'+n+'</span></li>';
+      });
+      html+='</ul></div>';
+    });
+  }
+  $('lbxcols').innerHTML=html;
+  $('lbx').hidden=false;
+}
+function closeBodyCount(){$('lbx').hidden=true;}
+document.querySelector('.lbxback').addEventListener('click',closeBodyCount);
+addEventListener('keydown',function(e){if(e.key==='Escape')closeBodyCount();});
 document.addEventListener('click',function(e){
   var b=e.target.closest?e.target.closest('button'):null;
   if(!b)return;
+  if(b.id==='bodycount'){openBodyCount();return;}
+  if(b.id==='lbxclose'){closeBodyCount();return;}
   if(b.hasAttribute('data-cutall')){rangeSet(+b.getAttribute('data-cutall'),true);return;}
   if(b.hasAttribute('data-restore')){rangeSet(+b.getAttribute('data-restore'),false);return;}
   if(b.hasAttribute('data-dw')){
@@ -573,13 +717,6 @@ document.addEventListener('click',function(e){
     g.w=Math.min(5,Math.max(0,g.w+0.5*(+b.getAttribute('data-dw'))));
     $('w-'+gi).textContent='×'+g.w.toFixed(1);
     recompute();return;
-  }
-  if(b.id==='reset'){
-    cut.forEach(function(id){
-      if(els[id])els[id].classList.remove('cut');
-      if(barEls[id])barEls[id].classList.remove('cut');
-    });
-    cut.clear();recompute();return;
   }
 });
 document.addEventListener('change',function(e){

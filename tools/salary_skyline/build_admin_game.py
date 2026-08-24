@@ -50,15 +50,15 @@ F196_OBJ2 = 519_721_722   # Salaries - Certificated Employees
 F196_OBJ3 = 218_001_654   # Salaries - Classified Employees
 F196_OBJ4 = 240_895_971   # Employee Benefits and Payroll Taxes
 
-# 2026-27 Budget Book (~/Downloads/26-27-Budget-Book-Online.pdf):
-#   PDF p.14 (printed 7, "All Funds History") — General Fund 2026-27 net
-#   change in fund balance = -21,247,124: the budget deficit (confirmed on
-#   PDF p.20 as the "Calculated Gap in Revenues & Other Financing Sources
-#   Under Expenditures").
-#   PDF p.21 (printed 14, "General Fund Summary Details") — "Committed to
-#   Economic Stabilization" is $0 in every 2026-27 fund-balance column; board
-#   policy floor is 3% of the total budget.
-DEFICIT_2627 = 21_247_124
+# Budget deficit: the RECURRING General Fund gap (expenditures over revenues
+# + other financing sources) from the latest F-196 actuals — 2024-25, since
+# the 2025-26 F-196 is not yet filed/loaded. From safs_f19x actuals:
+# 1,195,855,065 expenditures - 1,172,148,744 revenues+OFS = 23,706,321
+# (matches the 26-27 Budget Book's 2024-25 actual net change, PDF p.14).
+# Update when 2025-26 actuals land. ESF still per Budget Book PDF p.21:
+# "Committed to Economic Stabilization" is $0 in every 2026-27 fund-balance
+# column; board policy floor is 3% of the total budget.
+DEFICIT_GAP = 23_706_321
 GF_BUDGET_2627 = 1_338_853_189            # GF total expenditures 2026-27
 ESF_TARGET = round(GF_BUDGET_2627 * 0.03) # 40,165,596
 ESF_COMMITTED = 0
@@ -170,15 +170,15 @@ for gi, (_, _, roots, _) in enumerate(RECIPIENTS):
     for r in roots:
         rg_root[r] = gi
 
-comp_staff = [[] for _ in CUTTABLE]      # (salary, duty_name)
+comp_staff = [[] for _ in CUTTABLE]      # (salary, duty_name, pgroup)
 rg_salaries = [[] for _ in RECIPIENTS]           # combined (panel stats)
-rg_split = [[[], [], [], []] for _ in RECIPIENTS]  # basic / LAP / Title I / sped
+rg_split = [[[] for _ in range(5)] for _ in RECIPIENTS]  # basic/LAP/T1/sped/MLL
 s275_total = 0.0
 for r in rows:
     duty = int(r["duty"]); sal = float(r["salary"])
     s275_total += sal
     if duty in cut_root:
-        comp_staff[cut_root[duty]].append((sal, r["duty_name"]))
+        comp_staff[cut_root[duty]].append((sal, r["duty_name"], int(r.get("pgroup", 0))))
     elif duty in rg_root:
         gi = rg_root[duty]
         rg_salaries[gi].append(sal)
@@ -211,28 +211,37 @@ SPED_SVC_WARN = ("warning: cuts here impact vulnerable students and may just "
                  "decrease revenue leading to no deficit impact. This simulator "
                  "incorrectly treats it all as redistributable funds but at "
                  "least $20M is Safety Net that would just go away.")
+OTHER_SVC_WARN = ("warning: cuts to Transportation may reduce up to $40M of "
+                  "revenue. Cuts to many other things may deprive our children "
+                  "of critical things such as heat and water. The simulator "
+                  "incorrectly treats it all as redistributable funds. But "
+                  "DOGE it if you like. The power is in YOUR hands.")
+# each item carries its raw pgroup (0 basic / 1 LAP / 2 Title I / 3 SpEd /
+# 4 MLL); JS maps it to tooltip program names and Body Count columns
 component_defs = [
     (key, label, "duty " + codes,
-     sorted(((sal * ben_mult, dname) for sal, dname in comp_staff[ci]), reverse=True),
+     sorted(((sal * ben_mult, dname, pg) for sal, dname, pg in comp_staff[ci]),
+            reverse=True),
      default_on, False, None)
     for ci, (key, label, codes, _roots, default_on) in enumerate(CUTTABLE)
 ]
 svc_parts = [[], []]
 for r in csv.DictReader(SVC.open()):
     svc_parts[int(r["sped"])].append(
-        (float(r["amount"]), "NCES %s · %s" % (r["nces"], r["nces_name"])))
+        (float(r["amount"]), "NCES %s · %s" % (r["nces"], r["nces_name"]),
+         3 if r["sped"] == "1" else 0))
 component_defs.append(("svcother", "Purchased services — other programs",
                        "F-196 obj 7", sorted(svc_parts[0], reverse=True),
-                       True, True, None))
+                       True, True, OTHER_SVC_WARN))
 component_defs.append(("svcsped", "Purchased services — SpEd",
                        "F-196 obj 7 · prog 21+24", sorted(svc_parts[1], reverse=True),
                        True, True, SPED_SVC_WARN))
 
 for ci, (key, label, caption, items, default_on, is_svc, warn) in enumerate(component_defs):
     circles = []
-    for sal, dname in items:
+    for sal, dname, bc in items:
         rr = max(MIN_R, K * math.sqrt(sal))
-        circles.append({"pr": rr + PACK_GAP / 2, "r": rr, "s": sal, "d": dname})
+        circles.append({"pr": rr + PACK_GAP / 2, "r": rr, "s": sal, "d": dname, "bc": bc})
     pack_siblings(circles)
     pad = 5
     x0 = min(c["x"] - c["r"] for c in circles) - pad
@@ -249,7 +258,7 @@ for ci, (key, label, caption, items, default_on, is_svc, warn) in enumerate(comp
         if c["d"] not in duty_ix:
             duty_ix[c["d"]] = len(duties); duties.append(c["d"])
         eid = len(emp)
-        emp.append([round(c["s"]), ci, duty_ix[c["d"]]])
+        emp.append([round(c["s"]), ci, duty_ix[c["d"]], c["bc"]])
         x, y, rr = c["x"], c["y"], c["r"]
         fs = min(max(rr * 1.5, 7.0), 64.0)   # axe glyph size, floored + capped
         rot = (eid * 37) % 44 - 22           # deterministic per-bubble tilt
@@ -324,30 +333,33 @@ for gi, (key, label, _roots, fam) in enumerate(RECIPIENTS):
 SKY_W = 1160.0
 GROUP_GAP = 10.0
 SECTION_GAP = 26.0
-PROGRAMS = [(0, "Basic ed + other"), (1, "LAP"), (2, "Title I"),
+PROGRAMS = [(0, "Basic ed + other"), (1, "LAP"), (2, "Title I"), (4, "MLL"),
             (3, "Special education")]
 
 n_cut = n_staff
 n_sea = sum(len(sl) for g in rg_split for sl in g)
 max_sea = max(max(sl) for g in rg_split for sl in g if sl)
-seg_counts = [[len(rg_split[gi][p]) for gi in range(len(RECIPIENTS))]
-              for p, _ in PROGRAMS]
+avg_sea = sum(v for g in rg_split for sl in g for v in sl) / n_sea
+SEC_BUCKETS = [[0], [1], [2], [4], [3]]  # chart sections -> pgroup buckets
+seg_counts = [[sum(len(rg_split[gi][bk]) for bk in SEC_BUCKETS[si])
+               for gi in range(len(RECIPIENTS))]
+              for si in range(len(PROGRAMS))]
 n_segs = sum(1 for row in seg_counts for c in row if c)
 sea_gaps = SECTION_GAP * (len(PROGRAMS) - 1) + GROUP_GAP * (n_segs - len(PROGRAMS))
 # the hole shares the SEA row, so solve the per-person step jointly with the
 # hole rects' area-true width (8.0 = gap between the two rects)
 HOLE_X0 = 34.0
-hole_dollars = DEFICIT_2627 + (ESF_TARGET - ESF_COMMITTED)
+hole_dollars = DEFICIT_GAP + (ESF_TARGET - ESF_COMMITTED)
 step = ((SKY_W - HOLE_X0 - 8.0 - SECTION_GAP - sea_gaps)
-        / (n_sea + hole_dollars / max_sea))     # width of one person
+        / (n_sea + hole_dollars / avg_sea))     # width of one person
 
 AX_BLK = max(e[0] for e in emp[:n_staff]) * 1.03
 H_BLK = 75.0
 scale = AX_BLK / H_BLK                          # dollars per viewBox unit
 HRECT_GAP = 8.0
 CAP_SKIRT = 2000.0
-rect_h = max_sea / scale                        # area-true rect height = max SEA salary
-wpd = step / max_sea                            # viewBox units per dollar at that height
+rect_h = avg_sea / scale       # hole rects: height = AVERAGE SEA comp in the row
+wpd = step / avg_sea           # viewBox units per dollar at that height
 H_SEA = max_sea * 1.45 / scale                  # headroom for the blue stacks
 LBL3 = 32.0                                     # labels under the shared row
 B1 = H_BLK                                      # row baselines; titles go BELOW rows
@@ -399,11 +411,29 @@ for ci, c in enumerate(comps_js[:len(CUTTABLE)]):
     parts.append('<g id="r1-%s" style="%s">%s</g>' % (key, style, "".join(bars)))
     if ci < len(CUTTABLE) - 1:
         x += GROUP_GAP
+# purchased-services partitions: area-true rects at the block row's AVERAGE
+# compensation height; the guarded svcut JS greys them with the cut fraction
+avg_blk = sum(e[0] for e in emp[:n_staff]) / n_staff
+svc_h = avg_blk / scale
+SVC_SHORT = {"svcother": "Other svcs", "svcsped": "SpEd"}
+for j, c in enumerate(comps_js[len(CUTTABLE):]):
+    ci = len(CUTTABLE) + j
+    x += GROUP_GAP
+    w = c["total"] / avg_blk * step
+    g = ['<rect class="svbase" id="svbg-%d" x="%.2f" y="%.2f" width="%.2f" height="%.2f"/>'
+         % (ci, x, B1 - svc_h, w, svc_h),
+         '<rect class="svcut" id="svcut-%d" x="%.2f" y="%.2f" width="%.2f" height="0"/>'
+         % (ci, x, B1, w)]
+    lbl = fit_label(SVC_SHORT[c["key"]], x + w / 2, w, B1 + 13, "glabel")
+    if lbl:
+        g.append(lbl)
+    parts.append('<g id="r1-%s">%s</g>' % (c["key"], "".join(g)))
+    x += w
 admin_end = x
 parts.append('<text class="rowt" x="0" y="%.1f">On the block</text>' % (B1 + 13))
 
 # row 2 — the hole: two area-true rects (height = max SEA salary)
-w_def = DEFICIT_2627 * wpd
+w_def = DEFICIT_GAP * wpd
 w_esf_slot = (ESF_TARGET - ESF_COMMITTED) * wpd   # reserved slot (the 3% floor)
 w_esf_start = max(ESF_START * wpd, 1.5)
 esf_x = HOLE_X0 + w_def + HRECT_GAP
@@ -497,14 +527,17 @@ parts.append(sea_layer(
     [("", [rg_salaries[gi] for gi in range(len(RECIPIENTS))])],
     "seaAll", True))
 parts.append(sea_layer(
-    [(plabel, [rg_split[gi][p] for gi in range(len(RECIPIENTS))]) for p, plabel in PROGRAMS],
+    [(plabel, [[v for bk in SEC_BUCKETS[si] for v in rg_split[gi][bk]]
+               for gi in range(len(RECIPIENTS))])
+     for si, (_p, plabel) in enumerate(PROGRAMS)],
     "seaSplit", False))
 sky_svg = ('<svg viewBox="0 0 %.0f %.0f" role="img" '
            'aria-label="two-row salary skyline: cuttable positions, then the 2026-27 hole beside every SEA-represented salary, one shared bar width and dollar scale">\n%s\n</svg>'
            % (SKY_W, TOTAL_H, "\n".join(parts)))
 
-pg_counts = [sum(len(rg_split[gi][p]) for gi in range(len(RECIPIENTS)))
-             for p, _ in PROGRAMS]
+pg_counts = [sum(len(rg_split[gi][bk]) for gi in range(len(RECIPIENTS))
+                 for bk in SEC_BUCKETS[si])
+             for si in range(len(PROGRAMS))]
 pgroup_counts_str = " &middot; ".join(
     "%s %s" % (label, format(n, ",")) for (_, label), n in zip(PROGRAMS, pg_counts))
 
@@ -532,10 +565,10 @@ for token, value in [
     ("@@BEN_PCT@@", "%.1f" % (ben_rate * 100)),
     ("@@BENMULT3@@", "%.3f" % ben_mult),
     ("@@DEFS@@", json.dumps([
-        {"label": "2026\u201327 budget deficit", "total": DEFICIT_2627, "on": True},
+        {"label": "2026\u201327 budget deficit", "total": DEFICIT_GAP, "on": True},
         {"label": "Economic Stabilization Fund", "total": ESF_START, "on": True},
     ], separators=(",", ":"))),
-    ("@@HOLE0@@", "$%.1fM" % ((DEFICIT_2627 + ESF_START) / 1e6)),
+    ("@@HOLE0@@", "$%.1fM" % ((DEFICIT_GAP + ESF_START) / 1e6)),
     ("@@ESF_TARGET@@", format(ESF_TARGET, ",")),
     ("@@ESF_FLOOR@@", str(ESF_TARGET - ESF_COMMITTED)),
     ("@@WPD@@", "%.9f" % wpd),
@@ -543,7 +576,7 @@ for token, value in [
     ("@@ESF_SLOT_X@@", "%.2f" % esf_x),
     ("@@ESF_START_M@@", "%.1f" % (ESF_START / 1e6)),
     ("@@GF_BUDGET@@", format(GF_BUDGET_2627, ",")),
-    ("@@DEFICIT@@", format(DEFICIT_2627, ",")),
+    ("@@DEFICIT@@", format(DEFICIT_GAP, ",")),
     ("@@OBJ4M@@", "$%.1fM" % (F196_OBJ4 / 1e6)),
     ("@@OBJ23M@@", "$%.1fM" % (obj23 / 1e6)),
     ("@@S275M@@", "$%.1fM" % (s275_total / 1e6)),
