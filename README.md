@@ -10,7 +10,8 @@ generated per-column dictionary of all BigQuery tables is
 ## Repository layout
 
 - `extractors/` — ETL source code: `safs/`, `fiscal/`, `stars/`, `budget/`,
-  `purplebook/`, `odata/`, `prr/`, plus standalone extractors
+  `purplebook/`, `odata/`, `prr/`, `sps_web/` (SPS board meetings +
+  district websites), plus standalone extractors
   (`enrollment_reports.py`, `p223_pdf_batch.py`, ...).
 - `bigquery/` — legacy pre-SAFS loaders, kept for reference.
 - `marts/` — downstream joined datasets ("data marts"); `bigsheet.py` merges
