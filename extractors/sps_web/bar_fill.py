@@ -2180,7 +2180,7 @@ def write_llm_report(path, stats, filled_path, rej_path):
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[1])
     ap.add_argument("--out-root", default=ROOT)
-    ap.add_argument("--since", default="2016-08-01",
+    ap.add_argument("--since", default="2004-08-01",
                     help="only fill rows on or after this meeting date")
     ap.add_argument("--limit", type=int, default=None,
                     help="process at most N in-scope rows (smoke test)")

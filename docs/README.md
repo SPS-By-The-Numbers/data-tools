@@ -25,7 +25,7 @@ not the Markdown.
   - [`docs/guides/BOARD_CONTRACTS.md`](guides/BOARD_CONTRACTS.md) — every
     Seattle School Board-approved contract action (new/amendment/change
     order/renewal/final acceptance) reconstructed from board minutes and
-    agendas, 2004-05 → present: 1,978 board-action rows (one row per
+    agendas, 2004-05 → present: 1,976 board-action rows (one row per
     vendor for a multi-vendor motion) with a page-cited citation, from
     6,452 segmented business items across 996 meetings. Crawl, extraction,
     and the 2016+ Board Action Report detail pass are complete (see

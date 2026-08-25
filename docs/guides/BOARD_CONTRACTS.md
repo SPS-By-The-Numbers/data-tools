@@ -5,7 +5,7 @@ amendment, change order, renewal, or final acceptance — from board minutes
 and agendas, 2004-05 → present, each with a primary-source citation (a
 clickable URL + page). Built by the `extractors/sps_web/` pipeline, phases
 A through G1; see the module docstrings for full mechanics — this guide is
-the consumer-facing summary. The crawl and pipeline are complete: **1,978
+the consumer-facing summary. The crawl and pipeline are complete: **1,976
 board-action rows** (891 of them from meetings since 2016-08-01), from
 **6,452** segmented business items across **996** meetings with usable
 minutes/agenda text (out of 1,023 meetings in the manifest), **2,862**
@@ -104,7 +104,7 @@ $ venv/bin/python3 -m extractors.sps_web.reconcile                      # -> qa/
 
 Rerunning any single module only touches the paths it owns (documented at
 the top of each module). E3 sits between E2 and F1/F2 and is scoped to
-`meeting_date >= 2016-08-01` only, by owner request (§8) — everything
+all meeting years (the pass was first scoped to 2016-08-01 forward, then extended on 2026-08-25; see §8) — everything
 before Phase E3 in the list above covers the whole corpus back to 2004-05.
 
 ### Fetch mechanics you need if you touch `fetch.py` or debug a stuck crawl
@@ -179,7 +179,7 @@ dictionary (also regenerated verbatim in `out_sps_web/publish/README.md`):
 
 **Identity / where it happened**
 `action_id` (stable hash, `<action date>-<item_no>-<8 hex>`, `-v2`/`-v3`/...
-suffix for a multi-vendor member — unique across all 1,978 rows), `date`
+suffix for a multi-vendor member — unique across all 1,976 rows), `date`
 (meeting date), `school_year`, `title`.
 
 **What the board did**
@@ -285,7 +285,7 @@ member chains on its own.
   `amount` to the cent. 130 chains / 402 rows.
 - `chain_method="singleton"` — everything else. 1,139 chains (most
   contracts in this corpus have no amendment on record).
-- **Totals: 1,459 chains, 1,978 rows**, size distribution 1→1,139, 2→221,
+- **Totals: 1,461 chains, 1,976 rows**, size distribution 1→1,139, 2→221,
   3→60, up to one chain of 13. `qa/reconcile_report.md` check 5 confirms
   every chain's `sequence` is contiguous and no action row (including
   `-vN` multi-vendor members) is claimed by more than one chain.
@@ -398,8 +398,9 @@ rerun `link.py` and `publish.py` afterward to propagate the new
 
 ## 8. The BAR detail pass (E3, `bar_fill.py`)
 
-Runs after E2, before F1/F2. **Scope: `meeting_date >= 2016-08-01` only**,
-by owner request — the Board Action Report corpus (`kind="bar"` in
+Runs after E2, before F1/F2. **Scope: all years** (`--since 2004-08-01`
+default; it was first run for 2016-08-01 forward) — but it can only fill
+what exists: the Board Action Report corpus (`kind="bar"` in
 `documents_classified.jsonl`) is really only usable from 2016 forward (see
 COVERAGE.md table 3), and pre-2016 BARs, where they exist at all, are a
 much smaller, less standardized set. It never touches `extracted.jsonl`; it
@@ -687,13 +688,13 @@ sampling; all pass except one WARN (`qa/reconcile_report.md`):
    `prior_total + amount == revised_total`.
 4. **Vendor mapping — PASS.** All 1,490 `vendor_raw` values on action rows
    map to a known `vendor_id` or are flagged `not_a_vendor`.
-5. **Pairing/chains — PASS.** 1,459 chains, every `sequence` contiguous, no
+5. **Pairing/chains — PASS.** 1,461 chains, every `sequence` contiguous, no
    action row claimed by more than one chain (co-vendor `-vN` ids included,
    each resolving to a real primary row), no paired row where the
    introduction is dated after the action.
 6. **Time series — PASS.** No school year's action-row or admitted-item
    count drops more than 50% versus both neighboring years.
-7. **Key uniqueness — PASS.** `action_id` is unique across all 1,978 rows;
+7. **Key uniqueness — PASS.** `action_id` is unique across all 1,976 rows;
    `(meeting_id, item_no, char_start)` is unique across all 6,452 items.
 
 ## 13. Known limitations
@@ -711,7 +712,7 @@ sampling; all pass except one WARN (`qa/reconcile_report.md`):
   rounds and need a human to read the source page directly.
 - **26 meetings have documents but no usable agenda/minutes text**
   (reconcile check 1) — a permanent structural gap.
-- **E3 (BAR detail pass) is scoped to 2016-08-01 forward**, by owner
+- **E3 (BAR detail pass) covers all years but only 2015-16 onward has BARs to read**; before that the pass was
   request — `fund`/`funding_source_text`/`procurement_method`/`term`/
   `contract_id` remain sparse before that date, filled only where the
   item-text regex/LLM pass happened to pick them up incidentally.
