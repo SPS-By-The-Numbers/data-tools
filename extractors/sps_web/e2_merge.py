@@ -80,7 +80,9 @@ IDENTITY_FIELDS = ("meeting_id", "meeting_date", "item_no", "item_code",
 SECTION2_FIELDS = ("vendor_raw", "vendor_name", "action_type", "amount", "amount_kind",
                     "prior_total", "revised_total", "contract_id", "po_number",
                     "term_start", "term_end", "department", "program_or_project",
-                    "immediate_action")
+                    "immediate_action",
+                    # multi-vendor structure added by extract.py (2026-08-25)
+                    "co_vendors", "co_vendors_raw", "group_total", "group_total_kind")
 
 _MONEY_TEXT_RE = re.compile(
     r"\$\s?(\d{1,3}(?:,\d{3})*(?:\.\d+)?|\d+(?:\.\d+)?)\s*(million|mil|billion|bil|thousand|[kmb])?\b",

@@ -92,6 +92,11 @@ def test_money_sanity_flags_bad_rows():
         {"action_id": "no-kind", "amount": 100.0, "amount_kind": None, "action_type": "new"},
         {"action_id": "sum-mismatch", "amount": 100.0, "amount_kind": "increase", "action_type": "amendment",
          "prior_total": 200.0, "revised_total": 999.0},
+        # E3 closeout: amount is the *final* total, not an increment, so
+        # prior+amount==revised does not apply and must not be counted.
+        {"action_id": "closeout", "amount": 1648510.0, "amount_kind": "final",
+         "action_type": "final_acceptance", "prior_total": 1353814.0,
+         "revised_total": 1648510.0},
     ]
     c = reconcile.check_money(actions)
     assert c.status == "FAIL"
@@ -100,7 +105,8 @@ def test_money_sanity_flags_bad_rows():
     assert counts["amount > $2,000,000,000"] == 1
     assert counts["amendment/change_order with revised_total < amount"] == 1
     assert counts["amount present, amount_kind null"] == 1
-    assert counts["rows with prior_total + amount + revised_total all present"] == 1
+    assert counts["amendment/change_order rows with prior_total + amount + revised_total "
+                  "all present"] == 1
     assert counts["...of those, prior_total + amount != revised_total"] == 1
     assert any("neg" in ex for ex in c.examples)
     assert any("huge" in ex for ex in c.examples)

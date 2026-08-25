@@ -13,8 +13,10 @@ Usage (from the repo root)::
 
 Inputs (read-only):
 
-* ``out_sps_web/contracts/extracted.jsonl`` -- one row per admitted item, from
-  ``e2_merge.py``.  Fields used here: ``meeting_id, meeting_date, item_no,
+* ``out_sps_web/contracts/extracted_filled.jsonl`` when it exists (E3's
+  ``bar_fill.py`` output: the same rows with Board Action Report detail
+  merged in), else ``out_sps_web/contracts/extracted.jsonl`` -- one row per
+  admitted item, from ``e2_merge.py``.  Fields used here: ``meeting_id, meeting_date, item_no,
   item_code, char_start, era, section, title, board_action, vote, vendor_raw,
   vendor_name, action_type, amount, amount_kind, prior_total, revised_total,
   contract_id, po_number, immediate_action, citation, extractor``.
@@ -119,7 +121,13 @@ item_no, item_code, section, board_action, vote, era, citation`` come from the
 action row.  Every other (detail) field is the union of the two rows with the
 action row winning any conflict -- an introduction row often carries a Board
 Action Report's ``contract_id`` that the minutes do not repeat.  Both
-citations are kept, introduction first: ``citations=[intro, action]``.
+citations are kept, introduction first: ``citations=[intro, action]``.  When
+either source row carries a ``bar_citation`` (bar_fill.py linked it to a
+Board Action Report), that document is appended as a third citation with
+``role="bar"`` -- the action row's BAR wins when both have one.
+``amount_source`` (``minutes`` | ``bar`` | null) is taken from whichever row
+supplied the merged ``amount``, so publish.py can label the column without
+re-deriving it.
 ``paired=true``; unpaired introductions keep ``board_action="introduced"``,
 ``paired=false`` and ``unpaired_reason``; pass-through rows get
 ``paired=null``.
@@ -127,6 +135,42 @@ citations are kept, introduction first: ``citations=[intro, action]``.
 ``action_id`` = ``<action meeting date>-<item_no>-<8 hex>`` where the hash is
 over the identity of both source rows, so it is stable across reruns and
 distinct for two items that share a date and item number across documents.
+
+=============================================================================
+Part 1b -- Multi-vendor items: one row per vendor
+=============================================================================
+
+Some motions award several vendors at once -- RFQ 05790 therapeutic day
+services awarding Overlake $283,000, Fairfax/NWSOIL $646,000 and Seneca
+$961,000 in a single vote, or a joint award "with X, Y and Z" that prints one
+shared not-to-exceed.  The extractor marks these with ``co_vendors``
+(``[{vendor_raw, amount, amount_kind}, ...]``) and, for the shared-total case,
+``group_total``.  ``explode_multi_vendor`` fans them out so a vendor analysis
+sees every awardee:
+
+* The **primary** row keeps its ``action_id``; each co-vendor becomes its own
+  row with ``action_id = <primary>-v2``, ``-v3``, ... .  Numbering follows the
+  order the *action* meeting printed the vendors, with introduction-only
+  vendors appended in vendor-key order, so it is stable across reruns.
+* Members share the primary's meeting fields, ``citations``, ``board_action``,
+  ``vote``, title and funding detail, and carry their own ``vendor_raw``,
+  ``vendor_id`` (resolved through F1's ``vendor_map`` like any other row, with
+  the local fallback key when it is missing), ``amount`` and ``amount_kind``.
+* ``amount`` is **null** on a member whose own figure was not printed.  The
+  shared figure lives in ``group_total`` on *every* member row and is never
+  split, apportioned, or copied into ``amount`` -- summing ``amount`` over a
+  group must not double-count the award.
+* ``multi_vendor_group`` (the primary's ``action_id``) and ``multi_vendor_n``
+  (member count) are set on every member; both are null on ordinary rows.
+* The explode runs **after** pairing and **before** chaining.  Pairing is done
+  on the primary row as before; members are then matched across the two
+  meetings by vendor key, so a co-vendor whose amount was revised between
+  introduction and action still yields one row (action wins,
+  ``amount_conflict`` records it).  Chaining then treats each member as its
+  own row, which is why ``CO_VENDOR_BLANKED_FIELDS`` clears the primary's
+  ``contract_id``/``po_number``/``prior_total``/``revised_total`` on members:
+  a joint award gives each vendor its own contract number, so members chain by
+  vendor+project, not by the primary's id.
 
 =============================================================================
 Part 2 -- Contract chains
@@ -260,6 +304,24 @@ DETAIL_FIELDS = (
     "procurement_method",
     "llm_confidence",
     "extractor_notes",
+    # E3 (bar_fill.py) additions; absent on pre-E3 extracted.jsonl rows.
+    "bar_doc_id",
+    "bar_match_method",
+    "bar_match_confidence",
+    # Multi-vendor items (see "Part 1b" in the docstring). `co_vendors` is
+    # consumed by the explode step and dropped from the emitted row.
+    "co_vendors",
+    "group_total",
+)
+
+# Fields that describe the contract the PRIMARY vendor was awarded and that
+# must not be copied onto a co-vendor's row: a joint award gives each vendor
+# its own contract number, and duplicating the primary's would (a) chain all
+# members into one id chain and (b) double-count the money.  Co-vendor rows
+# therefore chain by vendor+project only.
+CO_VENDOR_BLANKED_FIELDS = (
+    "contract_id", "po_number", "prior_total", "revised_total",
+    "vendor_name", "bar_doc_id", "bar_match_method", "bar_match_confidence",
 )
 
 _CORP_SUFFIXES = {
@@ -677,7 +739,26 @@ def build_action_rows(rows, vmap, vnames):
         if action is not None and action.get("citation"):
             cits.append(dict(action["citation"], role="action",
                              meeting_date=action.get("meeting_date")))
+        # E3: the Board Action Report behind this item, when bar_fill.py
+        # linked one. The action row's BAR wins; an unpaired introduction
+        # contributes its own.
+        bar_src = None
+        for cand in (action, intro):
+            if cand is not None and cand.get("bar_citation"):
+                bar_src = cand
+                break
+        if bar_src is not None:
+            cits.append(dict(bar_src["bar_citation"], role="bar",
+                             meeting_date=bar_src.get("meeting_date")))
         row["citations"] = cits
+        # amount_source must follow the row that actually supplied `amount`,
+        # not the generic action-wins-conflicts merge, or a minutes amount
+        # could end up labelled "bar".
+        amt_src = (action if (action is not None
+                              and action.get("amount") not in (None, ""))
+                   else intro)
+        row["amount_source"] = ((amt_src or {}).get("amount_source")
+                                if row.get("amount") is not None else None)
         row["paired"] = paired
         row["pair_method"] = pair_method
         row["intro_meeting_id"] = intro.get("meeting_id") if intro is not None else None
@@ -698,6 +779,9 @@ def build_action_rows(rows, vmap, vnames):
             _jaccard(_project_tokens(intro.get("title")), _project_tokens(action.get("title"))), 3
         ) if (intro is not None and action is not None) else None
         row["unpaired_reason"] = None
+        # kept for the multi-vendor explode step, stripped before writing
+        row["_intro_src"] = intro
+        row["_action_src"] = action
         row["action_id"] = "%s-%s-%s" % (
             row["meeting_date"],
             _slug_item_no(row["item_no"]),
@@ -724,8 +808,184 @@ def build_action_rows(rows, vmap, vnames):
         row = _base(p, None, None, None)
         out.append(row)
 
+    # Fan multi-vendor items out to one row per vendor. This happens AFTER
+    # pairing (the pair is made on the primary row, so an item's two meetings
+    # still collapse) and BEFORE chaining (each member then chains on its own
+    # vendor+project).
+    out, explode_stats = explode_multi_vendor(out, vmap, vnames)
+
     out.sort(key=lambda r: (r["meeting_date"], str(r.get("item_no") or ""), r["action_id"]))
-    return out, pairs, unpaired, passthrough, leftovers
+    return out, pairs, unpaired, passthrough, leftovers, explode_stats
+
+
+# --------------------------------------------------------------------------
+# Part 1b -- multi-vendor explosion
+# --------------------------------------------------------------------------
+def _co_vendor_entries(src):
+    """Normalize one source row's ``co_vendors`` into a clean list.
+
+    Tolerates a bare string entry (``["Acme", "Beta"]``) as well as the
+    documented ``{vendor_raw, amount, amount_kind}`` objects, and ignores
+    entries with no vendor string at all -- there is nothing to name a row
+    after.
+    """
+    out = []
+    for cv in (src or {}).get("co_vendors") or []:
+        if isinstance(cv, str):
+            cv = {"vendor_raw": cv}
+        if not isinstance(cv, dict):
+            continue
+        raw = cv.get("vendor_raw") or cv.get("vendor_name")
+        if not raw or not str(raw).strip():
+            continue
+        out.append({
+            "vendor_raw": str(raw).strip(),
+            "amount": cv.get("amount"),
+            "amount_kind": cv.get("amount_kind"),
+        })
+    return out
+
+
+def _member_key(vendor_raw, vmap):
+    """Chain/dedupe key for a co-vendor string: F1's vendor_id when it knows
+    the string, else the local fallback key, else the raw string casefolded so
+    two spellings of an unknown vendor at least do not each get a row."""
+    if not vendor_raw:
+        return None
+    if vendor_raw in vmap:
+        return vmap[vendor_raw]
+    return _fallback_vendor_key(vendor_raw) or str(vendor_raw).strip().lower()
+
+
+def explode_multi_vendor(rows, vmap, vnames):
+    """One row per vendor for items that awarded several vendors in one motion.
+
+    The extractor marks these with ``co_vendors`` (and, for a joint award that
+    prints only one shared not-to-exceed, ``group_total``).  Example: RFQ 05790
+    therapeutic day services, one motion awarding Overlake $283,000,
+    Fairfax/NWSOIL $646,000 and Seneca $961,000.
+
+    Rules:
+
+    * The primary row keeps its ``action_id``; members get ``<primary>-v2``,
+      ``-v3``, ... in the order the *action* meeting printed them, with
+      introduction-only vendors appended in vendor-key order.  Numbering is
+      therefore deterministic across reruns.
+    * Members carry the same meeting fields, citations, ``board_action``,
+      ``vote``, title and funding detail as the primary, and their own
+      ``vendor_raw`` / ``vendor_id`` / ``amount`` / ``amount_kind``.
+    * ``amount`` is **null** when the minutes printed only a shared total.
+      ``group_total`` holds that total on *every* member row (primary
+      included) and is never split, apportioned, or copied into ``amount`` --
+      summing ``amount`` across the group must never double-count the award.
+    * ``multi_vendor_group`` = the primary's ``action_id`` on every member;
+      ``multi_vendor_n`` = the number of member rows.  Both are null on
+      ordinary single-vendor rows.
+    * Members are matched across the introduction and action meetings by
+      vendor key, so a co-vendor whose amount was revised between the two
+      meetings still yields ONE row (the action meeting's amount wins,
+      ``amount_conflict`` records the disagreement).
+    * ``CO_VENDOR_BLANKED_FIELDS`` are cleared on members -- see that constant.
+
+    Returns ``(rows, stats)``.
+    """
+    out = []
+    stats = {"groups": 0, "member_rows": 0, "promoted_primary": 0}
+    for row in rows:
+        intro = row.get("_intro_src")
+        action = row.get("_action_src")
+        row.setdefault("group_total", None)
+        row["multi_vendor_group"] = None
+        row["multi_vendor_n"] = None
+        a_members = _co_vendor_entries(action)
+        i_members = _co_vendor_entries(intro)
+        row.pop("co_vendors", None)
+        if not a_members and not i_members:
+            out.append(row)
+            continue
+
+        merged = {}
+        order = []
+        for src_list, is_action in ((a_members, True), (i_members, False)):
+            for m in src_list:
+                k = _member_key(m["vendor_raw"], vmap)
+                if k not in merged:
+                    merged[k] = {"vendor_raw": m["vendor_raw"],
+                                 "amount": m["amount"],
+                                 "amount_kind": m["amount_kind"],
+                                 "action_amount": m["amount"] if is_action else None,
+                                 "intro_amount": None if is_action else m["amount"],
+                                 "from_action": is_action}
+                    order.append(k)
+                    continue
+                e = merged[k]
+                if is_action:
+                    e["action_amount"] = m["amount"]
+                    if m["amount"] is not None:
+                        e["amount"] = m["amount"]
+                        e["amount_kind"] = m["amount_kind"] or e["amount_kind"]
+                    e["from_action"] = True
+                else:
+                    e["intro_amount"] = m["amount"]
+                    if e["amount"] is None:
+                        e["amount"] = m["amount"]
+                        e["amount_kind"] = e["amount_kind"] or m["amount_kind"]
+        # Introduction-only members go last, in vendor-key order, so that the
+        # -vN numbering does not depend on dict insertion luck.
+        pos = {k: i for i, k in enumerate(order)}
+        order = sorted(order, key=lambda k: (0, pos[k]) if merged[k]["from_action"]
+                       else (1, str(k)))
+
+        # If the extractor listed every vendor in co_vendors and left the row's
+        # own vendor empty, promote the first entry to be the primary.
+        if not row.get("vendor_raw") and order:
+            k = order.pop(0)
+            e = merged.pop(k)
+            row["vendor_raw"] = e["vendor_raw"]
+            if row.get("amount") is None:
+                row["amount"] = e["amount"]
+                row["amount_kind"] = e["amount_kind"]
+            vid, vsrc = vendor_key_for(row, vmap)
+            row["vendor_id"] = vid
+            row["vendor_id_source"] = vsrc
+            row["vendor_canonical"] = vnames.get(vid) if vid else None
+            stats["promoted_primary"] += 1
+
+        pkey = row.get("vendor_id") or _member_key(row.get("vendor_raw"), vmap)
+        order = [k for k in order if k != pkey]
+        if not order:
+            out.append(row)
+            continue
+
+        stats["groups"] += 1
+        n = 1 + len(order)
+        row["multi_vendor_group"] = row["action_id"]
+        row["multi_vendor_n"] = n
+        out.append(row)
+        for idx, k in enumerate(order, start=2):
+            e = merged[k]
+            child = dict(row)
+            child["citations"] = [dict(c) for c in (row.get("citations") or [])]
+            child["action_id"] = "%s-v%d" % (row["action_id"], idx)
+            child["multi_vendor_group"] = row["action_id"]
+            child["multi_vendor_n"] = n
+            child["vendor_raw"] = e["vendor_raw"]
+            child["amount"] = e["amount"]
+            child["amount_kind"] = e["amount_kind"]
+            for f in CO_VENDOR_BLANKED_FIELDS:
+                child[f] = None
+            vid, vsrc = vendor_key_for(child, vmap)
+            child["vendor_id"] = vid
+            child["vendor_id_source"] = vsrc
+            child["vendor_canonical"] = vnames.get(vid) if vid else None
+            child["amount_source"] = row.get("amount_source") if e["amount"] is not None else None
+            child["amount_conflict"] = bool(
+                e["action_amount"] is not None and e["intro_amount"] is not None
+                and not _amounts_equal(e["action_amount"], e["intro_amount"]))
+            child["_nearest"] = None
+            out.append(child)
+            stats["member_rows"] += 1
+    return out, stats
 
 
 # --------------------------------------------------------------------------
@@ -867,7 +1127,7 @@ def _pct(n, d):
 
 
 def write_report(path, actions, pairs, unpaired, passthrough, leftovers, chains,
-                 vendor_source, n_input):
+                 vendor_source, n_input, explode=None):
     os.makedirs(os.path.dirname(path), exist_ok=True)
     L = []
     A = L.append
@@ -889,9 +1149,38 @@ def write_report(path, actions, pairs, unpaired, passthrough, leftovers, chains,
     A("| unpaired introductions | %d |" % len(unpaired))
     A("| action rows with no introduction | %d |" % len(leftovers))
     A("| pass-through (immediate / other / removed) | %d |" % len(passthrough))
+    ex = explode or {"groups": 0, "member_rows": 0, "promoted_primary": 0}
+    A("| multi-vendor items exploded | %d |" % ex["groups"])
+    A("| extra rows from that explosion | %d |" % ex["member_rows"])
     A("")
     A("Pair tiers: " + ", ".join("`%s`=%d" % (k, v) for k, v in
                                  sorted(Counter(t for _, _, t in pairs).items())) + "\n")
+
+    # ---- multi-vendor explosion
+    if ex["groups"]:
+        groups = defaultdict(list)
+        for r in actions:
+            if r.get("multi_vendor_group"):
+                groups[r["multi_vendor_group"]].append(r)
+        shared = [g for g in groups.values()
+                  if all(m.get("amount") is None for m in g) and g[0].get("group_total")]
+        A("## Multi-vendor items (%d groups, %d member rows)\n" % (
+            ex["groups"], sum(len(g) for g in groups.values())))
+        A("One board motion awarding several vendors becomes one row per "
+          "vendor: the primary keeps its `action_id`, members get `-v2`, "
+          "`-v3`, ... . %d of these groups print only a shared total (every "
+          "member's `amount` is null and `group_total` carries the figure -- "
+          "never sum `group_total` across member rows).\n" % len(shared))
+        A("| primary action_id | date | n | group_total | vendors |")
+        A("|---|---|---:|---:|---|")
+        for gid in sorted(groups, key=lambda g: groups[g][0]["meeting_date"])[:30]:
+            g = sorted(groups[gid], key=lambda r: r["action_id"])
+            A("| %s | %s | %d | %s | %s |" % (
+                gid, g[0]["meeting_date"], g[0].get("multi_vendor_n") or len(g),
+                g[0].get("group_total"),
+                "; ".join("%s=%s" % ((m.get("vendor_raw") or "?")[:28], m.get("amount"))
+                          for m in g).replace("|", "/")))
+        A("")
 
     # ---- pairing rate by era
     A("## Pairing rate by era\n")
@@ -1046,7 +1335,10 @@ def write_report(path, actions, pairs, unpaired, passthrough, leftovers, chains,
 # main
 # --------------------------------------------------------------------------
 def run(out_root="out_sps_web", era=None, extracted=None):
-    extracted = extracted or os.path.join(out_root, "contracts", "extracted.jsonl")
+    if not extracted:
+        filled = os.path.join(out_root, "contracts", "extracted_filled.jsonl")
+        plain = os.path.join(out_root, "contracts", "extracted.jsonl")
+        extracted = filled if os.path.exists(filled) else plain
     rows = _read_jsonl(extracted)
     if not rows:
         raise SystemExit("no rows read from %s" % extracted)
@@ -1055,7 +1347,8 @@ def run(out_root="out_sps_web", era=None, extracted=None):
         rows = [r for r in rows if r.get("era") == era]
 
     vmap, vnames, vsource = load_vendor_map(out_root)
-    actions, pairs, unpaired, passthrough, leftovers = build_action_rows(rows, vmap, vnames)
+    actions, pairs, unpaired, passthrough, leftovers, explode = \
+        build_action_rows(rows, vmap, vnames)
     chains = build_chains(actions)
 
     clean = []
@@ -1067,10 +1360,12 @@ def run(out_root="out_sps_web", era=None, extracted=None):
 
     rpt = os.path.join(out_root, "qa", "link_report.md")
     write_report(rpt, actions, pairs, unpaired, passthrough, leftovers, chains,
-                 vsource, n_input)
+                 vsource, n_input, explode)
     print("wrote %s (%d rows) and %s" % (out_path, len(clean), rpt))
     print("paired=%d unpaired_intro=%d passthrough=%d action_only=%d chains=%d"
           % (len(pairs), len(unpaired), len(passthrough), len(leftovers), len(chains)))
+    print("multi_vendor groups=%d extra member rows=%d"
+          % (explode["groups"], explode["member_rows"]))
     return clean, chains
 
 

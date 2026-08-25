@@ -123,6 +123,13 @@ def corpus(tmp_path):
               chain_id="CH-3", sequence=1, citations=[
                   {"doc_id": "doc-sharepoint", "page_start": 5, "page_end": 6, "role": "action"},
                   {"doc_id": "doc-direct", "page_start": 1, "page_end": 1, "role": "introduction"}]),
+        # E3: a row whose amount was filled from its Board Action Report
+        action(action_id="action-6", meeting_id="2022-05-04-regular",
+              meeting_date="2022-05-04", school_year="2021-22", amount=42000,
+              chain_id="CH-6", amount_source="bar", citations=[
+                  {"doc_id": "doc-wayback", "page_start": 1, "page_end": 1, "role": "introduction"},
+                  {"doc_id": "doc-sharepoint", "page_start": 2, "page_end": 2, "role": "action"},
+                  {"doc_id": "doc-direct", "page_start": 4, "page_end": 4, "role": "bar"}]),
     ]
     write_jsonl(root / "contracts" / "contract_actions.jsonl", actions)
 
@@ -131,7 +138,7 @@ def corpus(tmp_path):
 
 def test_citation_urls_pick_primary_source_with_page_fragment(corpus):
     result = P.run(str(corpus), str(corpus / "publish"))
-    assert result == {"actions": 5, "vendors": 4, "documents": 3}
+    assert result == {"actions": 6, "vendors": 4, "documents": 3}
 
     rows = {r["action_id"]: r for r in P.read_jsonl(str(corpus / "publish" / "contracts.jsonl"))}
 
@@ -185,7 +192,7 @@ def test_xlsx_hyperlinks_and_money_types(corpus):
         if cite_cell.value:
             assert cite_cell.hyperlink is not None, f"{action_id}: citation_1_url has no hyperlink"
             assert cite_cell.hyperlink.target == cite_cell.value
-    assert amounts_seen == 4  # every action but action-4
+    assert amounts_seen == 5  # every action but action-4
 
     # documents sheet: url column is also a real hyperlink
     ws_docs = wb["documents"]
@@ -214,13 +221,43 @@ def test_xlsx_hyperlinks_and_money_types(corpus):
         else:
             per_year_total += row[v_col["amount_sum"]]
     assert all_years_total == pytest.approx(per_year_total)
-    assert all_years_total == pytest.approx(100000.5 + 250000 + 75000 + 1000)
+    assert all_years_total == pytest.approx(100000.5 + 250000 + 75000 + 1000 + 42000)
+
+
+def test_bar_citation_and_amount_source_columns(corpus):
+    """E3: the Board Action Report citation is emitted as citation_3 (looked
+    up by role, not by position), and amount_source labels where `amount`
+    came from."""
+    P.run(str(corpus), str(corpus / "publish"))
+    rows = {r["action_id"]: r for r in P.read_jsonl(str(corpus / "publish" / "contracts.jsonl"))}
+
+    # action-6: intro + action + bar, amount filled from the BAR
+    r6 = rows["action-6"]
+    assert r6["citation_3_doc_id"] == "doc-direct"
+    assert r6["citation_3_url"].endswith("#page=4")
+    assert r6["citation_3_page"] == 4
+    assert r6["amount_source"] == "bar"
+
+    # a row with no BAR citation leaves citation_3 empty, and an amount with
+    # no explicit source is minutes-derived
+    r1 = rows["action-1"]
+    assert (r1["citation_3_doc_id"], r1["citation_3_url"], r1["citation_3_page"]) == (None, None, None)
+    assert r1["amount_source"] == "minutes"
+
+    # no amount -> no amount_source
+    assert rows["action-4"]["amount_source"] is None
+
+    import csv
+    with open(str(corpus / "publish" / "contracts.csv"), encoding="utf-8") as fh:
+        headers = next(csv.reader(fh))
+    for col in ("amount_source", "citation_3_url", "citation_3_page"):
+        assert col in headers
 
 
 def test_avro_export_round_trips(corpus):
     P.run(str(corpus), str(corpus / "publish"))
     avro_dir = corpus / "publish" / "avro"
-    for name, expected in (("contract_actions", 5), ("vendors", 4), ("documents", 3)):
+    for name, expected in (("contract_actions", 6), ("vendors", 4), ("documents", 3)):
         path = avro_dir / f"{name}.avro"
         assert path.exists()
         records = P.validate_avro_roundtrip(str(path), expected)
@@ -232,6 +269,6 @@ def test_publish_is_rerunnable(corpus):
     duplicate or accumulate rows."""
     P.run(str(corpus), str(corpus / "publish"))
     result = P.run(str(corpus), str(corpus / "publish"))
-    assert result == {"actions": 5, "vendors": 4, "documents": 3}
+    assert result == {"actions": 6, "vendors": 4, "documents": 3}
     rows = P.read_jsonl(str(corpus / "publish" / "contracts.jsonl"))
-    assert len(rows) == 5
+    assert len(rows) == 6

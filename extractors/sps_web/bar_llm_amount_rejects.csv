@@ -1,0 +1,16 @@
+# Curated: (meeting_id,item_no,char_start) whose LLM-proposed `amount` was
+# hand-checked against the BAR and judged wrong or partial. bar_fill.py
+# --merge-llm keeps every other field the LLM supplied for these rows but
+# never fills `amount`/`amount_kind`, and stamps
+# `bar_llm_amount_rejected:<reason>` into extractor_notes.
+#
+# Checked in (not under out_sps_web/) so the list survives a regenerated
+# corpus; merge_llm also honours any `persistent: true` row hand-added to
+# out_sps_web/qa/bar_llm_rejects.jsonl, and mirrors these entries into it.
+meeting_id,item_no,char_start,amount,reason,note
+2021-11-17-regular,A.8,3812,15005.0,first_row_of_multi_vendor_table,"BAR says ""This action is budget neutral""; $15,005.76 is the first VENDOR/CONTRACTED VALUE row of an 8-vendor table, not the action's value"
+2025-11-19-regular,C.2,9697,365000.0,base_salary_not_total_compensation,"Base Salary $365,000 + TSA $60,000 = Total $425,000 in the BAR's own table"
+2026-01-21-general,A.5,3624,615000.0,top_of_a_stated_range,"""administrative costs ranging from $365,000 to $615,000 annually"" -- a range, not an amount"
+2022-07-06-regular,A.4,1067,663685.0,first_of_two_school_years,"""estimated at $663,685 for school year 2021-22 and $1,137,745 for school year 2022-23"""
+2020-09-23-regular,C.2,6869,92000.0,one_time_cost_reported_as_annual,"""one-time implementation cost of $92,000 and annual administrative costs ranging from $365,000 to $615,000"" -- LLM returned the one-time figure with amount_kind=annual"
+2025-07-30-special,2,1924,1440000.0,scenario_net_shortfall_not_contract_value,"""Scenario 1 ... showing expenditures exceeding revenue by $1.44 million"" -- a modelled net position, not the contract amount"

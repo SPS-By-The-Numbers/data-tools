@@ -32,7 +32,10 @@ CONTRACT_ACTIONS_SCHEMA = {
             "out_sps_web/contracts/contract_actions.jsonl."),
     "fields": [
         {"name": "action_id", "field_type": "string", "is_logical_key": True,
-         "doc": "Unique id for one board action row (`<meeting_id>-<item_no>-<hash>`)."},
+         "doc": ("Unique id for one board action row (`<meeting_id>-<item_no>-<hash>`). "
+                 "A motion awarding several vendors becomes one row per vendor: the "
+                 "primary keeps this id and the co-vendors get `-v2`, `-v3`, ... "
+                 "suffixes (see multi_vendor_group).")},
         {"name": "chain_id", "field_type": "string",
          "doc": "Id grouping this action with its contract's other amendments/change orders/renewals over time."},
         {"name": "sequence", "field_type": "int",
@@ -123,6 +126,29 @@ CONTRACT_ACTIONS_SCHEMA = {
         {"name": "citation_2_url", "field_type": "string",
          "doc": "Primary-source URL for the second citation, with a #page=N fragment, when present."},
         {"name": "citation_2_page", "field_type": "int", "doc": "Cited page number (page_start) of the second citation, when present."},
+        {"name": "citation_3_doc_id", "field_type": "string",
+         "doc": "doc_id of the Board Action Report citation (role=bar), when bar_fill.py linked one."},
+        {"name": "citation_3_url", "field_type": "string",
+         "doc": ("Primary-source URL for the Board Action Report citation, with a #page=N "
+                 "fragment, when present.")},
+        {"name": "citation_3_page", "field_type": "int",
+         "doc": "Cited page number (page_start) of the Board Action Report citation, when present."},
+        {"name": "amount_source", "field_type": "string",
+         "doc": ("Where `amount` came from: 'minutes' (the item's own motion text) or "
+                 "'bar' (filled from the linked Board Action Report by bar_fill.py). "
+                 "Null when amount is null.")},
+        {"name": "multi_vendor_group", "field_type": "string",
+         "doc": ("For a motion that awarded several vendors at once, the primary row's "
+                 "action_id, set on every member row (the primary included). Null on "
+                 "ordinary single-vendor rows.")},
+        {"name": "multi_vendor_n", "field_type": "int",
+         "doc": ("Number of vendor rows this multi-vendor motion was split into. Null on "
+                 "ordinary single-vendor rows.")},
+        {"name": "group_total", "field_type": "decimal",
+         "doc": ("Shared not-to-exceed printed for a joint award, repeated on every member "
+                 "row of the group. It is NOT split across members and is never copied "
+                 "into `amount`, so do not sum it across a group -- take it once per "
+                 "multi_vendor_group. Null when each vendor's own amount was printed.")},
     ],
     "unique": [["action_id"]],
 }

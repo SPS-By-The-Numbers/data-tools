@@ -30,8 +30,12 @@ Inputs (read-only, all under ``--root``, default ``out_sps_web``):
 
 Primary-source citation URL
 ============================
-A citation (``contract_actions.jsonl``'s ``citations[]``, at most 2 per
-row -- see ``link.py``) names a ``doc_id`` and a page range. The URL that
+A citation (``contract_actions.jsonl``'s ``citations[]`` -- the introduction
+and action minutes plus, since E3, the item's Board Action Report with
+``role="bar"``; see ``link.py``) names a ``doc_id`` and a page range.
+``citation_1``/``citation_2`` are positional (introduction, then action);
+``citation_3`` is the ``role="bar"`` one, looked up by role rather than by
+position because an unpaired introduction has only two citations in total. The URL that
 should live in the spreadsheet is the **primary source**, not necessarily
 the URL the document was actually fetched from:
 
@@ -109,7 +113,9 @@ ACTIONS_HEADERS = [
     "immediate_action", "contract_id", "po_number", "term", "department",
     "program_or_project", "fund", "funding_source_text", "procurement_method",
     "extractor", "paired", "title",
+    "amount_source", "multi_vendor_group", "multi_vendor_n", "group_total",
     "citation_1_url", "citation_1_page", "citation_2_url", "citation_2_page",
+    "citation_3_url", "citation_3_page",
     "action_id",
 ]
 
@@ -136,6 +142,19 @@ ACTIONS_COLUMN_NOTES = {
     "citation_1_page": "Cited page number (page_start) of the first citation.",
     "citation_2_url": "Primary source URL for the second citation, when present.",
     "citation_2_page": "Cited page number (page_start) of the second citation, when present.",
+    "citation_3_url": ("Primary source URL for the Board Action Report behind this item "
+                       "(citations[] role=bar, from bar_fill.py), when present."),
+    "citation_3_page": "Cited page number (page_start) of the Board Action Report citation.",
+    "amount_source": ("Where `amount` came from: minutes (the motion text) or bar (the "
+                      "linked Board Action Report). Empty when amount is empty."),
+    "multi_vendor_group": ("One motion can award several vendors; link.py emits one row per "
+                           "vendor. This is the primary row's action_id, repeated on every "
+                           "member (member action_ids are the primary's plus -v2, -v3, ...). "
+                           "Empty on ordinary single-vendor rows."),
+    "multi_vendor_n": "How many vendor rows the motion was split into. Empty on ordinary rows.",
+    "group_total": ("A joint award's single shared not-to-exceed, repeated on every member row. "
+                    "It is not apportioned between members and never appears in `amount` -- "
+                    "count it once per multi_vendor_group, never sum it down the column."),
 }
 for _f in CONTRACT_ACTIONS_SCHEMA["fields"]:
     ACTIONS_COLUMN_NOTES.setdefault(_f["name"], _f.get("doc") or "")
@@ -201,6 +220,27 @@ def citation_n(action, n, doc_idx):
     return c.get("doc_id"), url_with_page(base_url, page), page
 
 
+def citation_by_role(action, role, doc_idx):
+    """(doc_id, url_with_page, page) for the first citation with this role, or
+    (None, None, None)."""
+    for c in (action.get("citations") or []):
+        if c.get("role") == role:
+            doc = doc_idx.get(c.get("doc_id"))
+            page = c.get("page_start")
+            return c.get("doc_id"), url_with_page(primary_doc_url(doc), page), page
+    return None, None, None
+
+
+def amount_source_of(action):
+    """`minutes` | `bar` | None.  link.py sets `amount_source` on every row it
+    builds from an E3-filled extract; older `contract_actions.jsonl` files (or
+    a corpus that never ran bar_fill.py) have no such key, in which case any
+    amount present came from the minutes."""
+    if action.get("amount") is None:
+        return None
+    return action.get("amount_source") or "minutes"
+
+
 # ---------------------------------------------------------------------------
 # actions sheet / contracts.jsonl
 # ---------------------------------------------------------------------------
@@ -224,6 +264,10 @@ def build_action_record(action, vendor_idx, doc_idx):
     for the jsonl output only -- see build_action_records)."""
     c1_doc, c1_url, c1_page = citation_n(action, 1, doc_idx)
     c2_doc, c2_url, c2_page = citation_n(action, 2, doc_idx)
+    # The Board Action Report citation is role-addressed, not positional: an
+    # unpaired introduction has [intro, bar], a paired action [intro, action,
+    # bar], so "the third citation" is not reliably the BAR.
+    c3_doc, c3_url, c3_page = citation_by_role(action, "bar", doc_idx)
     vendor_canonical = action.get("vendor_canonical") or action.get("vendor_name")
     return {
         "date": action.get("meeting_date"),
@@ -261,6 +305,13 @@ def build_action_record(action, vendor_idx, doc_idx):
         "citation_2_doc_id": c2_doc,
         "citation_2_url": c2_url,
         "citation_2_page": c2_page,
+        "citation_3_doc_id": c3_doc,
+        "citation_3_url": c3_url,
+        "citation_3_page": c3_page,
+        "amount_source": amount_source_of(action),
+        "multi_vendor_group": action.get("multi_vendor_group"),
+        "multi_vendor_n": action.get("multi_vendor_n"),
+        "group_total": action.get("group_total"),
         "action_id": action.get("action_id"),
         # carried through for the AVRO/BigQuery table but not in ACTIONS_HEADERS
         "meeting_id": action.get("meeting_id"),
@@ -429,7 +480,8 @@ def write_xlsx(path, action_rows, vendor_rows, document_rows):
     ws = wb.active
     ws.title = "actions"
     _write_sheet(ws, ACTIONS_HEADERS, action_rows,
-                hyperlink_cols={"citation_1_url", "citation_2_url"})
+                hyperlink_cols={"citation_1_url", "citation_2_url",
+                                "citation_3_url"})
     ws_v = wb.create_sheet("vendors")
     _write_sheet(ws_v, VENDOR_HEADERS, vendor_rows)
     ws_d = wb.create_sheet("documents")
@@ -611,7 +663,11 @@ def write_readme(path, summary_text, extra_note=None):
         "`vendor_id, vendor_canonical, vendor_class, school_year "
         "(or `ALL YEARS`), n_actions, n_amounts, amount_sum` -- one row per "
         "canonical vendor per school year, plus one `ALL YEARS` total row "
-        "per vendor.",
+        "per vendor. Multi-vendor motions are counted per member: each vendor "
+        "named in a joint award contributes its own action row (see "
+        "`multi_vendor_group`), so every awardee shows up here. A joint "
+        "award's shared `group_total` is deliberately NOT in `amount_sum` -- "
+        "only per-vendor `amount`s are summed.",
         "",
         "## `documents` sheet columns",
         "",

@@ -15,12 +15,16 @@
 key_a,key_b,decision,canonical_a,canonical_b,note
 cdk construction services,construction services,n,CDK Construction Services Inc.,Construction Services Inc.,seeded from vendors_review.csv 2026-08-25
 city of seattle,city of seattle department of education,n,City of Seattle,City of Seattle Department of Education,seeded from vendors_review.csv 2026-08-25
+city of seattle,city of seattle department of education and early learning,n,City of Seattle,City of Seattle Department of Education and Early Learning,from vendors_review.csv
 city of seattle,city of seattle department of parks,n,City of Seattle,City of Seattle Department of Parks,seeded from vendors_review.csv 2026-08-25
 city of seattle,city of seattle office of arts and culture,n,City of Seattle,City of Seattle Office of Arts and Culture,seeded from vendors_review.csv 2026-08-25
 city of seattle,city of seattle parks,n,City of Seattle,City of Seattle Parks,seeded from vendors_review.csv 2026-08-25
 city of seattle,city of seattle parks and recreation,n,City of Seattle,City of Seattle Parks and Recreation,seeded from vendors_review.csv 2026-08-25
+city of seattle,city of seattle parks and recreation department,n,City of Seattle,City of Seattle Parks & Recreation Department,from vendors_review.csv
 city of seattle,city year of seattle,n,City of Seattle,City Year of Seattle,seeded from vendors_review.csv 2026-08-25
 city of seattle department of education,department of education,n,City of Seattle Department of Education,Department of Education,seeded from vendors_review.csv 2026-08-25
+construction group,landon construction group,n,Construction Group,Landon Construction Group LLC,from vendors_review.csv
+construction group,unimark construction group,n,Construction Group,Unimark Construction Group LLC,from vendors_review.csv
 construction services,rife construction services,n,Construction Services Inc.,Rife Construction Services LLC,seeded from vendors_review.csv 2026-08-25
 department of education,seattle department of education,n,Department of Education,Seattle Department of Education,seeded from vendors_review.csv 2026-08-25
 group health,group health options,n,Group Health,Group Health Options Inc.,seeded from vendors_review.csv 2026-08-25
@@ -34,17 +38,25 @@ king county,seattle king county building trades council,n,King County,Seattle/Ki
 northwest education association,northwest evaluation association,n,Northwest Education Association,Northwest Evaluation Association,seeded from vendors_review.csv 2026-08-25
 overlake hospital specialty school,school specialty,n,Overlake Hospital Specialty School,School Specialty,seeded from vendors_review.csv 2026-08-25
 rainier beach,rainier beach high school athletic field improvements,n,Rainier Beach,Rainier Beach High School Athletic Field Improvements,seeded from vendors_review.csv 2026-08-25
+roosevelt high school science modernization,roosevelt high schools science modernization project,n,Roosevelt High School Science Modernization,Roosevelt High Schools’ Science Modernization Project,from vendors_review.csv
 university of washington,university of washington experimental education unit,n,University of Washington,University of Washington Experimental Education Unit,seeded from vendors_review.csv 2026-08-25
 university of washington,university of washington haring center,n,University of Washington,University of Washington Haring Center,seeded from vendors_review.csv 2026-08-25
+absher construction,b 1 to absher construction,y,Absher Construction Company,B-1 to Absher Construction Company,from vendors_review.csv
 africatown center for education,africatown center for education and innovation,y,Africatown Center for Education,Africatown Center for Education & Innovation,seeded from vendors_review.csv 2026-08-25
+amplify,amplifyscience,y,AmplifyScience,Amplify,same company: Amplify Education (mClass 2015; Amplify Science 2019); added 2026-08-25
 childrens institute,childrens institute for learning differences,y,Children’s Institute,Children’s Institute for Learning Differences,seeded from vendors_review.csv 2026-08-25
 childrens institute,childrens institute of learning differences,y,Children’s Institute,Children's Institute of Learning Differences,seeded from vendors_review.csv 2026-08-25
 childrens institute for learning differences,childrens institute of learning differences,y,Children’s Institute for Learning Differences,Children's Institute of Learning Differences,seeded from vendors_review.csv 2026-08-25
+city f seattles parks and recreation department,city of seattle parks and recreation,y,City f Seattle’s Parks & Recreation Department,City of Seattle Parks and Recreation,source typo for 'of'; added 2026-08-25
+city f seattles parks and recreation department,recreation department,y,City f Seattle’s Parks & Recreation Department,Recreation Department,from vendors_review.csv
 city of seattle department of education,seattle department of education,y,City of Seattle Department of Education,Seattle Department of Education,seeded from vendors_review.csv 2026-08-25
+city of seattle department of education and early learning,seattle department of education,y,City of Seattle Department of Education and Early Learning,Seattle Department of Education,from vendors_review.csv
 city of seattle department of parks,city of seattle parks,y,City of Seattle Department of Parks,City of Seattle Parks,seeded from vendors_review.csv 2026-08-25
 city of seattle department of parks,seattle parks,y,City of Seattle Department of Parks,Seattle Parks,seeded from vendors_review.csv 2026-08-25
 city of seattle parks,city of seattle parks and recreation,y,City of Seattle Parks,City of Seattle Parks and Recreation,seeded from vendors_review.csv 2026-08-25
 city of seattle parks,seattle parks,y,City of Seattle Parks,Seattle Parks,seeded from vendors_review.csv 2026-08-25
+city of seattle parks and recreation,city of seattle parks and recreation department,y,City of Seattle Parks and Recreation,City of Seattle Parks & Recreation Department,from vendors_review.csv
+city of seattle parks and recreation,recreation department,y,Recreation Department,City of Seattle Parks and Recreation,truncated capture of the Parks department; added 2026-08-25
 city of seattle parks and recreation,seattle parks,y,City of Seattle Parks and Recreation,Seattle Parks,seeded from vendors_review.csv 2026-08-25
 construction service,construction services,y,"Construction Service, Inc.",Construction Services Inc.,seeded from vendors_review.csv 2026-08-25
 duck delivery,duck delivery of washington,y,Duck Delivery,Duck Delivery of Washington Inc.,seeded from vendors_review.csv 2026-08-25
@@ -53,9 +65,13 @@ group health options,group health options group health cooperative,y,Group Healt
 league of education voters,league of education voters foundation,y,League of Education Voters,League of Education Voters Foundation,user approval lost when vendors_review.csv was rewritten
 lloyd lynch general contractors,lynch general contractors,y,"Lloyd Lynch General Contractor, Inc.","Lynch General Contractors, Inc.",seeded from vendors_review.csv 2026-08-25
 mike welech construction,mike werlech construction,y,"Mike Welech Construction, Inc.",Mike Werlech Construction Inc.,seeded from vendors_review.csv 2026-08-25
+musco lighting,musco sports lighting,y,"Musco Lighting, Inc.",Musco Sports Lighting LLC,from vendors_review.csv
 neeley construction,neeley construction and cabinet,y,Neeley Construction,Neeley Construction and Cabinet Company,seeded from vendors_review.csv 2026-08-25
 r c zeigler,rc zeigler,y,R. C. Zeigler Company Inc.,R.C. Zeigler Company Inc.,seeded from vendors_review.csv 2026-08-25
 recology cleanscapes,reconology cleanscapes,y,Recology CleanScapes,"Reconology Cleanscapes, Inc.",seeded from vendors_review.csv 2026-08-25
 republic parking,republic parking northwest,y,Republic Parking,Republic Parking Northwest,seeded from vendors_review.csv 2026-08-25
 seattle king county building and construction trades council,seattle king county building trades council,y,Seattle/King County Building and Construction Trades Council,Seattle/King County Building Trades Council,seeded from vendors_review.csv 2026-08-25
+sm stemper architects,smstemper architects,y,S.M. Stemper Architects,S.M.Stemper Architects,from vendors_review.csv
+sm stemper architects,stemper architects,y,S.M. Stemper Architects,Stemper Architects,from vendors_review.csv
+smstemper architects,stemper architects,y,S.M.Stemper Architects,Stemper Architects,from vendors_review.csv
 western venture construction,western ventures construction,y,Western Venture Construction,Western Ventures Construction Inc.,seeded from vendors_review.csv 2026-08-25

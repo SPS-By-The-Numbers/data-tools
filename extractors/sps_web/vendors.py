@@ -1,6 +1,7 @@
 """Vendor normalization for the board-contracts pipeline (PLAN.md stage 6 / card F1).
 
-Reads ``out_sps_web/contracts/extracted.jsonl`` (one row per admitted
+Reads ``out_sps_web/contracts/extracted_filled.jsonl`` when it exists (E3,
+``bar_fill.py``), else ``out_sps_web/contracts/extracted.jsonl`` (one row per admitted
 contract-like item, from E1/E2) and produces a canonical vendor dimension:
 
     out_sps_web/contracts/vendors.jsonl        one row per canonical vendor
@@ -75,7 +76,13 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[2]
 ALIAS_CSV = Path(__file__).resolve().parent / "vendor_aliases.csv"
 MERGES_CSV = Path(__file__).resolve().parent / "vendor_merges.csv"
-IN_EXTRACTED = REPO_ROOT / "out_sps_web" / "contracts" / "extracted.jsonl"
+# Prefer E3's output (bar_fill.py) when it exists: it fills `vendor_raw` on
+# rows whose minutes named no counterparty, from the linked Board Action
+# Report. Those strings have to be normalised here or reconcile check 4 flags
+# them as unmapped. Falls back to the plain E2 file when E3 has not run.
+_FILLED = REPO_ROOT / "out_sps_web" / "contracts" / "extracted_filled.jsonl"
+_PLAIN = REPO_ROOT / "out_sps_web" / "contracts" / "extracted.jsonl"
+IN_EXTRACTED = _FILLED if _FILLED.exists() else _PLAIN
 OUT_VENDORS = REPO_ROOT / "out_sps_web" / "contracts" / "vendors.jsonl"
 OUT_MAP = REPO_ROOT / "out_sps_web" / "contracts" / "vendor_map.jsonl"
 OUT_REVIEW = REPO_ROOT / "out_sps_web" / "contracts" / "vendors_review.csv"
@@ -439,6 +446,13 @@ def build(rows: list[dict], aliases: dict[str, tuple[str, str, str]],
         raw = r.get("vendor_raw")
         if raw:
             raw_rows[raw].append(r)
+        # E1 emits a structured `co_vendors` list on multi-vendor items, and
+        # link.py explodes each entry into its own action row. Those names
+        # need a vendor_id too, or reconcile check 4 reports them unmapped.
+        for cv in (r.get("co_vendors") or []):
+            cv_raw = cv.get("vendor_raw") if isinstance(cv, dict) else cv
+            if cv_raw:
+                raw_rows[cv_raw].append(r)
 
     raw_to_group: dict[str, str] = {}
     raw_method: dict[str, str] = {}
@@ -649,7 +663,8 @@ def emit(groups: dict[str, Group], proposals: list[dict], rows: list[dict],
 
 def render_report(vendors, mappings, proposals, nonvendor_names, rows) -> str:
     n_rows = len(rows)
-    n_with_raw = sum(1 for r in rows if r.get("vendor_raw"))
+    n_with_raw = sum(1 for r in rows
+                     if r.get("vendor_raw") or r.get("co_vendors"))
     raw_forms = {m["vendor_raw"] for m in mappings}
     by_method = collections.Counter(m["method"] for m in mappings)
     by_class = collections.Counter(v["vendor_class"] for v in vendors)

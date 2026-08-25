@@ -693,3 +693,573 @@ def test_to_a_total_amount_also_fills_revised_total():
         "$1,045,360."), "modern", {})
     assert row["revised_total"] == 1_045_360.0
     assert row["action_type"] == "amendment"
+
+
+# ---------------------------------------------------------------------------
+# Instructional-materials adoptions: the counterparty is the publisher/product
+# named after "purchase" / "the adoption of" (owner feedback)
+# ---------------------------------------------------------------------------
+
+@pytest.mark.parametrize("motion,vendor", [
+    ("authorize the Superintendent to purchase AmplifyScience as the core "
+     "instructional materials for all grade 6-8 classrooms for an amount not to "
+     "exceed $2,069,686.", "AmplifyScience"),
+    ("authorize the Superintendent to purchase Carbon TIME as the core "
+     "instructional materials for high school Biology A science classrooms.",
+     "Carbon TIME"),
+    ("adopt and authorize the superintendent to purchase the Center for the "
+     "Collaborative Classroom as instructional materials for all K-5 classrooms.",
+     "Center for the Collaborative Classroom"),
+    ("authorize the Superintendent to purchase enVision as the core instructional "
+     "materials for all K-5 mathematics classrooms.", "enVision"),
+    ("authorize the Superintendent to purchase Inquiry By Design as the core "
+     "instructional material for all 6-8 English Language Arts classrooms.",
+     "Inquiry By Design"),
+])
+def test_adoption_names_the_product_as_vendor(motion, vendor):
+    row = E.extract(_fake_item("Instructional Materials Adoption", motion), "modern", {})
+    assert row["vendor_raw"] == vendor
+    assert row["action_type"] == "purchase"
+    assert "vendor_class:publisher" in row["extractor_notes"]
+
+
+def test_publisher_wins_and_product_becomes_the_programme():
+    item = _fake_item(
+        "Adoption of Algebra 1, Geometry, and Algebra 2 Instructional Materials",
+        "Approval of this item would approve the adoption of Illustrative "
+        "Mathematics, published by Imagine Learning LLC, for instructional "
+        "materials for Algebra 1 classrooms. Approval of this item would also "
+        "authorize the Superintendent to purchase Illustrative Mathematics as the "
+        "core instructional material for an amount not to exceed $3,547,754.")
+    row = E.extract(item, "modern", {})
+    assert row["vendor_raw"] == "Imagine Learning LLC"
+    assert row["program_or_project"] == "Illustrative Mathematics"
+    assert row["amount"] == 3_547_754
+
+
+def test_generic_adoption_tail_is_trimmed():
+    """The title's "<grade band> Instructional Materials" is not a vendor."""
+    item = _fake_item(
+        "Adoption of K-5 English Language Arts Instructional Materials",
+        "Approval of this item would approve the adoption of McGraw Hill, Emerge! "
+        "Elementary School Curriculum, for core instructional materials, and "
+        "authorize the Superintendent to purchase McGraw Hill, Emerge! as the core "
+        "instructional material for an amount not to exceed $9,000,000.00.")
+    row = E.extract(item, "modern", {})
+    assert row["vendor_raw"] == "McGraw Hill"
+
+
+@pytest.mark.parametrize("tok", [
+    "District-Developed Curriculum", "the District-Developed Curriculum",
+    "K-5 English Language Arts Instructional Materials",
+    "6-8 English Language Arts Instructional Materials", "Instructional Materials",
+])
+def test_curriculum_descriptions_are_not_vendors(tok):
+    assert not E._plausible_vendor(tok)
+
+
+def test_district_developed_curriculum_never_wins():
+    item = _fake_item(
+        "High School Science Instructional Materials Adoption",
+        "authorize the Superintendent to purchase Carbon TIME as the core "
+        "instructional materials for Biology A classrooms, to approve the "
+        "District-Developed Curriculum for BIO B as the core instructional "
+        "materials for high school classrooms, for an amount not to exceed "
+        "$1,034,132.")
+    row = E.extract(item, "wp1620", {})
+    assert row["vendor_raw"] == "Carbon TIME"
+    assert "District-Developed Curriculum" not in (row["co_vendors_raw"] or [])
+
+
+def test_plain_purchase_is_not_treated_as_an_adoption():
+    """The adoption anchor is gated on the "instructional material" formula."""
+    item = _fake_item(
+        "Purchase of Student and Staff Computers for new BEX IV Schools",
+        "Approval of this item would approve the purchase of Student and Staff "
+        "computers for a total amount not-to-exceed $1,200,000 for levy projects.")
+    row = E.extract(item, "wp1620", {})
+    assert row["vendor_raw"] is None
+    assert "vendor_class:publisher" not in row["extractor_notes"]
+
+
+def test_professional_development_figure_stays_an_extra():
+    item = _fake_item(
+        "Middle School Science Instructional Materials Adoption",
+        "authorize the Superintendent to purchase AmplifyScience as the core "
+        "instructional materials for an amount not to exceed $2,069,686, covering "
+        "licensing from school year 2019-20 to 2027-28, and an amount not to "
+        "exceed $565,857 for in-house professional development.")
+    row = E.extract(item, "wp1620", {})
+    assert row["amount"] == 2_069_686 and row["amount_kind"] == "not_to_exceed"
+    assert any("565,857" in n for n in row["extractor_notes"])
+
+
+# ---------------------------------------------------------------------------
+# Course names are not vendors (F1 proposed merging "CHEM B" with
+# "District-Developed CHEM B")
+# ---------------------------------------------------------------------------
+
+@pytest.mark.parametrize("tok", [
+    "CHEM B", "CHEM A", "BIO A", "BIO B", "PHYS B", "ALG 1", "GEOM",
+    "Chemistry A", "Biology A", "Biology B", "Physics B", "Algebra 1",
+    "Algebra 2", "Geometry", "9th grade Chemistry A",
+    "District-Developed CHEM B", "District-Developed Curriculum",
+    "core instructional materials", "curriculum", "instructional materials",
+    "In-house Curriculum",
+])
+def test_course_and_curriculum_names_are_not_vendors(tok):
+    assert not E._plausible_vendor(tok)
+
+
+@pytest.mark.parametrize("tok", ["Carbon TIME", "PEER", "AmplifyScience",
+                                 "enVision", "Inquiry By Design",
+                                 "Imagine Learning LLC"])
+def test_purchasable_products_still_survive(tok):
+    assert E._plausible_vendor(tok)
+
+
+def test_multi_product_adoption_keeps_every_purchasable_product():
+    """2019-05-29 C.1: two products bought, two courses district-developed."""
+    item = _fake_item(
+        "High School Science Instructional Materials Adoption",
+        "Approval of this item would accept the recommendation of the High School "
+        "Instructional Materials Adoption Committee for all students taking 9th "
+        "grade Chemistry A (CHEM A), 10th grade Biology A (BIO A), and 11th grade "
+        "Physics B (PHYS B), and authorize the Superintendent to purchase Carbon "
+        "TIME as the core instructional materials for high school Biology A (BIO "
+        "A) science classrooms, to approve the District-Developed Curriculum for "
+        "BIO B as the core instructional materials for high school Biology B (BIO "
+        "B) science classrooms, to approve the District-Developed Curriculum for "
+        "CHEM A as the core instructional materials for high school Chemistry A "
+        "(CHEM A) science classrooms, and to purchase PEER as the core "
+        "instructional materials for high school Physics A and B (PHYS A and B) "
+        "science classrooms, for an amount not to exceed $1,034,132.")
+    row = E.extract(item, "wp1620", {})
+    assert row["vendor_raw"] == "Carbon TIME"
+    assert row["co_vendors_raw"] == ["PEER"]
+    assert row["amount"] == 1_034_132 and row["action_type"] == "purchase"
+    text = E._text_of(item)
+    for v in [row["vendor_raw"]] + row["co_vendors_raw"]:
+        assert v in text
+    for bad in ("CHEM", "BIO", "PHYS", "District-Developed"):
+        assert bad not in row["vendor_raw"]
+        assert not any(bad in c for c in row["co_vendors_raw"])
+
+
+def test_district_developed_adoption_has_no_vendor_at_all():
+    item = _fake_item(
+        "High School Chemistry B Instructional Materials Adoption",
+        "Approval of this item would approve the recommendation of the "
+        "Instructional Materials Committee to adopt the District-Developed CHEM B "
+        "high school instructional materials and authorize the Superintendent to "
+        "enter into agreements and incur costs to implement the CHEM B "
+        "instructional materials for all high school Chemistry B (CHEM B) science "
+        "classrooms for an amount not to exceed $367,845.")
+    row = E.extract(item, "wp1620", {})
+    assert row["vendor_raw"] is None and row["co_vendors_raw"] == []
+    assert row["amount"] == 367_845 and row["amount_kind"] == "not_to_exceed"
+
+
+# ---------------------------------------------------------------------------
+# E3 BAR-conflict triage: amounts that were a component, not the contract
+# ---------------------------------------------------------------------------
+
+def test_gccm_takes_the_gmp_not_the_preconstruction_allowance():
+    item = _fake_item(
+        "Multiple Capital Levy Funds: Award Contract K5086 for GC/CM",
+        "Approval of this item would authorize the GC/CM to immediately provide "
+        "pre-construction services for an amount not to exceed $250,000, and "
+        "authorizes the Superintendent to negotiate and execute a contract "
+        "amendment for the Guaranteed Maximum Price (GMP) amount not to exceed "
+        "$25,972,700.")
+    row = E.extract(item, "wp1620", {})
+    assert row["amount"] == 25_972_700 and row["amount_kind"] == "not_to_exceed"
+    assert any(n.startswith("component_amount:") for n in row["extractor_notes"])
+
+
+def test_gmp_regex_crosses_an_rcw_citation():
+    """"...(GMP) as defined by the RCW 39.10.370 for an amount not to exceed $X"."""
+    item = _fake_item(
+        "BEX V: Award Contract P5152 for GC/CM to Cornerstone General Contractors",
+        "authorize the GC/CM to immediately provide pre-construction services for "
+        "an amount not to exceed $360,000, and negotiate and execute a contract "
+        "amendment for the Guaranteed Maximum Price (GMP) as defined by the RCW "
+        "39.10.370 for an amount not to exceed $27,000,000.")
+    assert E.extract(item, "wp1620", {})["amount"] == 27_000_000
+
+
+def test_gmp_phrased_as_authorized_total():
+    item = _fake_item(
+        "BEX VI: GC/CM for the John Marshall School Modernization",
+        "The maximum, total Guaranteed Maximum Price authorized for the project is "
+        "$90,000,000 plus Washington State sales tax. The Emerson Elementary School "
+        "Water Line Remediation in the amount of $153,386.50 is unrelated.")
+    assert E.extract(item, "modern", {})["amount"] == 90_000_000
+
+
+def test_two_contract_actions_in_one_item_are_flagged():
+    """2018-03-21 D.15 -- a modification with TCF Architecture *and* a GMP
+    amendment with BNBuilders.  One row cannot hold both, and the vendor ends up
+    beside the other clause's figure, so the row is flagged rather than silently
+    trusted.  The GMP here reads "to increase ... to $X", deliberately NOT a
+    `GMP_RE` connector: overriding on it would staple BNBuilders' money to
+    whichever vendor won the anchor race."""
+    item = _fake_item(
+        "BTA IV: Webster School Modernization -- contract amendment with "
+        "BNBuilders and contract modification with TCF Architecture",
+        "authorize the Superintendent to execute a contract modification for "
+        "$643,567 with TCF Architecture for additional design and construction "
+        "administration fees, and a contract amendment with BNBuilders to "
+        "increase the Guaranteed Maximum Price (GMP) to $23,900,000.")
+    row = E.extract(item, "wp1620", {})
+    assert row["vendor_raw"] == "BNBuilders"
+    assert row["amount"] == 643_567
+    assert any(n.startswith("multi_action_item:") for n in row["extractor_notes"])
+
+
+def test_single_action_item_is_not_flagged():
+    item = _fake_item("Approval of Emerald Learning Center Contract Amendment",
+                      "approve the contract amendment with Emerald Learning Center "
+                      "in the amount of $414,407, for a total contract amount of "
+                      "$1,329,287.")
+    row = E.extract(item, "modern", {})
+    assert not any(n.startswith("multi_action_item:") for n in row["extractor_notes"])
+
+
+@pytest.mark.parametrize("motion,amount", [
+    ("execute a contract with Recology CleanScapes covering the period from "
+     "August 1, 2017 to July 31, 2020, in the amount of $803,994.66 annually, or "
+     "$2,411,983.90 over the three-year term of the contract.", 2_411_983.90),
+    ("execute a one-year contract extension with Herff Jones in an amount not to "
+     "exceed $400,000 and may execute two optional annual extensions each in an "
+     "amount not to exceed $400,000, each for a total amount not to exceed $1.2 "
+     "million over three years.", 1_200_000.0),
+])
+def test_whole_term_total_beats_the_per_year_figure(motion, amount):
+    row = E.extract(_fake_item("Contract award", motion), "modern", {})
+    assert row["amount"] == amount
+
+
+def test_monthly_rate_is_labelled_monthly():
+    item = _fake_item(
+        "First Amendment to Facilities Capital Projects Warehouse Agreement",
+        "execute a first amendment to the lease for the Capital Ellis Street "
+        "Warehouse with P&P Georgetown LLC, covering the period of July 1, 2020 "
+        "through June 30, 2027 for a total of $24,767 a month.")
+    row = E.extract(item, "wp1620", {})
+    assert row["amount"] == 24_767 and row["amount_kind"] == "monthly"
+    assert "monthly" in E.AMOUNT_KINDS
+    ok, reasons = E.validate(row, item)
+    assert "amount_kind_invalid" not in reasons
+
+
+def test_gmp_does_not_hijack_a_from_to_amendment():
+    """2025-07-02 A.13 -- "GMP Amendment ... from $A to $B" keeps the delta."""
+    item = _fake_item(
+        "Authorization to execute the comprehensive Guaranteed Maximum Price "
+        "Amendment for Rainier Beach High School",
+        "revising the contract P5160 with Lydig Construction, Inc., from "
+        "$206,556,237.08 to $221,063,335.16 increasing the contract budget by "
+        "$14,507,098.08.")
+    row = E.extract(item, "modern", {})
+    assert row["amount"] == 14_507_098.08 and row["amount_kind"] == "increase"
+
+
+# ---------------------------------------------------------------------------
+# Structured co_vendors: one item, several vendors (link.py explodes these)
+# ---------------------------------------------------------------------------
+
+def test_vendor_amount_list_with_group_total():
+    """2019-06-12 A.13 -- envelope NTE, then one pair per agency."""
+    item = _fake_item(
+        "Approval of contracts for Therapeutic Treatment Day Services, RFQ 05790",
+        "Approval of this item would authorize the Superintendent to execute "
+        "contracts with agencies approved through RFQ 05790 Therapeutic Treatment "
+        "Day Services, for a not-to-exceed total amount of $1,890,000 as follows: "
+        "Overlake Hospital Specialty School in the amount of $283,000.00 (3,564 "
+        "hours); Fairfax Hospital/NWSOIL in the amount of $646,000.00 (6,705 "
+        "hours); and Seneca Family of Agencies in the amount of $961,000.00 "
+        "(14,508 hours) for private placement of students.")
+    row = E.extract(item, "wp1620", {})
+    assert row["vendor_raw"] == "Overlake Hospital Specialty School"
+    assert row["amount"] == 283_000.0
+    assert row["group_total"] == 1_890_000.0
+    assert row["group_total_kind"] == "not_to_exceed"
+    assert [(c["vendor_raw"], c["amount"]) for c in row["co_vendors"]] == [
+        ("Fairfax Hospital/NWSOIL", 646_000.0),
+        ("Seneca Family of Agencies", 961_000.0)]
+    assert row["co_vendors_raw"] == ["Fairfax Hospital/NWSOIL",
+                                     "Seneca Family of Agencies"]
+    ok, reasons = E.validate(row, item)
+    assert ok, reasons
+
+
+def test_vendor_amount_list_nulls_a_mistyped_co_vendor_amount():
+    """2020-06-10 C.4 -- Brock's "$250.000" is a typo, so that amount is null."""
+    item = _fake_item(
+        "Approval of contracts for Specially Designed Instruction",
+        "Approval of this item would authorize the Superintendent to execute "
+        "contracts with the following agencies under RFQ02758, Specially Designed "
+        "Instruction: Yellow Wood Academy in the amount of $649,500; Maxim "
+        "Healthcare Services in the amount of $950,000; Brightmont Academy in the "
+        "amount of $265,000; and Brock's Academy in the amount of $250.000, and to "
+        "take any necessary actions to implement these contracts.")
+    row = E.extract(item, "wp1620", {})
+    assert row["vendor_raw"] == "Yellow Wood Academy" and row["amount"] == 649_500
+    got = [(c["vendor_raw"], c["amount"]) for c in row["co_vendors"]]
+    assert got == [("Maxim Healthcare Services", 950_000.0),
+                   ("Brightmont Academy", 265_000.0),
+                   ("Brock's Academy", None)]
+    assert row["group_total"] is None
+    ok, reasons = E.validate(row, item)
+    assert ok, reasons
+
+
+def test_joint_award_with_one_shared_amount():
+    """2022-07-06 C.4 -- amounts are not split per vendor, so co-vendor is null."""
+    item = _fake_item(
+        "Approval of Contracts RFP022242A and RFP022242B, Student Transportation",
+        "authorize the Superintendent to execute contracts for Student "
+        "Transportation Services with First Student, Inc. and Zum Services, Inc., "
+        "in amounts not to exceed $39,542,000,000.")
+    row = E.extract(item, "modern", {})
+    assert row["vendor_raw"] == "First Student, Inc."
+    assert row["co_vendors"] == [{"vendor_raw": "Zum Services, Inc.",
+                                  "amount": None, "amount_kind": None,
+                                  "amount_raw": None}]
+
+
+def test_component_breakdown_is_not_a_vendor_list():
+    """"...delivered by the EEU in the amount of $943,089" is one contract."""
+    item = _fake_item(
+        "University of Washington Experimental Education Unit Interagency Agreement",
+        "execute an interagency agreement with the University of Washington Haring "
+        "Center in the amount of $1,513,864 for the following services: Educational "
+        "services for up to 42 preschool students delivered by the EEU in the "
+        "amount of $943,089; Educational services for up to 16 kindergarten "
+        "students delivered by the EEU in the amount of $486,416.")
+    row = E.extract(item, "wp1620", {})
+    assert row["vendor_raw"] == "University of Washington Haring Center"
+    assert row["co_vendors"] == []
+
+
+def test_parenthetical_alias_is_not_a_co_vendor():
+    """"Arcadis (formerly IBI Group Architects) in the amount of $169,230"."""
+    item = _fake_item(
+        "Insurance Reimbursement and BEX IV Program Contingency: Award "
+        "Architectural & Engineering Contract P2076 to Arcadis and Award "
+        "Emergency Public Works Contracts P5145 to LineScape of Washington and "
+        "Contract P5144 to Valley Electric",
+        "ratify the emergency contracts executed by the Superintendent with "
+        "Arcadis (formerly IBI Group Architects) in the amount of $169,230; "
+        "LineScape of Washington in the amount of $800,000, plus WSST, and Valley "
+        "Electric in the amount of $2,200,000, plus WSST.")
+    row = E.extract(item, "modern", {})
+    assert row["vendor_raw"] == "Arcadis"
+    assert [c["vendor_raw"] for c in row["co_vendors"]] == [
+        "LineScape of Washington", "Valley Electric"]
+    assert [c["amount"] for c in row["co_vendors"]] == [800_000.0, 2_200_000.0]
+
+
+def test_co_vendor_amount_must_be_printed():
+    item = _fake_item("Approval of contracts",
+                      "execute contracts as follows: Acme Widgets Inc. in the "
+                      "amount of $500,000; Beta Systems LLC in the amount of "
+                      "$750,000.")
+    row = E.extract(item, "modern", {})
+    assert len(row["co_vendors"]) == 1
+    row["co_vendors"][0]["amount"] = 12_345.0
+    row["co_vendors"][0]["amount_raw"] = "$12,345"
+    ok, reasons = E.validate(row, item)
+    assert not ok and "co_vendor_amount_not_printed" in reasons
+    row["co_vendors"][0]["vendor_raw"] = "Nonexistent Holdings LLC"
+    ok, reasons = E.validate(row, item)
+    assert not ok and "co_vendor_not_verbatim" in reasons
+
+
+def test_adoption_multi_product_lands_in_co_vendors():
+    item = _fake_item(
+        "High School Science Instructional Materials Adoption",
+        "authorize the Superintendent to purchase Carbon TIME as the core "
+        "instructional materials for Biology A classrooms, and to purchase PEER as "
+        "the core instructional materials for Physics classrooms, for an amount "
+        "not to exceed $1,034,132.")
+    row = E.extract(item, "wp1620", {})
+    assert row["vendor_raw"] == "Carbon TIME"
+    assert [c["vendor_raw"] for c in row["co_vendors"]] == ["PEER"]
+    assert row["co_vendors"][0]["amount"] is None
+
+
+# ---------------------------------------------------------------------------
+# Co-vendor capture defects from the vendor review
+# ---------------------------------------------------------------------------
+
+@pytest.mark.parametrize("raw,primary,co", [
+    ("Lydig Construction, Inc. and Elcon Corporation, Inc.",
+     "Lydig Construction, Inc.", ["Elcon Corporation, Inc."]),
+    ("First Student, Inc. and Zum Services, Inc.",
+     "First Student, Inc.", ["Zum Services, Inc."]),
+    ("Ednetics / MicroK12", "Ednetics", ["MicroK12"]),
+    ("The YMCA of Seattle and the City of Seattle Parks & Recreation Department",
+     "YMCA of Seattle", ["City of Seattle Parks & Recreation Department"]),
+])
+def test_joint_splits_to_keep(raw, primary, co):
+    assert E.split_joint_vendors(raw) == (primary, co)
+
+
+@pytest.mark.parametrize("raw", [
+    "Listen and Talk",
+    "City of Seattle Department of Parks and Recreation",
+    "City of Seattle Parks & Recreation Department",
+    "U.S. Department of Health and Human Services",
+    "Building and Construction Trades Council",
+    "City of Seattle Department of Education and Early Learning",
+    "A-1 Landscaping and Construction, Inc.",
+    "Children's Hospital and Regional Medical Center",
+    "Boys and Girls Clubs",
+    "Garland/DBS, Inc.",
+    "CBRE | Heery",
+])
+def test_names_that_must_never_split(raw):
+    assert E.split_joint_vendors(raw) == (E.strip_leading_article(raw), [])
+
+
+@pytest.mark.parametrize("raw,want", [
+    ("the City of Seattle Parks", "City of Seattle Parks"),
+    ("The YMCA of Seattle", "YMCA of Seattle"),
+    ("a Regency NW Construction Inc.", "Regency NW Construction Inc."),
+    ("Absher Construction Company", "Absher Construction Company"),
+])
+def test_leading_article_is_stripped(raw, want):
+    assert E.strip_leading_article(raw) == want
+
+
+@pytest.mark.parametrize("tok", [
+    "Roosevelt High School Science Modernization",
+    "Roosevelt High Schools' Science Modernization Project",
+    "Rainier Beach High School Athletic Field Improvements",
+    "Waterline Replacement", "Interior Renovations", "Upgrades Phase II",
+    "Sand Point Modernization", "Lafayette Elementary School Window Replacement",
+    "Queen Anne Elementary School Modernization", "Condensing Boiler Replacement",
+])
+def test_project_descriptions_are_not_vendors(tok):
+    assert not E._plausible_vendor(tok)
+
+
+@pytest.mark.parametrize("tok", [
+    "Reading & Writing Project Network, LLC",     # a real vendor, has a suffix
+    "Premier Field Developments",
+    "Regency NW Construction Inc.",
+])
+def test_real_vendors_survive_the_project_filter(tok):
+    assert E._plausible_vendor(tok)
+
+
+def test_award_prefix_is_trimmed_from_the_vendor():
+    """2008-10-15 C.6 -- "with Alternates A-2 and B-1 to Absher..."."""
+    item = _fake_item(
+        "BEX III, Bid B05836: Nathan Hale High School Project 1b Construction",
+        "Approval of this item will award a contract with Alternates A-2 and B-1 "
+        "to Absher Construction Company in the amount of $8,762,000, plus "
+        "Washington State Sales Tax.")
+    row = E.extract(item, "archive", {})
+    assert row["vendor_raw"] == "Absher Construction Company"
+    assert row["co_vendors"] == [] and row["amount"] == 8_762_000
+
+
+def test_project_name_is_not_a_co_vendor():
+    """2013-09-04 D.4 -- and the walk stops at the legal suffix."""
+    item = _fake_item(
+        "Final Acceptance: Rainier Beach and Roosevelt High School Science "
+        "Modernization Project, BTA III Contract No. K5018",
+        "Approval of this item demonstrates Final Acceptance of the work "
+        "performed under BTA III Public Works Contract K5018, Rainier Beach and "
+        "Roosevelt High School Science Modernization with Regency NW Construction "
+        "Inc. Mike Skutack spoke about the specifics of the contract.")
+    row = E.extract(item, "blackboard", {})
+    assert row["vendor_raw"] == "Regency NW Construction Inc."
+    assert row["co_vendors"] == []
+    assert row["contract_id"] == "K5018"
+
+
+def test_department_is_not_split_at_ampersand():
+    """2021-05-19 D.5 -- no "Recreation Department" co-vendor."""
+    item = _fake_item(
+        "BEX V: West Seattle Elementary School/Walt Hundley Playfield Property "
+        "Exchange with City of Seattle Parks and Recreation Department",
+        "authorize the Superintendent to execute an agreement with the City of "
+        "Seattle to exchange 35,495 square feet of property in return for 35,495 "
+        "square feet of City of Seattle Parks and Recreation Department property.")
+    row = E.extract(item, "wp1620", {})
+    assert row["vendor_raw"] == "City of Seattle"
+    assert row["co_vendors"] == []
+
+
+def test_unsplit_compound_headed_by_the_district_is_rejected():
+    item = _fake_item(
+        "School Consolidation Consultant Contract Award - RFP01627",
+        "award a contract in an amount not to exceed $250,000 to the successful "
+        "firm to work with Seattle Public Schools and the Community Advisory "
+        "Committee on Consolidation and School Closure.")
+    row = E.extract(item, "legacy", {})
+    assert row["vendor_raw"] is None and row["co_vendors"] == []
+
+
+# ---------------------------------------------------------------------------
+# Truncated capture: "Construction Group" (vendor review)
+# ---------------------------------------------------------------------------
+
+@pytest.mark.parametrize("text,vendor", [
+    ("accept the work performed under Contract P5175 with Construction Group "
+     "International for the Viewlands Elementary School Demolition project as "
+     "final.", "Construction Group International"),
+    ("award a contract to Landon Construction Group, LLC in the amount of "
+     "$944,952.", "Landon Construction Group, LLC"),
+    ("execute a contract with Unimark Construction Group, LLC in the amount of "
+     "$1,177,857.", "Unimark Construction Group, LLC"),
+    ("award the A/E contract to DLR Group for the design.", "DLR Group"),
+    ("execute a contract with Kassel & Associates, Inc. for the project.",
+     "Kassel & Associates, Inc."),
+])
+def test_mid_name_group_does_not_end_the_walk(text, vendor):
+    """"Group"/"Associates"/"Partners" sit mid-name; only a terminal legal form
+    (Inc/LLC/Ltd/Corp/Co/LP/PLLC...) ends the name."""
+    row = E.extract(_fake_item("Contract action", text), "modern", {})
+    assert row["vendor_raw"] == vendor
+
+
+def test_terminal_suffix_still_ends_the_walk():
+    """The 2013-09-04 fix must survive the narrower suffix set."""
+    row = E.extract(_fake_item(
+        "Final Acceptance",
+        "under Contract K5018 with Regency NW Construction Inc. Mike Skutack "
+        "spoke about the specifics of the contract."), "blackboard", {})
+    assert row["vendor_raw"] == "Regency NW Construction Inc."
+
+
+@pytest.mark.parametrize("tok", [
+    "Construction Group", "Services Company", "Engineering Services",
+    "Associates", "Contractors Inc.", "Construction", "Group",
+    "Consulting Partners LLC", "Architects and Engineers",
+])
+def test_generic_only_names_are_rejected(tok):
+    """No proper-noun token survived, so there is no vendor identity left."""
+    assert not E._plausible_vendor(tok)
+
+
+@pytest.mark.parametrize("tok", [
+    "Construction Group International", "Landon Construction Group, LLC",
+    "DLR Group", "NAC Architecture", "Premier Field Developments",
+    "Bayley Construction, LP", "Western Ventures Construction, Inc.",
+])
+def test_names_with_a_proper_noun_survive(tok):
+    assert E._plausible_vendor(tok)
+
+
+def test_generic_only_co_vendor_is_dropped():
+    item = _fake_item(
+        "Approval of contracts",
+        "execute contracts as follows: Acme Widgets Inc. in the amount of "
+        "$500,000; Construction Group in the amount of $750,000.")
+    row = E.extract(item, "modern", {})
+    assert [c["vendor_raw"] for c in row["co_vendors"]] == []

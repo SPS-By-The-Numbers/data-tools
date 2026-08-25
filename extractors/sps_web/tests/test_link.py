@@ -395,6 +395,70 @@ def test_vendor_map_is_used_when_present(tmp_path):
     assert len({a["chain_id"] for a in actions}) == 1
 
 
+# --------------------------------------------------------------------------
+# E3: Board Action Report citation + amount_source
+# --------------------------------------------------------------------------
+def test_bar_citation_is_carried_into_the_action_row(tmp_path):
+    """bar_fill.py's `bar_citation` becomes a third citation with role="bar";
+    the action row's BAR wins when the introduction has one too."""
+    title = "BTA V: Award Construction Contract P5200 to Acme Builders, Inc."
+    rows = [
+        row("2024-03-01", "introduction", title,
+            bar_citation={"doc_id": "bar-intro", "page_start": 1, "page_end": 2}),
+        row("2024-03-15", "consent", title,
+            bar_citation={"doc_id": "bar-action", "page_start": 3, "page_end": 3}),
+    ]
+    actions, _ = run_link(tmp_path, rows)
+    a = only(actions, paired=True)
+    roles = [(c["role"], c["doc_id"]) for c in a["citations"]]
+    assert roles == [("introduction", "doc-2024-03-01"),
+                     ("action", "doc-2024-03-15"),
+                     ("bar", "bar-action")]
+
+
+def test_unpaired_introduction_keeps_its_own_bar_citation(tmp_path):
+    rows = [row("2024-03-01", "introduction", "A one-off introduction",
+                bar_citation={"doc_id": "bar-intro", "page_start": 2, "page_end": 2})]
+    actions, _ = run_link(tmp_path, rows)
+    assert [c["role"] for c in actions[0]["citations"]] == ["introduction", "bar"]
+
+
+def test_amount_source_follows_the_row_that_supplied_the_amount(tmp_path):
+    """The action row has no amount; the introduction's came from a BAR. The
+    merged row must be labelled `bar`, not left null or mislabelled."""
+    title = "BTA V: Final Acceptance of Contract P5201 with Acme Builders, Inc."
+    rows = [
+        row("2024-03-01", "introduction", title, action_type="final_acceptance",
+            amount=250000.0, amount_kind="final", amount_source="bar",
+            bar_citation={"doc_id": "bar-intro", "page_start": 2, "page_end": 2}),
+        row("2024-03-15", "consent", title, action_type="final_acceptance"),
+    ]
+    actions, _ = run_link(tmp_path, rows)
+    a = only(actions, paired=True)
+    assert a["amount"] == 250000.0
+    assert a["amount_source"] == "bar"
+
+
+def test_amount_source_is_null_when_there_is_no_amount(tmp_path):
+    actions, _ = run_link(tmp_path, [row("2024-03-01", "immediate", "No money here")])
+    assert actions[0]["amount_source"] is None
+
+
+def test_run_prefers_extracted_filled_when_it_exists(tmp_path):
+    out_root = tmp_path / "out"
+    (out_root / "contracts").mkdir(parents=True)
+    plain = out_root / "contracts" / "extracted.jsonl"
+    filled = out_root / "contracts" / "extracted_filled.jsonl"
+    plain.write_text(json.dumps(row("2024-03-01", "consent", "From extracted")) + chr(10))
+    filled.write_text(
+        json.dumps(row("2024-03-01", "consent", "From extracted_filled")) + chr(10))
+    actions, _ = link.run(out_root=str(out_root))
+    assert actions[0]["title"] == "From extracted_filled"
+    filled.unlink()
+    actions, _ = link.run(out_root=str(out_root))
+    assert actions[0]["title"] == "From extracted"
+
+
 def test_fallback_vendor_key_strips_suffixes():
     assert link._fallback_vendor_key("Lydig Construction, Inc.") == \
         link._fallback_vendor_key("LYDIG CONSTRUCTION INC")
@@ -419,3 +483,156 @@ def test_report_is_written_and_has_the_required_sections(tmp_path):
 def test_school_year_boundary():
     assert link.school_year("2020-08-31") == "2019-20"
     assert link.school_year("2020-09-01") == "2020-21"
+
+
+# --------------------------------------------------------------------------
+# multi-vendor items: one action row per vendor
+# --------------------------------------------------------------------------
+def test_multi_vendor_list_with_per_vendor_amounts(tmp_path):
+    """RFQ 05790: one motion, three vendors, three printed amounts."""
+    title = ("Approval of RFQ 05790 therapeutic day school services contracts "
+             "for the 2024-2025 school year")
+    rows = [
+        row("2024-06-26", "consent", title, item_no="A.4",
+            vendor_raw="Overlake Hospital Medical Center", amount=283000.0,
+            amount_kind="not_to_exceed",
+            co_vendors=[
+                {"vendor_raw": "Fairfax/NWSOIL", "amount": 646000.0,
+                 "amount_kind": "not_to_exceed"},
+                {"vendor_raw": "Seneca Family of Agencies", "amount": 961000.0,
+                 "amount_kind": "not_to_exceed"},
+            ]),
+    ]
+    actions, _ = run_link(tmp_path, rows)
+    assert len(actions) == 3
+    primary = only(actions, vendor_raw="Overlake Hospital Medical Center")
+    fairfax = only(actions, vendor_raw="Fairfax/NWSOIL")
+    seneca = only(actions, vendor_raw="Seneca Family of Agencies")
+    # ids: the primary keeps its own, members are suffixed in printed order
+    assert fairfax["action_id"] == primary["action_id"] + "-v2"
+    assert seneca["action_id"] == primary["action_id"] + "-v3"
+    # group bookkeeping is on every member, the primary included
+    for a in (primary, fairfax, seneca):
+        assert a["multi_vendor_group"] == primary["action_id"]
+        assert a["multi_vendor_n"] == 3
+        assert a["group_total"] is None          # per-vendor amounts, no group total
+        assert a["board_action"] == "approved"
+        assert a["meeting_date"] == "2024-06-26"
+        assert a["citations"] == primary["citations"]
+        assert a["title"] == title
+        assert "co_vendors" not in a
+    assert [a["amount"] for a in (primary, fairfax, seneca)] == [283000.0, 646000.0, 961000.0]
+    assert all(a["amount_kind"] == "not_to_exceed" for a in (primary, fairfax, seneca))
+    # each member resolves its own vendor and chains on its own
+    assert len({a["vendor_id"] for a in (primary, fairfax, seneca)}) == 3
+    assert len({a["chain_id"] for a in (primary, fairfax, seneca)}) == 3
+    report = (tmp_path / "out" / "qa" / "link_report.md").read_text()
+    assert "Multi-vendor items (1 groups, 3 member rows)" in report
+
+
+def test_joint_award_with_one_shared_total(tmp_path):
+    """'with X, Y and Z' sharing a single NTE: amounts stay null, total is on
+    every row and is never split or duplicated into `amount`."""
+    rows = [
+        row("2023-05-10", "consent",
+            "Award of the districtwide moving services contract with Acme Movers, "
+            "Best Movers and Cedar Movers",
+            vendor_raw="Acme Movers", amount=None, group_total=1500000.0,
+            amount_kind="not_to_exceed",
+            co_vendors=[{"vendor_raw": "Best Movers", "amount": None},
+                        {"vendor_raw": "Cedar Movers", "amount": None}]),
+    ]
+    actions, _ = run_link(tmp_path, rows)
+    assert len(actions) == 3
+    assert all(a["amount"] is None for a in actions)
+    assert all(a["group_total"] == 1500000.0 for a in actions)
+    assert all(a["multi_vendor_n"] == 3 for a in actions)
+    assert sum(a["amount"] or 0 for a in actions) == 0      # nothing to double-count
+    assert sorted(a["vendor_raw"] for a in actions) == \
+        ["Acme Movers", "Best Movers", "Cedar Movers"]
+
+
+def test_co_vendor_amount_changed_between_intro_and_action(tmp_path):
+    """The pair is made on the primary; members are matched by vendor key, so a
+    co-vendor whose amount was revised still yields ONE row."""
+    title = "Approval of the 2024-25 nonpublic agency services contracts"
+    rows = [
+        row("2024-05-15", "introduction", title, item_no="D.2",
+            vendor_raw="Overlake Hospital Medical Center", amount=283000.0,
+            co_vendors=[{"vendor_raw": "Seneca Family of Agencies", "amount": 900000.0}]),
+        row("2024-05-29", "consent", title, item_no="A.3",
+            vendor_raw="Overlake Hospital Medical Center", amount=283000.0,
+            co_vendors=[{"vendor_raw": "Seneca Family of Agencies, Inc.",
+                         "amount": 961000.0}]),
+    ]
+    actions, _ = run_link(tmp_path, rows)
+    assert len(actions) == 2                      # one primary + one co-vendor, not four
+    primary = only(actions, vendor_raw="Overlake Hospital Medical Center")
+    assert primary["paired"] is True
+    assert primary["meeting_date"] == "2024-05-29"
+    seneca = only(actions, action_id=primary["action_id"] + "-v2")
+    assert seneca["vendor_raw"] == "Seneca Family of Agencies, Inc."   # action wins
+    assert seneca["amount"] == 961000.0                                # action wins
+    assert seneca["amount_conflict"] is True                           # 900k -> 961k
+    assert seneca["paired"] is True
+    assert [c["role"] for c in seneca["citations"]] == ["introduction", "action"]
+    assert seneca["intro_meeting_date"] == "2024-05-15"
+
+
+def test_co_vendor_rows_do_not_inherit_the_primary_contract_id(tmp_path):
+    rows = [
+        row("2024-06-26", "consent", "Award construction contracts for the Rainier roof",
+            vendor_raw="Acme Roofing", amount=100000.0, contract_id="P5300",
+            revised_total=100000.0,
+            co_vendors=[{"vendor_raw": "Best Roofing", "amount": 200000.0}]),
+    ]
+    actions, _ = run_link(tmp_path, rows)
+    member = only(actions, vendor_raw="Best Roofing")
+    assert member["contract_id"] is None
+    assert member["po_number"] is None
+    assert member["revised_total"] is None
+    assert member["chain_method"] == "singleton"
+    primary = only(actions, vendor_raw="Acme Roofing")
+    assert primary["contract_id"] == "P5300"
+    assert member["chain_id"] != primary["chain_id"]
+
+
+def test_co_vendor_duplicate_of_primary_is_not_re_emitted(tmp_path):
+    rows = [
+        row("2024-06-26", "consent", "Award a services contract to Acme Testing",
+            vendor_raw="Acme Testing, Inc.", amount=50000.0,
+            co_vendors=[{"vendor_raw": "Acme Testing Inc", "amount": 50000.0}]),
+    ]
+    actions, _ = run_link(tmp_path, rows)
+    assert len(actions) == 1
+    assert actions[0]["multi_vendor_group"] is None
+    assert actions[0]["multi_vendor_n"] is None
+
+
+def test_co_vendors_only_promotes_the_first_entry_to_primary(tmp_path):
+    """Some extractions leave `vendor_raw` null and list every vendor."""
+    rows = [
+        row("2024-06-26", "consent", "Award of the districtwide interpretation contracts",
+            vendor_raw=None, group_total=400000.0,
+            co_vendors=[{"vendor_raw": "Alpha Language Services", "amount": 150000.0},
+                        {"vendor_raw": "Beta Interpreters", "amount": 250000.0}]),
+    ]
+    actions, _ = run_link(tmp_path, rows)
+    assert len(actions) == 2
+    primary = only(actions, vendor_raw="Alpha Language Services")
+    member = only(actions, vendor_raw="Beta Interpreters")
+    assert primary["amount"] == 150000.0
+    assert member["amount"] == 250000.0
+    assert member["action_id"] == primary["action_id"] + "-v2"
+    assert all(a["group_total"] == 400000.0 for a in actions)
+    assert primary["vendor_id"] and member["vendor_id"]
+
+
+def test_ordinary_rows_get_null_multi_vendor_columns(tmp_path):
+    rows = [row("2024-06-26", "consent", "Award a services contract to Acme Testing",
+                vendor_raw="Acme Testing, Inc.", amount=50000.0)]
+    actions, _ = run_link(tmp_path, rows)
+    a = actions[0]
+    assert a["multi_vendor_group"] is None
+    assert a["multi_vendor_n"] is None
+    assert a["group_total"] is None

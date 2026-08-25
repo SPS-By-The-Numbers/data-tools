@@ -89,7 +89,10 @@ The seven checks (see PLAN.md Sec. 3 H2 for the prose spec):
    (``--no-network`` skips this).
 3. Money sanity: amounts in [0, 2e9]; ``revised_total >= amount`` for
    amendments/change orders; ``prior_total + amount == revised_total``
-   when all three are present (mismatch rate + examples); ``amount_kind``
+   when all three are present **on an amendment/change order** (that identity
+   assumes ``amount`` is the increment; a final_acceptance closeout's
+   ``amount`` is the final total, so those rows are excluded) -- mismatch rate
+   + examples; ``amount_kind``
    present whenever ``amount`` is.
 4. Vendors: every ``vendor_raw`` maps to a ``vendor_id`` that exists in
    ``vendors.jsonl``, or is flagged ``not_a_vendor`` in ``vendor_map.jsonl``.
@@ -99,7 +102,10 @@ The seven checks (see PLAN.md Sec. 3 H2 for the prose spec):
    (``extracted.jsonl``) per school year, as a table + ASCII sparkline;
    flags a year that drops >50% vs. *both* neighbours and reports whether
    ``coverage_matrix.md`` explains it (pending-fetch count > 0 that year).
-7. Key uniqueness: ``action_id`` unique in ``contract_actions.jsonl``;
+7. Key uniqueness: ``action_id`` unique in ``contract_actions.jsonl``
+   (a multi-vendor motion's co-vendor rows carry ``<primary>-v2``, ``-v3``,
+   ... ids -- those are accepted, and each is checked to name a real primary
+   row via ``multi_vendor_group`` with a matching ``multi_vendor_n``);
    ``(meeting_id, item_no, char_start)`` unique across ``items/*.jsonl``.
 """
 
@@ -431,7 +437,13 @@ def check_money(actions):
                 missing_kind.append(f"{aid}: amount={amt}, amount_kind is null")
         if at in AMENDMENT_LIKE_TYPES and amt is not None and rt is not None and rt < amt:
             revised_lt.append(f"{aid}: action_type={at} amount={amt} revised_total={rt}")
-        if pt is not None and amt is not None and rt is not None:
+        # Only amendment-like rows carry the increment semantics this identity
+        # assumes (amount = the increase). On a final_acceptance closeout,
+        # bar_fill.py sets prior_total = the original contract, revised_total =
+        # the final contract including change orders and sales tax, and
+        # amount = revised_total, so prior+amount==revised is meaningless there.
+        if (at in AMENDMENT_LIKE_TYPES
+                and pt is not None and amt is not None and rt is not None):
             sum_checked += 1
             if abs((pt + amt) - rt) > 0.01:
                 sum_mismatch += 1
@@ -445,7 +457,8 @@ def check_money(actions):
         (f"amount > ${MAX_REASONABLE_AMOUNT:,}", len(too_big)),
         ("amount present, amount_kind null", len(missing_kind)),
         ("amendment/change_order with revised_total < amount", len(revised_lt)),
-        ("rows with prior_total + amount + revised_total all present", sum_checked),
+        ("amendment/change_order rows with prior_total + amount + revised_total all present",
+         sum_checked),
         ("...of those, prior_total + amount != revised_total", sum_mismatch),
     ]
     hard_bad = len(neg) + len(too_big) + len(revised_lt) + len(missing_kind)
@@ -733,24 +746,63 @@ def check_key_uniqueness(actions, items):
     item_keys = collections.Counter((r.get("meeting_id"), r.get("item_no"), r.get("char_start")) for r in items)
     dup_items = {k: v for k, v in item_keys.items() if v > 1}
 
-    bad = len(dup_actions) + null_action_id + len(dup_items)
+    # Multi-vendor motions: link.py emits one row per vendor, the primary
+    # keeping its action_id and each co-vendor getting a `-v2`, `-v3`, ...
+    # suffix. Those suffixed ids are legitimate distinct keys -- what has to
+    # hold is that every member points at a `multi_vendor_group` that exists
+    # as a real primary row, that the suffix is well-formed, and that the
+    # group's actual size matches the `multi_vendor_n` recorded on it.
+    id_set = set(action_ids)
+    member_re = re.compile(r"^(?P<base>.+)-v(?P<n>[2-9]\d*)$")
+    groups = collections.defaultdict(list)
+    bad_members = []
+    for a in actions:
+        gid = a.get("multi_vendor_group")
+        if gid:
+            groups[gid].append(a)
+    for a in actions:
+        aid = a.get("action_id") or ""
+        m = member_re.match(aid)
+        gid = a.get("multi_vendor_group")
+        if m and not gid:
+            bad_members.append(f"{aid}: -vN action_id with no multi_vendor_group")
+        if not gid:
+            continue
+        if gid not in id_set:
+            bad_members.append(f"{aid}: multi_vendor_group {gid!r} is not an action_id")
+        elif aid != gid and (not m or m.group("base") != gid):
+            bad_members.append(f"{aid}: not <{gid}>-vN")
+    for gid, members in groups.items():
+        declared = {m.get("multi_vendor_n") for m in members}
+        if declared != {len(members)}:
+            bad_members.append(
+                f"group {gid}: {len(members)} rows but multi_vendor_n={sorted(declared, key=str)}")
+
+    bad = len(dup_actions) + null_action_id + len(dup_items) + len(bad_members)
     c.counts = [
         ("contract_actions rows", len(actions)),
         ("distinct action_id", len([k for k in action_ids if k is not None])),
         ("duplicate action_id values", len(dup_actions)),
         ("null action_id", null_action_id),
+        ("multi-vendor groups", len(groups)),
+        ("multi-vendor member rows (`-vN` ids)",
+         sum(1 for a in actions if member_re.match(a.get("action_id") or ""))),
+        ("malformed multi-vendor keys", len(bad_members)),
         ("items rows", len(items)),
         ("distinct (meeting_id, item_no, char_start)", len(item_keys)),
         ("duplicate (meeting_id, item_no, char_start) keys", len(dup_items)),
     ]
     if bad:
         c.set("FAIL", f"{len(dup_actions)} duplicate action_id, {null_action_id} null action_id, "
-                       f"{len(dup_items)} duplicate item keys")
+                       f"{len(dup_items)} duplicate item keys, "
+                       f"{len(bad_members)} malformed multi-vendor keys")
     else:
-        c.set("PASS", "action_id unique in contract_actions.jsonl; "
+        c.set("PASS", "action_id unique in contract_actions.jsonl (co-vendor `-vN` ids "
+                       "included, each resolving to a real primary row); "
                        "(meeting_id, item_no, char_start) unique in items")
     examples = [f"action_id {k!r} appears {v}x" for k, v in list(dup_actions.items())[:5]]
     examples += [f"item key {k!r} appears {v}x" for k, v in list(dup_items.items())[:5]]
+    examples += bad_members[:5]
     c.examples = examples[:10]
     return c
 

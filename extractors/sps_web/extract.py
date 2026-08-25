@@ -166,7 +166,7 @@ ERAS = ("legacy", "archive", "blackboard", "wp1620", "modern")
 ACTION_TYPES = ("new", "amendment", "change_order", "renewal",
                 "final_acceptance", "purchase", "other")
 AMOUNT_KINDS = ("not_to_exceed", "revised_total", "increase", "final",
-                "annual", "unspecified")
+                "annual", "monthly", "unspecified")
 
 
 # ---------------------------------------------------------------------------
@@ -350,6 +350,15 @@ _ABBREVS = {"inc.", "inc.,", "llc.", "l.l.c.", "ltd.", "ltd.,", "co.", "co.,",
             "corp.", "corp.,", "assoc.", "assn.", "bros.", "st.", "u.s.",
             "p.s.", "p.c.", "pllc.", "no.", "dept.", "jr.", "sr.", "mt.",
             "intl.", "int'l.", "s.", "n.", "e.", "w."}
+# A short lowercase prefix followed by a capital is a brand, not a stray word.
+_CAMEL_BRAND_RE = re.compile(r"^[a-z]{1,3}[A-Z]\w*")
+# The subset that genuinely ends a company name.  `_SUFFIX_RE` is broader (it
+# also covers Group/Associates/Partners for the comma-crossing rule), but those
+# words appear mid-name -- stopping on them truncated "Construction Group
+# International" to "Construction Group".
+_TERMINAL_SUFFIX_RE = re.compile(
+    r"^(inc|llc|l\.l\.c|ltd|corp|corporation|company|co|lp|llp|pllc|"
+    r"p\.?s|p\.?c|plc)\.?,?[;:]?$", re.I)
 _SUFFIX_RE = re.compile(r"^(inc|llc|ltd|co|corp|company|corporation|lp|llp|pllc|"
                         r"p\.?s|plc|pc|group|associates|assoc|partners)\.?,?[;:]?$", re.I)
 # Read right to left, a preposition means the name *started* after it:
@@ -399,6 +408,7 @@ def _walk_vendor(text: str, pos: int, max_tokens: int = 10) -> str | None:
     _last_head = ""                  # last accepted token, lowercased
     _prev_comma = False              # previous accepted token ended in ","
     _saw_suffix = False              # an Inc./LLC/Company token was accepted
+    n_conn = 0                       # connectors, budgeted apart from names
     end_before_for = None            # offset of `end` when "for" was crossed
     n_after_for = 0
     pending: list[int] = []          # connector tokens not yet confirmed
@@ -417,7 +427,7 @@ def _walk_vendor(text: str, pos: int, max_tokens: int = 10) -> str | None:
         # A *capitalised* connector is part of the printed name ("Teach For
         # America", "Boys And Girls Clubs"); a lowercase "for" is a scope
         # clause unless it follows a head noun ("Center for Children").
-        cap_connector = low in ("for", "of", "and", "the") and tok[:1].isupper()
+        cap_connector = low in ("for", "of", "and", "the", "by") and tok[:1].isupper()
         if (low in _INNER_WORDS or cap_connector
                 or (low == "for" and _last_head in _FOR_HEADS)) and n > 0:
             nxt = text[j:].lstrip(" \t").split(" ", 1)[0].lower().strip(",.;:")
@@ -431,11 +441,15 @@ def _walk_vendor(text: str, pos: int, max_tokens: int = 10) -> str | None:
             # one exception: it may introduce a *co-vendor*, split out later.
             if _saw_suffix and low not in ("and", "&"):
                 break
+            if low in ("and", "&"):
+                _saw_suffix = False        # the next name gets its own suffix
             if low == "for":
                 end_before_for, n_after_for = end, 0
             pending.append(j)
             i = j
-            n += 1
+            n_conn += 1
+            if n_conn > 6:
+                break
             continue
         # "Dairy Fresh Farms, Inc." keeps going past the comma; "Brookwood
         # Farms Inc., ES Foods" is a *list*, so a comma is only crossed when a
@@ -444,14 +458,21 @@ def _walk_vendor(text: str, pos: int, max_tokens: int = 10) -> str | None:
             break
         if low.rstrip(".") in _STOP_WORDS and not _SUFFIX_RE.match(low):
             break
-        if not (tok[0].isupper() or (tok[0].isdigit() and re.search(r"[A-Za-z]", tok))):
+        if not (tok[0].isupper()
+                or (tok[0].isdigit() and re.search(r"[A-Za-z]", tok))
+                # camelCase brand names: enVision, iReady, eSchoolPlus
+                or _CAMEL_BRAND_RE.match(tok)):
+            break
+        # A legal suffix ends the name: "Regency NW Construction Inc. Mike
+        # Skutack spoke about..." must not swallow the next sentence.
+        if _saw_suffix and not _TERMINAL_SUFFIX_RE.match(low):
             break
         pending = []
         end = j
         n += 1
         _last_head = low
         _prev_comma = tok.endswith(",")
-        if _SUFFIX_RE.match(low):
+        if _TERMINAL_SUFFIX_RE.match(low):
             _saw_suffix = True
         if end_before_for is not None:
             n_after_for += 1
@@ -530,6 +551,75 @@ def _walk_vendor_back(text: str, pos: int, max_tokens: int = 8) -> str | None:
     return raw
 
 
+def _find_vendor_amount_pairs(text: str, bad_spans=()) -> list[dict]:
+    """Every "<Vendor> in the amount of $A" pair, in text order.
+
+    This is the shape multi-agency awards are always minuted in:
+    "...under RFQ02758: Yellow Wood Academy in the amount of $649,500; Maxim
+    Healthcare Services in the amount of $950,000; ...".  Each vendor is walked
+    backwards from its own money phrase, so every string stays verbatim.
+    """
+    pairs = []
+    for m in _BEFORE_AMOUNT_RE.finditer(text):
+        v = _walk_vendor_back(text, m.start())
+        if not v:
+            continue
+        v = strip_leading_article(trim_award_prefix(_trim_list_item(v)))
+        if not v or not _plausible_vendor(v):
+            continue
+        # A list member is introduced by a separator (":", ";", ",", "and"), not
+        # by a preposition: "...delivered by the EEU in the amount of $943,089"
+        # is a component of one contract, not a second vendor.
+        before = text[:m.start() - len(v)].rstrip()
+        if not _LIST_SEPARATOR_RE.search(before):
+            continue
+        dollar = m.end() - 1
+        mm = MONEY_RE.match(text, dollar)
+        if not mm:
+            continue
+        if any(lo <= dollar < hi for lo, hi in bad_spans):
+            continue
+        val = parse_money(mm.group(1))
+        if val is None:
+            continue
+        val = _scaled(text, mm.end(), val)
+        kind = ("not_to_exceed" if re.search(r"not\s+to\s+exceed", m.group(0), re.I)
+                else "unspecified")
+        if val < AMOUNT_FLOOR or val > AMOUNT_CEILING:
+            val, kind = None, None      # "$250.000" -- a typo, not $250
+        pairs.append({"vendor_raw": v, "amount": val, "amount_kind": kind,
+                      "amount_raw": None if val is None else mm.group(0),
+                      "pos": m.start() - len(v)})
+    return pairs
+
+
+_LIST_SEPARATOR_RE = re.compile(r"(?:[:;,]|\band\b|\bfollows\b|\bfollowing\b)$", re.I)
+# Leading noise the backward walk can pick up inside a list
+# ("..., plus WSST, and Valley Electric in the amount of ...").
+_LIST_ITEM_LEAD_RE = re.compile(
+    r"^(?:WSST|plus|tax|sales|Washington|State|and|formerly|approximately)\b[\s,]*",
+    re.I)
+
+
+def _trim_list_item(v: str) -> str:
+    """Strip list noise and reject a span with unbalanced parentheses."""
+    prev = None
+    while prev != v:
+        prev = v
+        v = _LIST_ITEM_LEAD_RE.sub("", v).strip(" ,;:")
+    if v.count(")") != v.count("("):
+        return ""
+    return v
+
+
+# "for a not-to-exceed total amount of $1,890,000 as follows: ..." -- the
+# envelope for the per-vendor list that follows it.
+GROUP_TOTAL_RE = re.compile(
+    r"(?:for\s+a\s+)?(?P<nte>not[- ]?to[- ]?exceed\s+)?total\s+(?:amount|cost)\s+"
+    r"(?:of\s+)?(?P<money>" + MONEY_RE.pattern + r")"
+    r"(?P<tail>[^.$]{0,60}?as\s+follows)?", re.I)
+
+
 _BEFORE_AMOUNT_RE = re.compile(
     r",?\s+in\s+(?:the|an)\s+(?:total\s+)?amount\s+(?:of\s+)?(?:not\s+to\s+exceed\s+)?\$", re.I)
 
@@ -567,6 +657,17 @@ VENDOR_ANCHORS = [
     ("v_submitted_by", re.compile(
         r"(?:bid|proposal)\s+(?:as\s+)?submitted\s+by\s+", re.I)),
     ("v_general_contractor", None),   # handled specially (vendor precedes)
+    # Instructional-materials adoptions name the publisher after "published
+    # by"; that outranks the product name the adoption anchor would pick up.
+    ("v_published_by", re.compile(r"\bpublished\s+by\s+", re.I)),
+    # "purchase AmplifyScience as the core instructional materials", "adopt and
+    # authorize the superintendent to purchase the Center for the Collaborative
+    # Classroom as instructional materials", "the adoption of Illustrative
+    # Mathematics ... for instructional materials".  Gated on the formula so a
+    # plain "purchase Student and Staff computers" never matches.
+    ("v_adoption_purchase", re.compile(
+        r"\b(?:purchase|adoptions?\s+of|adopt)\s+"
+        r"(?=[A-Z][^.$]{0,140}?\binstructional\s+material)", re.I)),
     ("v_purchase_from", re.compile(
         r"purchas\w+[^.$]{0,80}?\bfrom\s+", re.I)),
     ("v_purchase_through", re.compile(
@@ -594,6 +695,23 @@ VENDOR_ANCHORS = [
 ]
 
 _GENERAL_CONTRACTOR_RE = re.compile(r",?\s+as\s+(?:the\s+)?general\s+contractor", re.I)
+PUBLISHED_BY_RE = re.compile(r",?\s*published\s+by\s+", re.I)
+# Anchors whose vendor is a curriculum publisher rather than a contractor;
+# recorded as a hint so F1's alias table can class them without re-reading.
+PUBLISHER_ANCHORS = ("v_published_by", "v_adoption_purchase")
+# "Inquiry By Design Middle School Curriculum" -> "Inquiry By Design";
+# "K-5 English Language Arts Instructional Materials" -> nothing usable.
+_ADOPTION_TAIL_RE = re.compile(
+    r"(?:\s*,)?\s+(?:(?:Elementary|Middle|High|K-?\d+)\s+School\s+)?"
+    r"(?:Curriculum|Instructional\s+Materials?|Materials?|Program)\s*$", re.I)
+
+
+def trim_adoption_tail(v: str) -> str:
+    prev = None
+    while prev != v:
+        prev = v
+        v = _ADOPTION_TAIL_RE.sub("", v).strip(" ,")
+    return v
 
 
 def _find_vendors(text: str) -> list[tuple[str, str, int]]:
@@ -613,6 +731,10 @@ def _find_vendors(text: str) -> list[tuple[str, str, int]]:
             if name == "v_final_acceptance_contract" and len(v.split()) < 2 \
                     and not _SUFFIX_RE.match(v.split()[-1].lower()):
                 continue      # "Final Acceptance of Contract P1234, Renovations"
+            if name == "v_adoption_purchase":
+                v = trim_adoption_tail(v)
+                if not v:
+                    continue
             out.append((name, v, m.end()))
     for m in _BEFORE_AMOUNT_RE.finditer(text):
         v = _walk_vendor_back(text, m.start())
@@ -630,10 +752,18 @@ def find_vendor_candidates(text: str) -> list[tuple[str, str, list, int]]:
     """
     out = []
     for name, span, pos in _find_vendors(text):
+        span = strip_leading_article(trim_award_prefix(span))
         primary, co = split_joint_vendors(span)
+        primary = strip_leading_article(trim_award_prefix(primary))
         if not _plausible_vendor(primary):
             continue
-        co = [c for c in co if _plausible_vendor(c)]
+        # An unsplit compound is only as good as its first name: "Seattle Public
+        # Schools and the Community Advisory Committee" is still the district.
+        head = strip_leading_article(_JOINT_SPLIT_RE.split(primary)[0].strip(" ,;:"))
+        if head != primary and not _plausible_vendor(head):
+            continue
+        co = [c for c in (strip_leading_article(trim_award_prefix(x)) for x in co)
+              if c and _plausible_vendor(c)]
         out.append((name, primary, co, pos))
     return out
 
@@ -654,6 +784,16 @@ _BAD_VENDOR_RE = re.compile(
     r"(the\s+)?successful\s+(firm|bidder|proposer|contractor|vendor|respondent|"
     r"applicant|candidate)s?|(to\s+be\s+)?determined|tbd|"
     r"(the\s+)?community\s+advisory\s+committee|"
+    r"(the\s+)?district[- ]developed\s+curriculum|(the\s+)?district\s+curriculum|"
+    r"(?:pre-?k|k|grades?)\s*[-\u2013]\s*\d+\b.*|\d+\s*[-\u2013]\s*\d+\b.*|"
+    r".*\binstructional\s+materials?|.*\bcore\s+curriculum|"
+    # course codes and course names -- "CHEM B", "Biology A", "Algebra 1"
+    r"(?:chem|bio|phys|alg|geom)\s?[ab12]?|"
+    r"(?:chemistry|biology|physics|algebra|geometry|calculus|statistics)"
+    r"(?:\s+[ab12])?|"
+    r"(?:core\s+)?(?:instructional\s+)?(?:materials?|curriculum|curricula)|"
+    r"(?:\d+(?:th|st|nd|rd)\s+grade\s+)?"
+    r"(?:chemistry|biology|physics|algebra|geometry)(?:\s+[ab12])?|"
     r"contract|agreement|amendment|change\s+order|vendor|item|"
     r"[a-z0-9 ]*(elementary|middle|high)\s+school)$", re.I)
 
@@ -698,8 +838,25 @@ def _believable_single_token(tok: str) -> bool:
     return True                                  # Arcadis, Apple, Genesis
 
 
+# Never a counterparty regardless of what follows: the district produced it.
+_BAD_VENDOR_PREFIX_RE = re.compile(
+    r"^(?:the\s+)?(?:district[- ]developed|district[- ]created|"
+    r"in[- ]house|self[- ]developed|core\s+instructional|"
+    r"(?:chem|bio|phys|alg|geom)\s?[ab12]?\b|"
+    r"(?:chemistry|biology|physics|algebra|geometry)\s+[ab12]\b)", re.I)
+
+
 def _plausible_vendor(v: str) -> bool:
     if _BAD_VENDOR_RE.match(v.strip(" ,.")):
+        return False
+    if _BAD_VENDOR_PREFIX_RE.match(v.strip(" ,.")):
+        return False
+    # project/scope descriptions -- "Roosevelt High School Science
+    # Modernization", "Waterline Replacement", "Upgrades Phase II"
+    if _is_project_description(v):
+        return False
+    # "Construction Group", "Services Company" -- no proper noun survived
+    if _is_generic_only(v):
         return False
     toks = v.split()
     if len(toks) == 1 and not _believable_single_token(toks[0]):
@@ -729,6 +886,21 @@ AMOUNT_PATTERNS = [
         r"(?:current|original|previous|prior|existing)\s+(?:total\s+)?"
         r"(?:contract\s+)?(?:amount|value|total)(?:\s+of)?\s*(?:is\s+)?"
         + MONEY_RE.pattern, re.I)),
+    # A GC/CM award authorises a small pre-construction allowance *and* the
+    # Guaranteed Maximum Price for the whole job.  The GMP is the contract's
+    # value; taking the first NTE understated 14 rows by 76x-587x (E3 BAR pass).
+    ("a_gmp", "not_to_exceed", re.compile(
+        r"(?:guaranteed\s+maximum\s+price|\bGMP\b)(?:\s*\([^)]{0,20}\))?"
+        r"[^.$]{0,140}?(?:not[- ]?to[- ]?exceed|amount\s+of|authorized[^.$]{0,40}?is|"
+        r"\bis\b|\bof\b)\s*" + MONEY_RE.pattern, re.I)),
+    # "$803,994.66 annually, or $2,411,983.90 over the three-year term";
+    # "each for a total amount not to exceed $1.2 million over three years".
+    ("a_term_total", "unspecified", re.compile(
+        r"(?:annually|per\s+year|each\s+year)\s*,?\s*or\s*" + MONEY_RE.pattern
+        + r"|total\s+amount\s+not\s+to\s+exceed\s*" + MONEY_RE.pattern
+        + r"\s*(?:million\s*)?over\s+\w+\s+years?", re.I)),
+    ("a_monthly", "monthly", re.compile(
+        MONEY_RE.pattern + r"\s*(?:a|per|each)\s+month\b", re.I)),
     ("a_nte_total", "not_to_exceed", re.compile(
         r"(?:total\s+)?Not[- ]?To[- ]?Exceed\s*(?:\(NTE\))?\s*"
         r"(?:total\s+)?amount\s+of\s*" + MONEY_RE.pattern, re.I)),
@@ -758,7 +930,8 @@ AMOUNT_PATTERNS = [
 
 # amount_kind preference when several fire for the same primary amount
 _KIND_RANK = {"not_to_exceed": 0, "final": 1, "increase": 2, "annual": 3,
-              "unspecified": 4, "revised_total": 5, "prior_total": 6}
+              "monthly": 3, "unspecified": 4, "revised_total": 5,
+              "prior_total": 6}
 
 
 def parse_money(s: str) -> float | None:
@@ -797,6 +970,18 @@ FROM_TO_RE = re.compile(
 # own totals.  "revising the overall project budget from $A to $B" -> a project
 # budget that happens to sit in a contract item; the endpoints are still barred
 # from becoming the amount, but they are not this contract's totals.
+# RCW citations ("RCW 39.10.370") sit between the GMP phrase and its figure,
+# so the gap must allow periods -- only "$" ends it.
+GMP_RE = re.compile(
+    r"(?:guaranteed\s+maximum\s+price|\bGMP\b)(?:\s*\([^)]{0,20}\))?"
+    r"[^$]{0,160}?(?:not[- ]?to[- ]?exceed|amount\s+of|authorized[^$]{0,40}?is|"
+    r"\bis\b|\bof\b)\s*" + MONEY_RE.pattern, re.I)
+TERM_TOTAL_RE = re.compile(
+    r"(?:annually|per\s+year|each\s+year)\s*,?\s*or\s*" + MONEY_RE.pattern
+    + r"|total\s+(?:annual\s+)?(?:amount|cost)\s+not\s+to\s+exceed\s*"
+    + MONEY_RE.pattern + r"\s*(?:million\s*)?over\s+[\w-]+\s+years?", re.I)
+
+
 FROM_TO_CONTRACT_RE = re.compile(
     r"(?:contract|agreement|purchase\s+order|change\s+order|amendment)"
     r"[^$]{0,80}$", re.I)
@@ -980,7 +1165,13 @@ def _blank_row(item: dict, era: str, doc: dict) -> dict:
         "title": item.get("title"),
         "vendor_raw": None,
         "vendor_name": None,
+        # Structured co-vendors for multi-vendor items; `co_vendors_raw` is the
+        # verbatim-string view of the same list, kept for older consumers.
+        # link.py explodes these into one action row per vendor.
+        "co_vendors": [],
         "co_vendors_raw": [],
+        "group_total": None,
+        "group_total_kind": None,
         "action_type": None,
         "amount": None,
         "amount_kind": None,
@@ -1042,35 +1233,138 @@ def clean_vendor(raw: str) -> str:
     return v or _CLEAN_TRAIL_RE.sub("", raw).strip()
 
 
-_JOINT_SPLIT_RE = re.compile(r"\s+and\s+", re.I)
+# Split points for a joint award: " and ", " & ", and a *spaced* slash
+# ("Ednetics / MicroK12").  An unspaced slash is part of one name
+# ("Garland/DBS, Inc."), and "CBRE | Heery" is one vendor too.
+_JOINT_SPLIT_RE = re.compile(r"\s+(?:and|&)\s+|\s+/\s+", re.I)
+
+# Tokens that cannot carry a vendor identity on their own.  A side of a split
+# whose every non-suffix token is generic is not a second vendor -- it is the
+# tail of one name ("Parks and Recreation Department" -> "Recreation
+# Department").
+_GENERIC_HALF_TOKENS = {
+    "recreation", "services", "service", "department", "departments",
+    "division", "divisions", "talk", "culture", "learning", "human", "trades",
+    "resources", "affairs", "sciences", "arts", "health", "education",
+    "planning", "operations", "maintenance", "technology", "transportation",
+    "early", "girls", "boys", "writing", "reading", "development", "training",
+    "technical", "research", "office", "bureau", "administration", "programs",
+    "program", "center", "council", "committee", "district", "school",
+    "schools", "college", "university", "institute", "authority",
+}
+# Compounds whose "and"/"&" is internal to a single organisation's name.
+_KNOWN_COMPOUND_RE = re.compile(
+    r"\b(?:parks?\s+(?:and|&)\s+recreation|health\s+(?:and|&)\s+human\s+services|"
+    r"building\s+(?:and|&)\s+construction\s+trades|listen\s+(?:and|&)\s+talk|"
+    r"arts?\s+(?:and|&)\s+culture|education\s+(?:and|&)\s+early\s+learning|"
+    r"boys\s+(?:and|&)\s+girls|reading\s+(?:and|&)\s+writing|"
+    r"research\s+(?:and|&)\s+development|training\s+(?:and|&)\s+development|"
+    r"career\s+(?:and|&)\s+technical|arts?\s+(?:and|&)\s+sciences?|"
+    r"aerospace\s+workers|science\s+(?:and|&)\s+technology|"
+    r"community\s+(?:and|&)\s+family|food\s+(?:and|&)\s+nutrition)\b", re.I)
+
+_LEADING_ARTICLE_RE = re.compile(r"^(?:the|an?)\s+", re.I)
+
+# Business-form words that describe what a company *is*, never which one it is.
+# A span made only of these ("Construction Group") lost its proper noun.
+# Deliberately excludes place/adjective words like "International", "Northwest"
+# or "Pacific", which do identify a company ("Construction Group International").
+_GENERIC_BUSINESS_TOKENS = {
+    "construction", "group", "groups", "services", "service", "company",
+    "companies", "associates", "assoc", "contractors", "contractor",
+    "architects", "architecture", "engineering", "engineers", "consulting",
+    "consultants", "solutions", "partners", "partnership", "systems",
+    "industries", "enterprises", "holdings", "development", "developments",
+    "builders", "building", "supply", "management", "technologies",
+    "technology", "corporation", "incorporated", "inc", "llc", "ltd", "corp",
+    "co", "lp", "llp", "pllc", "plc", "pc", "and", "of", "the", "&",
+}
+
+
+def _is_generic_only(v: str) -> bool:
+    toks = [re.sub(r"[^A-Za-z]", "", t).lower() for t in (v or "").split()]
+    toks = [t for t in toks if t]
+    return bool(toks) and all(t in _GENERIC_BUSINESS_TOKENS for t in toks)
+
+# A capital-works description is never a counterparty.  Guarded by the corporate
+# suffix so genuine names survive ("Reading & Writing Project Network, LLC").
+_PROJECT_NOUN_RE = re.compile(
+    r"\b(?:modernization|replacements?|renovations?|improvements?|upgrades?|"
+    r"remediations?|remedia-?tion|restorations?|reroofing|re-?roofing|seismic|"
+    r"projects?|additions?|phase\s+[IVX\d]+|expansions?|demolition)\b", re.I)
+_HAS_SUFFIX_RE = re.compile(
+    r"\b(?:inc|llc|ltd|co|corp|corporation|company|lp|llp|pllc|p\.?s|plc|pc)\b\.?,?\s*$",
+    re.I)
+# "…award a contract with Alternates A-2 and B-1 to Absher Construction Company"
+_AWARD_PREFIX_RE = re.compile(
+    r"^(?:alternates?|bids?|contracts?|change\s+order|amendments?|nos?\.?|"
+    r"[A-Z]{0,3}-?\d+[A-Z]?|and|,|&)[\s\w.,\-/&]{0,50}?\bto\s+(?=[A-Z])", re.I)
+
+
+def trim_award_prefix(v: str) -> str:
+    """Drop an award/alternate designation that precedes the real name."""
+    m = _AWARD_PREFIX_RE.match(v or "")
+    return v[m.end():].strip(" ,;:") if m else v
+
+
+def _is_project_description(v: str) -> bool:
+    return bool(_PROJECT_NOUN_RE.search(v or "")) and not _HAS_SUFFIX_RE.search(v or "")
+
+
+def strip_leading_article(v: str) -> str:
+    """`vendor_raw` stays verbatim -- it just starts after the article."""
+    return _LEADING_ARTICLE_RE.sub("", v or "").strip(" ,;:")
+
+
+def _is_standalone_vendor(part: str) -> bool:
+    """Can this side of an "and" stand alone as a vendor name?"""
+    part = strip_leading_article(part).strip(" ,;:")
+    if not part or not _plausible_vendor(part):
+        return False
+    toks = [t for t in part.split() if not _SUFFIX_RE.match(t.lower())]
+    if not toks:
+        return False
+    if len(toks) == 1 and not _believable_single_token(toks[0]):
+        return False
+    # every meaningful token generic -> a name fragment, not a vendor
+    if all(re.sub(r"[^A-Za-z]", "", t).lower() in _GENERIC_HALF_TOKENS
+           for t in toks):
+        return False
+    return True
 
 
 def split_joint_vendors(raw: str) -> tuple[str, list[str]]:
-    """Split "A, Inc. and B, Inc." into a primary plus ``co_vendors_raw``.
+    """Split "A, Inc. and B, Inc." into a primary plus co-vendors.
 
-    Only splits when the right-hand side opens a *new* name: its first word
-    must not be an industry continuation word, so "A-1 Landscaping and
-    Construction, Inc.", "International Association of Machinists and
-    Aerospace Workers" and "Children's Hospital and Regional Medical Center"
-    stay whole, while "First Student, Inc. and Zum Services, Inc.", "US Foods
-    and Sysco Seattle, Inc" and "KCDA and Musco Sports Lighting, LLC" split.
-    Every returned piece is still a verbatim substring of ``raw``.
+    A split point is used only when the junction is not part of a known
+    compound ("Parks & Recreation", "Health and Human Services", "Listen and
+    Talk") **and** both sides stand alone as vendors
+    (``_is_standalone_vendor``).  So "The YMCA of Seattle and the City of
+    Seattle Parks & Recreation Department" splits once, at the "and", while
+    "A-1 Landscaping and Construction, Inc." and "Children's Hospital and
+    Regional Medical Center" stay whole.  Every piece is a verbatim substring
+    of ``raw`` (leading articles aside).
     """
-    parts = _JOINT_SPLIT_RE.split(raw)
-    if len(parts) < 2:
+    raw = strip_leading_article(raw)
+    cuts = []
+    for m in _JOINT_SPLIT_RE.finditer(raw):
+        window = raw[max(0, m.start() - 30):m.end() + 30]
+        if _KNOWN_COMPOUND_RE.search(window):
+            continue
+        cuts.append((m.start(), m.end()))
+    if not cuts:
         return raw, []
-    out = [parts[0].strip(" ,;:")]
-    for part in parts[1:]:
-        p = part.strip(" ,;:")
-        first = re.sub(r"[^A-Za-z0-9&'\u2019-]", "", p.split(" ")[0]).lower()
-        rest = [t for t in p.split() if not _SUFFIX_RE.match(t.lower())]
-        if not p or first in _JOINT_GENERIC or not rest:
-            return raw, []                # a single name that contains "and"
-        out.append(p)
-    prev = out[0]
-    if len(prev.split()) == 1 and not _believable_single_token(prev):
-        return raw, []
-    return out[0], out[1:]
+    parts, prev = [], 0
+    for a, b in cuts:
+        parts.append(raw[prev:a])
+        prev = b
+    parts.append(raw[prev:])
+    cleaned = [strip_leading_article(p).strip(" ,;:") for p in parts]
+    for part in cleaned:
+        first = re.sub(r"[^A-Za-z0-9&\'\u2019-]", "", part.split(" ")[0]).lower()
+        if first in _JOINT_GENERIC or not _is_standalone_vendor(part):
+            return raw, []
+    return cleaned[0], cleaned[1:]
 
 
 def extract(item: dict, era: str, doc: dict) -> dict:
@@ -1103,14 +1397,39 @@ def extract(item: dict, era: str, doc: dict) -> dict:
         # fuller printing.
         for _n, _v, _co, _p in vendors:
             if (_v != best[1] and _v.lower().startswith(best[1].lower())
-                    and len(_v) <= len(best[1]) + 25):
+                    and len(_v) <= len(best[1]) + 25
+                    and trim_adoption_tail(_v) == _v):
                 best = (best[0], _v, _co, best[3])
         row["vendor_raw"] = best[1]
         row["vendor_name"] = clean_vendor(best[1])
-        row["co_vendors_raw"] = best[2]
+        row["co_vendors"] = [{"vendor_raw": v, "amount": None,
+                              "amount_kind": None, "amount_raw": None}
+                             for v in best[2]]
         fired.append(best[0])
         if best[2]:
             fired.append("v_joint_split")
+        if best[0] in PUBLISHER_ANCHORS:
+            notes.append("vendor_class:publisher")
+        if best[0] == "v_adoption_purchase":
+            # "purchase Carbon TIME ... and to purchase PEER ..." names several
+            # purchasable products in one motion; keep them all, verbatim.
+            extra = [v for n, v, _c, _p in sorted(vendors, key=lambda t: t[3])
+                     if n == "v_adoption_purchase" and v != best[1]
+                     and v not in row["co_vendors_raw"]
+                     and _plausible_vendor(v)]
+            if extra:
+                row["co_vendors"] = list(row["co_vendors"]) + [
+                    {"vendor_raw": v, "amount": None, "amount_kind": None,
+                     "amount_raw": None} for v in extra]
+                fired.append("v_adoption_multi_product")
+        # "Illustrative Mathematics, published by Imagine Learning LLC" -- the
+        # publisher is the counterparty, the product is the programme.
+        pb = PUBLISHED_BY_RE.search(hay)
+        if pb:
+            product = _walk_vendor_back(hay, pb.start())
+            if product and _plausible_vendor(product) and product != best[1]:
+                row["program_or_project"] = product
+                fired.append("x_product_publisher")
         for key, (nm, pos) in sorted(seen.items(), key=lambda kv: kv[1][1]):
             if key != best[1].lower().strip(" .,"):
                 notes.append(f"extra_vendor:{nm}:{key}")
@@ -1160,6 +1479,32 @@ def extract(item: dict, era: str, doc: dict) -> dict:
         # "…for a total contract amount of $X" with nothing else: that IS the amount.
         primary = dict(revised)
         primary["kind"] = "revised_total"
+    # A Guaranteed Maximum Price, or an explicit whole-term total, outranks a
+    # component allowance wherever each sits in the sentence: a GC/CM award
+    # prints a small pre-construction figure first and the GMP second.
+    for _name, _rx in (("a_gmp", GMP_RE), ("a_term_total", TERM_TOTAL_RE)):
+        _best = None
+        for _m in _rx.finditer(hay):
+            _mm = MONEY_RE.search(_m.group(0))
+            if not _mm:
+                continue
+            _pos = _m.start() + _mm.start()
+            if any(lo <= _pos < hi for lo, hi in list(ft_skip) + bad_spans):
+                continue
+            _v = parse_money(_mm.group(1))
+            if _v is None:
+                continue
+            _v = _scaled(hay, _m.start() + _mm.end(), _v)
+            if _best is None or _v > _best[0]:
+                _best = (_v, _pos, _mm.group(0))
+        if _best and (primary is None or _best[0] > primary["value"]):
+            if primary is not None:
+                notes.append(f"component_amount:{primary['pattern']}:"
+                             f"{(primary.get('raw') or '').strip()}")
+            primary = {"value": _best[0], "pos": _best[1], "raw": _best[2],
+                       "pattern": _name,
+                       "kind": "not_to_exceed" if _name == "a_gmp" else "unspecified"}
+            break
     if primary and primary["value"] < AMOUNT_FLOOR:
         tail = hay[primary["pos"] + len(primary.get("raw") or ""):][:24]
         if UNIT_RATE_RE.match(tail):
@@ -1196,6 +1541,63 @@ def extract(item: dict, era: str, doc: dict) -> dict:
         if prior and a["pos"] == prior["pos"]:
             continue
         notes.append(f"extra_amount:{a['pattern']}:{a['raw'].strip()}")
+
+    # -- multi-vendor lists: "X in the amount of $A; Y in the amount of $B; ..."
+    pairs = _find_vendor_amount_pairs(hay, bad_spans)
+    if len(pairs) >= 2:
+        fired.append("v_vendor_amount_list")
+        if not row["vendor_raw"]:
+            first = pairs[0]
+            row["vendor_raw"] = first["vendor_raw"]
+            row["vendor_name"] = clean_vendor(first["vendor_raw"])
+            if row["amount"] is None and first["amount"] is not None:
+                row["amount"] = first["amount"]
+                row["amount_kind"] = first["amount_kind"]
+        seen_v = {(row["vendor_raw"] or "").lower()}
+        co = []
+        for pr in pairs:
+            key = pr["vendor_raw"].lower()
+            if key in seen_v:
+                continue
+            seen_v.add(key)
+            co.append({"vendor_raw": pr["vendor_raw"], "amount": pr["amount"],
+                       "amount_kind": pr["amount_kind"],
+                       "amount_raw": pr["amount_raw"]})
+        # a joint-award co-vendor may already be recorded without an amount
+        for existing in row["co_vendors"]:
+            if existing["vendor_raw"].lower() not in seen_v:
+                co.append(existing)
+        row["co_vendors"] = co
+        # the envelope NTE that introduces the list
+        for gm in GROUP_TOTAL_RE.finditer(hay):
+            gpos = gm.start("money")
+            if gpos >= pairs[0]["pos"] or any(lo <= gpos < hi for lo, hi in bad_spans):
+                continue
+            gval = parse_money(MONEY_RE.match(hay, gpos).group(1))
+            if gval is None or gval < AMOUNT_FLOOR:
+                continue
+            row["group_total"] = _scaled(hay, gm.end("money"), gval)
+            row["group_total_kind"] = ("not_to_exceed" if gm.group("nte")
+                                       else "unspecified")
+            fired.append("a_group_total")
+            break
+    row["co_vendors_raw"] = [c["vendor_raw"] for c in row["co_vendors"]]
+
+    # Two separate contract actions in one item ("a contract modification for
+    # $643,567 with TCF Architecture ... and a contract amendment with
+    # BNBuilders to increase the GMP to $23,900,000"): a single row cannot hold
+    # both, and the vendor may end up paired with the other action's figure.
+    # Flag it rather than guess -- H1/F2 filter on this note.
+    if row["vendor_raw"] and row["amount"] is not None:
+        _others = [n for n in notes if n.startswith("extra_vendor:")]
+        if _others and len([n for n in notes if n.startswith("extra_amount:")]) >= 1:
+            _vp = hay.find(row["vendor_raw"])
+            _clause = re.split(r";|\.\s|\band\s+a\s+contract\b", hay[_vp:])[0] \
+                if _vp >= 0 else ""
+            if (primary and primary.get("raw")
+                    and primary["raw"].strip() not in _clause):
+                notes.append("multi_action_item:amount_and_vendor_from_"
+                             "different_clauses")
 
     # -- action type
     at, at_fired = classify_action(text, title)
@@ -1238,7 +1640,7 @@ def extract(item: dict, era: str, doc: dict) -> dict:
     if m:
         row["department"] = m.group(0).lstrip("(").strip()
     m = PROGRAM_RE.search(hay)
-    if m:
+    if m and not row["program_or_project"]:
         row["program_or_project"] = re.sub(r"\s+", " ", m.group(1))
 
     if IMMEDIATE_RE.search(hay) or "immediate action" in (item.get("extractor_notes") or []) \
@@ -1333,6 +1735,27 @@ def validate(row: dict, item: dict, doc_pages: int | None = None) -> tuple[bool,
         if re.sub(r"\s+", " ", cv) not in norm_t:
             reasons.append("co_vendor_not_verbatim")
             break
+    for cv in (row.get("co_vendors") or []):
+        name = cv.get("vendor_raw") or ""
+        if not name or re.sub(r"\s+", " ", name) not in norm_t:
+            reasons.append("co_vendor_not_verbatim")
+            break
+        amt, raw = cv.get("amount"), cv.get("amount_raw")
+        if amt is None:
+            continue
+        if not isinstance(amt, (int, float)) or amt < 0 or amt > AMOUNT_CEILING:
+            reasons.append("co_vendor_amount_invalid")
+            break
+        # every co-vendor amount must be *printed*, not derived
+        if not raw or re.sub(r"\s+", " ", raw) not in norm_t:
+            reasons.append("co_vendor_amount_not_printed")
+            break
+    gt = row.get("group_total")
+    if gt is not None:
+        if not isinstance(gt, (int, float)) or gt < 0 or gt > AMOUNT_CEILING:
+            reasons.append("group_total_invalid")
+        elif row.get("group_total_kind") not in AMOUNT_KINDS:
+            reasons.append("group_total_kind_invalid")
     # Identifiers must be printed in *this* item -- F2 found "K5111" stamped on
     # an item belonging to a different vendor.  Compared case-insensitively and
     # ignoring internal spacing ("RFP 11641" vs "RFP11641").
@@ -1506,7 +1929,15 @@ def resolve_gold_item(g: dict, items_by_key: dict):
 # ---------------------------------------------------------------------------
 
 GOLD_FIELDS = ("admitted", "vendor_raw", "amount", "amount_kind", "action_type",
-               "revised_total", "prior_total", "contract_id")
+               "revised_total", "prior_total", "contract_id",
+               "co_vendor_count", "group_total")
+
+
+def gold_value(row: dict, field: str):
+    """Read a gold-comparable value; `co_vendor_count` is derived."""
+    if field == "co_vendor_count":
+        return len(row.get("co_vendors") or []) or None
+    return row.get(field)
 
 
 def load_gold() -> list[dict]:
@@ -1543,7 +1974,7 @@ def score_gold(docs: dict, items_by_key: dict) -> dict:
             continue
         row = extract(item, era, doc)
         for f in GOLD_FIELDS[1:]:
-            exp, act = g.get(f), row.get(f)
+            exp, act = g.get(f), gold_value(row, f)
             if isinstance(exp, (int, float)) and isinstance(act, (int, float)):
                 same = abs(float(exp) - float(act)) < 0.005
             else:
