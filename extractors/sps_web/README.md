@@ -14,7 +14,13 @@ Scrapers that pull content from Seattle Public Schools' own web properties
 the Board approved, 2005 → present, in a spreadsheet with primary-source
 citations. It contains the verified source map (which site generation /
 archive holds which years and how to fetch from each), the pipeline stages,
-and one task card per subagent with a recommended model.
+and one task card per subagent with a recommended model. The crawl and the
+full pipeline (inventory through publish, 1,894 board-action rows) are
+complete; the published spreadsheet is in `out_sps_web/publish/` (BigQuery
+load still pending, owner's call). See
+[`docs/guides/BOARD_CONTRACTS.md`](../../docs/guides/BOARD_CONTRACTS.md) for
+the data guide and [`COVERAGE.md`](COVERAGE.md) for what's crawled and what's
+permanently missing.
 
 ## Layout
 

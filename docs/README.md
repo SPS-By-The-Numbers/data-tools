@@ -22,10 +22,20 @@ not the Markdown.
     still publishes its seven static input CSVs).
   - [`docs/guides/ENROLLMENT_GUIDE.md`](guides/ENROLLMENT_GUIDE.md) — SPS
     Annual Enrollment Report extracts (Section-4 origin/destination, Table 1-D).
+  - [`docs/guides/BOARD_CONTRACTS.md`](guides/BOARD_CONTRACTS.md) — every
+    Seattle School Board-approved contract action (new/amendment/change
+    order/renewal/final acceptance) reconstructed from board minutes and
+    agendas, 2004-05 → present: 1,894 board-action rows with a page-cited
+    citation, from 6,452 segmented business items across 996 meetings.
+    Crawl and extraction pipeline complete (see
+    `extractors/sps_web/COVERAGE.md`); published spreadsheet is
+    `out_sps_web/publish/contracts.csv`/`.xlsx`/`.jsonl` (BigQuery load
+    pending — owner's call).
   - [`data/safs/f196/README.md`](../data/safs/f196/README.md) — raw F-196
     source-file inventory.
-- Known holes: [`extractors/fiscal/COVERAGE.md`](../extractors/fiscal/COVERAGE.md)
-  and [`extractors/stars/COVERAGE.md`](../extractors/stars/COVERAGE.md) —
+- Known holes: [`extractors/fiscal/COVERAGE.md`](../extractors/fiscal/COVERAGE.md),
+  [`extractors/stars/COVERAGE.md`](../extractors/stars/COVERAGE.md), and
+  [`extractors/sps_web/COVERAGE.md`](../extractors/sps_web/COVERAGE.md) —
   which years/districts/sub-reports are missing and why. Check before
   concluding data is absent.
 
@@ -48,11 +58,32 @@ not the Markdown.
   Purple Book carve, chronic-underspend corrections, and why F-196 building
   codes and S-275 building codes disagree about support staff. Scripts:
   `tools/bb_summary_from_db.py`, `tools/pb_actuals_reconcile.py`.
+- [`docs/guides/DUTY_FUNDING.md`](guides/DUTY_FUNDING.md) — how much of the
+  payroll the state pays for: the 1191F CIS/CAS/CLS staff units and the
+  1191EDF per-role staffing units set against S-275 pay, by staff class,
+  model role and duty title. Covers the four attribution traps (headline-only
+  apportionment table, FTE vs payroll basis, revenue that buys contracted
+  service, and what "state apportionment" actually means), and the open
+  salary-only question. Scripts: `tools/duty_funding/`.
+- [`tools/sea_chart_critique/README.md`](../tools/sea_chart_critique/README.md)
+  — the SEA "Average Reported Salaries by Job Category vs. State Funded
+  Salaries by Staff Type" graphic, marked up with its errors and replaced with
+  three charts that hold up. Reconstructs all three of its benchmark bars from
+  the 1191F to the cent (including the professional-learning add-on hidden in
+  the yellow one), and records the 0.77-FTE central-administrator reporting
+  convention that inflates any per-FTE administrator figure. Builds a
+  standalone HTML page.
 - [`docs/guides/S275_SALARY_SKYLINE.md`](guides/S275_SALARY_SKYLINE.md) —
   per-employee `total_final_salary` charted one bar per person, and the duty
   banding it uses: which OSPI duty roots count as central office vs school
   administration vs classified support, and why `is_classified` is not the
   test. Scripts: `tools/salary_skyline/`.
+- [`docs/guides/S275_SALARY_PER_FTE.md`](guides/S275_SALARY_PER_FTE.md) —
+  `total_final_salary` per FTE for every WA district, pooled 2013-14…2024-25,
+  at district and district × duty-title grain: column dictionary, the
+  apportionment used to split a person-year's salary across duty titles, why
+  `is_teacher` is narrower than OSPI's `duty_name_category`, and 10 caveats.
+  Queries: `tools/s275_salary_per_fte_by_district*.sql`.
 - NULL conventions and anti-patterns: dedicated sections at the end of each
   CSV_GUIDE (e.g. STARS `value = NULL` means "row absent from source" while
   `0` is a reported zero).
@@ -86,6 +117,7 @@ Provenance chain, per family:
 | STARS | OSPI STARS report PDFs/DOCX | same page + [`ospi-stars-reports.js`](contentscripts/scrappers/ospi-stars-reports.js) | `data/stars/` | [`extractors/stars/README.md`](../extractors/stars/README.md) | `scripts/load_stars.sh` → `ospi_stars` |
 | SAFS | OSPI Access DBs (F-195/F-196/S-275) + enrollment/assessment files | manual download | `data/safs/` | [`extractors/safs/README.md`](../extractors/safs/README.md) + CLAUDE.md §SAFS pipeline | `scripts/load_safs.sh` → `safs_*` |
 | enrollment | SPS Annual Enrollment Report PDFs | manual download | `data/sps/enrollment/` | [`guides/ENROLLMENT_GUIDE.md`](guides/ENROLLMENT_GUIDE.md) | (local CSV only — see BACKLOG) |
+| board contracts | seattleschools.org board minutes/agendas/BARs (WordPress + SharePoint) and Wayback Machine captures of two prior site generations | [`extractors/sps_web/inventory_wp.py`](../extractors/sps_web/inventory_wp.py) + `inventory_wayback.py` + `fetch.py` | `out_sps_web/raw/` (gitignored, not yet promoted to `data/`) | [`extractors/sps_web/PLAN.md`](../extractors/sps_web/PLAN.md) + [`guides/BOARD_CONTRACTS.md`](guides/BOARD_CONTRACTS.md) | `out_sps_web/publish/` CSV/XLSX/JSONL/AVRO (`publish.py`) — BigQuery `sps_board.*` load not yet run (owner's call, `--bq`) |
 
 - The fiscal/STARS → BigQuery loader (`extractors/bqload/`) is seed-first:
   Postgres staging → zstd AVRO → GCS → BigQuery WRITE_TRUNCATE, with exact

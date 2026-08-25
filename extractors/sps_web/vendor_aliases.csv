@@ -1,0 +1,507 @@
+alias_key,canonical_name,vendor_class,note
+# Hand-maintained vendor alias / classification table for extractors.sps_web.vendors.
+# alias_key   free text; it is run through vendors.canonical_key() at load time, so
+#             write it the way it appears in the documents (punctuation is ignored).
+# canonical_name  the display name every alias collapses into. A row whose alias_key
+#             equals its canonical_name is a pure class assertion (no merge).
+# vendor_class  government | cooperative | contractor | nonprofit | school_placement
+#             | labor_union | not_a_vendor | unknown
+# note        why. Keep it short.
+# Edit freely; rerun `venv/bin/python3 -m extractors.sps_web.vendors`.
+#
+# --- strings that are never a vendor -------------------------------------------
+Seattle Public Schools,Seattle Public Schools,not_a_vendor,the district itself is never the counterparty
+Seattle School District No. 1,Seattle Public Schools,not_a_vendor,the district itself
+Seattle Public Schools and the Community Advisory Committee,Seattle Public Schools,not_a_vendor,E1 capture of the district
+XXX,,not_a_vendor,redacted/blank vendor slot in the agenda text
+Bid No,,not_a_vendor,E1 regex captured the bid-number label
+Bid No. B06691,,not_a_vendor,bid number not a vendor
+Bid No. B11824,,not_a_vendor,bid number not a vendor
+Bid No. B11927,,not_a_vendor,bid number not a vendor
+Project,,not_a_vendor,generic word captured by E1
+Proposal,,not_a_vendor,generic word captured by E1
+Local,,not_a_vendor,truncated union local
+Local Union,,not_a_vendor,truncated union local
+Directors,,not_a_vendor,truncated - blank vendor slot in a draft agenda item
+Board Governance Policy Manual,,not_a_vendor,policy document
+Board's,,not_a_vendor,fragment
+Math,,not_a_vendor,fragment of an instructional-materials title
+White,,not_a_vendor,fragment
+Seattle,,not_a_vendor,fragment
+City,,not_a_vendor,fragment
+Association,,not_a_vendor,fragment
+Lloyd,,not_a_vendor,fragment of a roofing item; true vendor unknown
+Machinists,,not_a_vendor,fragment of a union name
+Teamsters,,not_a_vendor,fragment of a union name
+IEPs,,not_a_vendor,fragment
+CARES Act,,not_a_vendor,funding source not a vendor
+Teacher Incentive Fund,,not_a_vendor,federal grant not a vendor
+Disabilities Education Act,,not_a_vendor,statute
+New Student Assignment Plan,,not_a_vendor,policy
+Growth Boundaries,,not_a_vendor,policy
+Community Advisory Committee,,not_a_vendor,internal committee
+BEX/BTA Oversight Committee,,not_a_vendor,internal committee
+Contracted Bus Service,,not_a_vendor,service description
+Relocate and Setup Portable Classrooms,,not_a_vendor,scope of work
+Interior and Mechanical Upgrades,,not_a_vendor,scope of work
+Interior and Mechanical Upgrades and Waterline Remedia-tion,,not_a_vendor,scope of work
+Waterline Replacement,,not_a_vendor,scope of work
+Reroofing and Interior Renovations,,not_a_vendor,scope of work
+Upgrades Phase II,,not_a_vendor,scope of work
+Lafayette Elementary School Window Replacement,,not_a_vendor,project name
+Queen Anne Elementary School Modernization,,not_a_vendor,project name
+Rainier Beach High School Replacement,,not_a_vendor,project name
+Roosevelt High School Project,,not_a_vendor,project name
+Sand Point Modernization,,not_a_vendor,project name
+Beach and Roosevelt High Schools' Science Modernization Project,,not_a_vendor,project name
+Broadview-Thomson & Montlake Schools Indoor Air Quality Upgrade,,not_a_vendor,project name
+Pathfinder K-8 School and Madrona K-8 School Energy Upgrades,,not_a_vendor,project name
+Jose Banda,,not_a_vendor,superintendent
+Fred Podesta,,not_a_vendor,district staff
+Superintendent Nyland,,not_a_vendor,superintendent
+Superintendent Denise Juneau,,not_a_vendor,superintendent
+Principal Mark Perry of Nova,,not_a_vendor,district staff
+First Presentation Student Inc.,,not_a_vendor,OCR garble of First Student
+New X Inc.,,not_a_vendor,placeholder text in a draft item
+# --- government counterparties --------------------------------------------------
+City of Seattle,City of Seattle,government,
+City of Seattle Department of Education and Early Learning,City of Seattle Department of Education and Early Learning,government,DEEL - Families Education Preschool and Promise levy
+City of Seattle's Department of Education and Early Learning,City of Seattle Department of Education and Early Learning,government,
+Department of Education and Early Learning,City of Seattle Department of Education and Early Learning,government,
+City of Seattle Parks and Recreation,City of Seattle Parks and Recreation,government,joint-use agreements
+City of Seattle's Parks & Recreation Department,City of Seattle Parks and Recreation,government,
+City of Seattle Department of Parks and Recreation,City of Seattle Parks and Recreation,government,
+Seattle Parks and Recreation,City of Seattle Parks and Recreation,government,
+Seattle Parks & Recreation,City of Seattle Parks and Recreation,government,
+City of Seattle Office of Arts & Culture,City of Seattle Office of Arts and Culture,government,
+Seattle Department of Transportation,Seattle Department of Transportation,government,
+SDOT,Seattle Department of Transportation,government,
+King County,King County,government,
+King County Metro,King County Metro,government,
+King County Developmental Disabilities Division,King County Developmental Disabilities Division,government,
+King County Developmental Disabilities,King County Developmental Disabilities Division,government,
+Public Health of Seattle/King County,Public Health - Seattle & King County,government,
+Sound Transit,Sound Transit,government,
+Office of Superintendent of Public Instruction,Office of Superintendent of Public Instruction,government,OSPI
+OSPI,Office of Superintendent of Public Instruction,government,
+University of Washington,University of Washington,government,state university
+University of Washington Experimental Education Unit,University of Washington Experimental Education Unit,government,UW EEU special-ed placement
+Experimental Education Unit,University of Washington Experimental Education Unit,government,
+EEU,University of Washington Experimental Education Unit,government,
+University of Washington Haring Center,University of Washington Haring Center,government,
+Washington State Auditor's Office,Washington State Auditor's Office,government,
+State of Washington Department of Enterprise Services,Washington State Department of Enterprise Services,government,DES master contracts
+Washington State Department of Enterprise Services,Washington State Department of Enterprise Services,government,
+Department of Enterprise Services,Washington State Department of Enterprise Services,government,
+Washington State Department of Agriculture,Washington State Department of Agriculture,government,
+Washington State Department of Commerce,Washington State Department of Commerce,government,
+U.S. Department of Health and Human Services,U.S. Department of Health and Human Services,government,
+Federal Department of Health & Human Services,U.S. Department of Health and Human Services,government,
+U.S. Food and Drug Administration,U.S. Food and Drug Administration,government,
+National Science Foundation,National Science Foundation,government,federal grantor
+Puget Sound Educational Service District,Puget Sound Educational Service District,government,
+Educational Services District,Puget Sound Educational Service District,government,truncated capture
+Edmonds School District,Edmonds School District,government,
+Highline School District,Highline School District,government,
+Lake Washington School District,Lake Washington School District,government,
+Shoreline School District,Shoreline School District,government,
+Seattle Community College,Seattle Community College,government,
+Daejeon Metropolitan Office of Education,Daejeon Metropolitan Office of Education,government,sister-city exchange
+Archdiocese of Seattle,Archdiocese of Seattle,nonprofit,
+# --- purchasing cooperatives / contract vehicles ---------------------------------
+KCDA,King County Directors' Association,cooperative,school purchasing co-op
+King County Directors' Association,King County Directors' Association,cooperative,
+King County Director's Association,King County Directors' Association,cooperative,apostrophe variant
+King County Directors Association,King County Directors' Association,cooperative,
+Puget Sound Joint Purchasing Cooperative,Puget Sound Joint Purchasing Cooperative,cooperative,
+NASPO ValuePoint,NASPO ValuePoint,cooperative,national cooperative vehicle
+WEX Bank,WEX Bank,cooperative,fuel cards purchased off the NASPO ValuePoint vehicle
+Washington Schools Risk Management Pool,Washington Schools Risk Management Pool,cooperative,self-insurance pool
+WSRMP,Washington Schools Risk Management Pool,cooperative,
+# --- labor unions / employee associations ----------------------------------------
+Seattle Education Association,Seattle Education Association,labor_union,
+SEA,Seattle Education Association,labor_union,
+Seattle Education Association-,Seattle Education Association,labor_union,
+Seattle Education Association Certificated Non-Supervisory Employees,Seattle Education Association,labor_union,bargaining unit of SEA
+Principals Association of Seattle Schools,Principals' Association of Seattle Schools,labor_union,
+Principals' Association of Seattle Schools,Principals' Association of Seattle Schools,labor_union,
+International Union of Operating Engineers,International Union of Operating Engineers Local 609,labor_union,
+International Union of Operating Engineers Local,International Union of Operating Engineers Local 609,labor_union,
+International Union of Operating Engineers Local Number,International Union of Operating Engineers Local 609,labor_union,
+IUOE Local,International Union of Operating Engineers Local 609,labor_union,
+International Association of Machinists and Aerospace Workers,International Association of Machinists and Aerospace Workers,labor_union,
+International Association of Machinists and Aerospace Workers Local,International Association of Machinists and Aerospace Workers,labor_union,
+Seattle/King County Building and Construction Trades Council,Seattle/King County Building and Construction Trades Council,labor_union,
+Seattle/King County Building Trades Council and the Western States Regional,Seattle/King County Building and Construction Trades Council,labor_union,
+# --- special-education / private school placements -------------------------------
+CHILD,Children's Institute of Learning Differences,school_placement,acronym used in the minutes
+Children's Institute of Learning Differences,Children's Institute of Learning Differences,school_placement,
+APL,Academy for Precision Learning,school_placement,acronym used in the minutes
+Academy for Precision Learning,Academy for Precision Learning,school_placement,
+Yellow Wood Academy,Yellow Wood Academy,school_placement,
+Spring Academy,Spring Academy,school_placement,
+Gersh Academy,Gersh Academy,school_placement,
+Brightmont Academy,Brightmont Academy,school_placement,
+Brock's Academy,Brock's Academy,school_placement,
+New England Center for Children,New England Center for Children,school_placement,
+Lakemary Center,Lakemary Center,school_placement,
+Northwest School of Innovative Learning,Northwest School of Innovative Learning,school_placement,
+Overlake Hospital Specialty School,Overlake Hospital Specialty School,school_placement,
+Overlake Hospital,Overlake Hospital Specialty School,school_placement,
+Hamlin Robinson,Hamlin Robinson School,school_placement,
+Listen and Talk,Listen and Talk,school_placement,
+Ryther,Ryther,school_placement,
+Dartmoor Learning,Dartmoor Learning,school_placement,
+A+ Advantage Point Learning,A+ Advantage Point Learning,school_placement,
+Embrace Learning,Embrace Learning Institute,school_placement,
+Embrace Learning Institute,Embrace Learning Institute,school_placement,
+Sum of Learning,Sum of Learning,school_placement,
+Behavioral Institute,Behavioral Institute,school_placement,
+Hearing Speech and Deaf Center,Hearing Speech and Deaf Center,school_placement,
+Perch Behavioral Health,Perch Behavioral Health,school_placement,special-ed related services
+Ampersand Therapy,Ampersand Therapy,school_placement,special-ed related services
+Crissey Behavior Consulting,Crissey Behavior Consulting,school_placement,special-ed related services
+Crissey Behavioral Consulting,Crissey Behavior Consulting,school_placement,
+Blue Sprig Pediatrics,Blue Sprig Pediatrics,school_placement,special-ed related services
+Therapeutic Treatment Day Services,Therapeutic Treatment Day Services,school_placement,
+Community Care,Community Care,school_placement,
+Seneca Family of Agencies,Seneca Family of Agencies,nonprofit,
+Northwest Center,Northwest Center,nonprofit,
+# --- recurring contractors with spelling / suffix drift ---------------------------
+Western Ventures Construction,Western Ventures Construction Inc.,contractor,
+Western Ventures,Western Ventures Construction Inc.,contractor,
+Western Ventures Inc.,Western Ventures Construction Inc.,contractor,
+Western Ventures Construction Co Inc.,Western Ventures Construction Inc.,contractor,
+Mike Werlech Construction,Mike Werlech Construction Inc.,contractor,
+Mike Werlach Construction,Mike Werlech Construction Inc.,contractor,OCR/typo variant
+Regency NW Construction,Regency Northwest Construction Inc.,contractor,
+Regency Northwest Construction,Regency Northwest Construction Inc.,contractor,
+Regency NW Inc,Regency Northwest Construction Inc.,contractor,
+Mahlum Architects,Mahlum Architects,contractor,architect
+Mahlum Architect,Mahlum Architects,contractor,
+Mahlum Architexts,Mahlum Architects,contractor,typo in the source
+Cornerstone General Contractors,Cornerstone General Contractors Inc.,contractor,
+Cornerstone General Contractor,Cornerstone General Contractors Inc.,contractor,
+Cornerstone Contractors,Cornerstone General Contractors Inc.,contractor,
+Corstone Contractors,Corstone Contractors LLC,contractor,distinct from Cornerstone - do not merge
+A-1 Landscaping and Construction,A-1 Landscaping and Construction Inc.,contractor,
+A-l Landscaping and Construction,A-1 Landscaping and Construction Inc.,contractor,OCR l-for-1
+A-1 Landscaping,A-1 Landscaping and Construction Inc.,contractor,
+Apus Construc-tion,Apus Construction Inc.,contractor,hyphenation artifact
+Apus Construction,Apus Construction Inc.,contractor,
+Wayne's Roofing,Wayne's Roofing Inc.,contractor,
+Bate's Roofing,Bates Roofing LLC,contractor,
+Bates Roofing,Bates Roofing LLC,contractor,
+Reynolds General Construction,Reynolds General Contracting Inc.,contractor,
+Reynolds General Contracting,Reynolds General Contracting Inc.,contractor,
+Kreuger Sheet Metal Company,Krueger Sheet Metal Co.,contractor,typo in the source
+Krueger Sheet Metal Co.,Krueger Sheet Metal Co.,contractor,
+FORMA Construction,Forma Construction Company,contractor,
+Forma Construction Company,Forma Construction Company,contractor,
+Graham Contracting,Graham Contracting Ltd.,contractor,
+Graham Construction,Graham Contracting Ltd.,contractor,
+Klinge & Associates,Klinge & Associates Inc.,contractor,
+Kling and Associates,Klinge & Associates Inc.,contractor,typo in the source
+Condon-Johnson & Associates,Condon-Johnson & Associates Inc.,contractor,
+Shiels Obletz Johnsen,Shiels Obletz Johnsen Inc.,contractor,
+DA Hogan & Associates,DA Hogan & Associates Inc.,contractor,
+Precision Earthworks,Precision Earthworks Inc.,contractor,
+Lincoln Construction,Lincoln Construction Inc.,contractor,
+Lydig Construction,Lydig Construction Inc.,contractor,
+Lydig Construction Company,Lydig Construction Inc.,contractor,
+Cope Construction,Cope Construction Company,contractor,
+Absher Construction,Absher Construction Company,contractor,
+Bayley Construction,Bayley Construction LP,contractor,
+Holmberg Construction,Holmberg Company,contractor,
+CDK Construction Services,CDK Construction Services Inc.,contractor,
+CDK Construction,CDK Construction Services Inc.,contractor,
+BNBuilders,BNBuilders Inc.,contractor,
+Coast to Coast Turf,Coast to Coast Turf Inc.,contractor,
+FieldTurf USA,FieldTurf USA Inc.,contractor,
+Field Turf USA,FieldTurf USA Inc.,contractor,
+Sprinturf,Sprinturf LLC,contractor,
+Spinturf,Sprinturf LLC,contractor,typo in the source
+SprinTurf,Sprinturf LLC,contractor,
+Heery International,CBRE Heery,contractor,Heery was acquired by CBRE
+CBRE | Heery,CBRE Heery,contractor,
+Rolluda Architects,Rolluda Architecture,contractor,
+Studio Meng Strazzara,Studio Meng Strazzara,contractor,architect
+Studio Meng Strazzara Architecture,Studio Meng Strazzara,contractor,
+MENG Analysis,MENG Analysis,contractor,engineer
+DKA,DKA Architecture,contractor,
+TCF,Thomas Cook Fitzgerald Architecture,contractor,
+TCF Architecture,Thomas Cook Fitzgerald Architecture,contractor,
+BLRB Architects,BLRB Architects,contractor,
+DLR Group,DLR Group,contractor,
+NAC Architecture,NAC Architecture,contractor,
+Bassetti Architects,Bassetti Architects,contractor,
+Integrus Architecture,Integrus Architecture,contractor,
+Miller Hayashi Architects,Miller Hayashi Architects,contractor,
+McGranahan Architects,McGranahan Architects,contractor,
+DOWA IBI Group Architects,DOWA IBI Group Architects,contractor,
+Freeman Fong Architecture,Freeman Fong Architecture,contractor,
+Harthorne Hagen Architects,Harthorne Hagen Architects,contractor,
+Kassel & Associates,Kassel & Associates Inc.,contractor,
+Kassel Construction,Kassel & Associates Inc.,contractor,related entity - verify
+Triple D Construction,Triple D Construction Inc.,contractor,
+Eltec,ELTEC,contractor,elevator maintenance
+Eltec/Schindler,ELTEC,contractor,
+Stemper AC,Stemper AC,contractor,
+Design Air Ltd.,Design Air Ltd.,contractor,
+Slate Construction,Slate Construction Inc.,contractor,
+Oak Hills Construction,Oak Hills Construction LLC,contractor,
+Jody Miller Construction,Jody Miller Construction Inc.,contractor,
+JV Constructors,JV Constructors Inc.,contractor,
+MJ Takisaki,MJ Takisaki Inc.,contractor,
+Rhine Demolition,Rhine Demolition LLC,contractor,
+Hellas Construction,Hellas Construction Inc.,contractor,
+Westmark Construction,Westmark Construction Inc.,contractor,
+Spee West Construction Company,Spee West Construction Company,contractor,
+Optimus Construction and Development,Optimus Construction and Development Inc.,contractor,
+Commercial Structures,Commercial Structures Inc.,contractor,
+Matia Contractors,Matia Contractors Inc.,contractor,
+Olympic Peninsula Construction,Olympic Peninsula Construction Inc.,contractor,
+Allied Construction Associates,Allied Construction Associates Inc.,contractor,
+Acc-U-Set Construction,Acc-U-Set Construction Inc.,contractor,
+Landon Construction Group,Landon Construction Group LLC,contractor,
+Unimark Construction Group,Unimark Construction Group LLC,contractor,
+Diverse Earthworks,Diverse Earthworks Inc.,contractor,
+3 Kings Environmental,3 Kings Environmental Inc.,contractor,
+Sazan Environmental Services,Sazan Environmental Services,contractor,
+McKinstry Essention,McKinstry Essention Inc.,contractor,
+Hermanson Company LLP,Hermanson Company LLC,contractor,filing-type drift in the source
+Milne Electric,Milne Electric Inc.,contractor,
+Valley Electric,Valley Electric Co of Mt. Vernon Inc.,contractor,
+Valley Electric Co of Mt. Vernon,Valley Electric Co of Mt. Vernon Inc.,contractor,
+Contract Flooring Services Inc. dba Spectra Contract Flooring,Spectra Contract Flooring,contractor,
+Spectra Contract Flooring,Spectra Contract Flooring,contractor,
+Shaw Contract Flooring Services Inc. dba Shaw Sportexe,Shaw Sportexe,contractor,
+Kasch Contracting Inc. dba Premier Field Developments,Premier Field Development,contractor,
+Premier Field Development,Premier Field Development,contractor,
+YOY INC. dba VERDIS,Yoy Inc.,contractor,
+Yoy Inc.,Yoy Inc.,contractor,
+B&C TELEPHONE INC. dba BLACK BOX NETWORK SERVICES,Black Box Network Services,contractor,
+Building Envelope Technology & Research,Building Envelope Technology & Research Inc.,contractor,
+Northwest Playground Equipment,Northwest Playground Equipment Inc.,contractor,
+LSI/PlayCreation,PlayCreation Inc.,contractor,
+PlayCreation,PlayCreation Inc.,contractor,
+R.C Zeigler Company,R.C. Zeigler Company Inc.,contractor,
+Neeley Construction and Cabinet Co.,Neeley Construction and Cabinet Company,contractor,
+Sprague Israel Giles,Sprague Israel Giles Inc.,contractor,
+Skanska USA Building,Skanska USA Building Inc.,contractor,
+"Skanska USA Building,Inc",Skanska USA Building Inc.,contractor,missing space in the source
+Lease Crutcher Lewis,Lease Crutcher Lewis,contractor,
+Hensel Phelps Construction,Hensel Phelps Construction,contractor,
+Hoffman Construction Company,Hoffman Construction Company,contractor,
+McBride Construction,McBride Construction,contractor,
+Lorig Associates,Lorig Associates,contractor,
+Parametrix,Parametrix,contractor,
+Arcadis,Arcadis,contractor,
+PCS Structural Solutions,PCS Structural Solutions,contractor,
+Engineering Economics,Engineering Economics Inc.,contractor,
+Hargis Engineers,Hargis Engineers Inc.,contractor,
+FSi Consulting Engineers,FSi Consulting Engineers,contractor,
+Pioneer Masonry Restoration Company,Pioneer Masonry Restoration Company Inc.,contractor,
+Trane U.S.Inc.,Trane U.S. Inc.,contractor,missing space in the source
+Garland/DBS,Garland/DBS Inc.,contractor,
+H2I Group,H2I Group Inc.,contractor,
+Iliad,Iliad Inc.,contractor,
+LineScape of Washington,LineScape of Washington LLC,contractor,
+Harkness Construction,Harkness Construction LLC,contractor,
+Calli Denney Construction,Calli Denney Construction LLC,contractor,
+Rife Construction Services,Rife Construction Services LLC,contractor,
+Biwell Construction,Biwell Construction Inc.,contractor,
+Avara Construction,Avara Construction Inc.,contractor,
+Artus Construction Company,Artus Construction Company,contractor,
+Moon Construction Company,Moon Construction Company,contractor,
+Schuchart Corporation,Schuchart Corporation,contractor,
+Shaiman Contracting,Shaiman Contracting Inc.,contractor,
+Pacific Tech Construction,Pacific Tech Construction,contractor,
+MidMountain Contractors,MidMountain Contractors Inc.,contractor,
+Terra Dynamics,Terra Dynamics Inc.,contractor,
+Sheldrup Building Services Company,Sheldrup Building Services Company,contractor,
+Dickson Company,Dickson Company,contractor,
+Roy E. Dunham Company,Roy E. Dunham Company,contractor,
+F.E. Tompkins,F.E. Tompkins,contractor,
+Allied Steel,Allied Steel,contractor,
+Columbia Safety LLC,Columbia Safety LLC,contractor,
+Convergint Technologies LLC,Convergint Technologies LLC,contractor,
+EMTech LLC,EMTech LLC,contractor,
+Elevate LLC,Elevate LLC,contractor,
+MBR LLC,MBR LLC,contractor,
+Zone Inc.,Zone Inc.,contractor,
+Radixos LLC,Radixos LLC,contractor,
+Xiologix LLC,Xiologix LLC,contractor,
+Aries Building Systems,Aries Building Systems LLC,contractor,
+Modern Building Systems,Modern Building Systems Inc.,contractor,
+Pacific Mobile Structures,Pacific Mobile Structures Inc.,contractor,
+Oaktree Limited Partnership,Oaktree Limited Partnership,contractor,property lease
+Lake City Professional Building LLC,Lake City Professional Building LLC,contractor,property lease
+P&P Georgetown LLC,P&P Georgetown LLC,contractor,property lease
+Rabanco Ltd.,Rabanco Ltd.,contractor,solid waste
+CleanScapes,Recology CleanScapes,contractor,
+Recology CleanScapes,Recology CleanScapes,contractor,
+Recology,Recology CleanScapes,contractor,
+Cedar Grove Composting,Cedar Grove Composting,contractor,
+Waste Management of Washington,Waste Management of Washington Inc.,contractor,
+Republic Services,Republic Services,contractor,
+Republic Parking,Republic Parking,contractor,
+Johnson Controls,Johnson Controls,contractor,
+LSI Services,LSI Services,contractor,
+Right Systems,Right Systems Inc.,contractor,
+Cerium Networks,Cerium Networks,contractor,
+InterVision,InterVision,contractor,
+DynTek,DynTek Inc.,contractor,
+Dyntek,DynTek Inc.,contractor,
+Magna5,Magna5 LLC,contractor,
+Beeline,Beeline,contractor,
+Studio Pacifica,Studio Pacifica,contractor,accessibility consultant
+Novak Consulting,Novak Consulting,contractor,
+Unify Consulting,Unify Consulting,contractor,
+Genesis Consulting,Genesis Consulting,contractor,
+Genesis,Genesis Consulting,contractor,
+Phoenix Business Consulting,Phoenix Business Consulting,contractor,
+Public Consulting Group,Public Consulting Group,contractor,
+Plante Moran,Plante Moran,contractor,
+Moss Adams,Moss Adams,contractor,
+CorVel Corporation,CorVel Corporation,contractor,
+Maxim Healthcare Services,Maxim Healthcare Services,contractor,
+Amergis Educational Staffing,Amergis Educational Staffing,contractor,successor to Maxim staffing
+# --- vendors / suppliers with spelling drift --------------------------------------
+Apple,Apple Inc.,contractor,
+Apple Computer,Apple Inc.,contractor,
+Apple Computer Corporation,Apple Inc.,contractor,
+Apple Computer Inc.,Apple Inc.,contractor,
+Dell,Dell Inc.,contractor,
+Dell Computer Corp,Dell Inc.,contractor,
+Thornburg,Thornburg Computer Services,contractor,
+Thornburg Computer Services,Thornburg Computer Services,contractor,
+Dell/Thorburg,Thornburg Computer Services,contractor,joint capture - Dell reseller
+Dell/Thornburg and Apple,Thornburg Computer Services,contractor,joint capture - verify
+Thornburg/Dell and Apple,Thornburg Computer Services,contractor,joint capture - verify
+EPI-USE,EPI-USE America Inc.,contractor,SAP integrator
+EPI-Use,EPI-USE America Inc.,contractor,
+Epi-Use,EPI-USE America Inc.,contractor,
+EPI-USE America,EPI-USE America Inc.,contractor,
+SAP,SAP Public Services Inc.,contractor,
+SAP Public Services,SAP Public Services Inc.,contractor,
+PowerSchool,PowerSchool Group LLC,contractor,
+PowerSchool Group LLC.,PowerSchool Group LLC,contractor,
+School Data Solutions,School Data Solutions,contractor,
+SchoolFusion,SchoolFusion,contractor,
+Hobson's Naviance,Hobsons,contractor,
+Northwest Evaluation Association,Northwest Evaluation Association,nonprofit,MAP assessment vendor
+Herff Jones,Herff Jones,contractor,yearbooks and graduation
+IKON Office Solutions,IKON Office Solutions,contractor,
+Pacific Office Automation,Pacific Office Automation,contractor,
+QBSI- Xerox,QBSI-Xerox,contractor,
+CDW-G,CDW Government LLC,contractor,
+SHI International Corp.,SHI International Corp.,contractor,
+ScholarBuys,ScholarBuys,contractor,
+Troxell Communications,Troxell Communications,contractor,
+Hewlett-Packard Company,Hewlett-Packard Company,contractor,
+Microsoft,Microsoft,contractor,
+Verizon Wireless,Verizon Wireless,contractor,
+Qwest Communications,Qwest Communications,contractor,
+XO Communications Services,XO Communications Services Inc.,contractor,
+Mobile Beacon,Mobile Beacon,nonprofit,
+AudioEye,AudioEye Inc.,contractor,
+Thoughtexchange,Thoughtexchange,contractor,
+My Payment Network,My Payment Network Inc.,contractor,
+System Soft Technologies,System Soft Technologies LLC,contractor,
+Catalyst Workplace Activation,Catalyst Workplace Activation Inc.,contractor,
+School Specialty,School Specialty,contractor,
+Follett Library Book Company,Follett Library Book Company,contractor,
+Pearson Products and Services,Pearson,contractor,
+Sysco,Sysco Seattle Inc.,contractor,
+Sysco Seattle,Sysco Seattle Inc.,contractor,
+US Foods and Sysco Seattle Inc.,Sysco Seattle Inc.,contractor,joint capture - US Foods also a party
+Harbor Foodservice,Harbor Foodservice,contractor,
+Franz Family Bakeries,Franz Family Bakeries,contractor,
+Medosweet Farms,Medosweet Farms Inc.,contractor,
+Dairy Fresh Farms,Dairy Fresh Farms Inc.,contractor,
+Duck Delivery of Washington,Duck Delivery of Washington Inc.,contractor,
+Ducks Delivery,Duck Delivery of Washington Inc.,contractor,
+First Student,First Student Inc.,contractor,school bus operator
+First Student and Durham,First Student Inc.,contractor,joint capture - Durham also a party
+First Student Inc. Director Blanford,First Student Inc.,contractor,E1 captured the director name
+Durham School Services,Durham School Services Inc.,contractor,school bus operator
+Zum Services,Zum Services Inc.,contractor,school bus operator
+EverDriven,EverDriven,contractor,special-ed transportation
+# --- nonprofits / community partners ----------------------------------------------
+Alliance for Education,Alliance for Education,nonprofit,
+City Year of Seattle,City Year of Seattle,nonprofit,
+Team Read,Team Read,nonprofit,
+School's Out Washington,School's Out Washington,nonprofit,
+Neighborhood House,Neighborhood House,nonprofit,
+Seattle Foundation,Seattle Foundation,nonprofit,
+Seattle Parks Foundation,Seattle Parks Foundation,nonprofit,
+Satterberg Foundation,Satterberg Foundation,nonprofit,
+New School Foundation,New School Foundation,nonprofit,
+League of Education Voters Foundation,League of Education Voters Foundation,nonprofit,
+Equal Opportunity Schools,Equal Opportunity Schools,nonprofit,
+Center for Educational Leadership,Center for Educational Leadership,nonprofit,UW CEL
+New Technology Network,New Technology Network,nonprofit,
+Columbia Teachers College Reading and Writing Project Network,Teachers College Reading and Writing Project,nonprofit,
+Reading & Writing Project Network LLC,Teachers College Reading and Writing Project,nonprofit,
+Health Commons Project,Health Commons Project,nonprofit,
+Seattle Children's Hospital,Seattle Children's Hospital,nonprofit,
+Children's Hospital and Regional Medical Center,Seattle Children's Hospital,nonprofit,former name
+Virginia Mason Medical Center,Virginia Mason Medical Center,nonprofit,
+Sylvan Learning Center of Seattle,Sylvan Learning of Seattle,contractor,supplemental education services
+Sylvan Learning of Seattle,Sylvan Learning of Seattle,contractor,
+Sylvan,Sylvan Learning of Seattle,contractor,
+Sylvan Learning Center,Sylvan Learning of Seattle,contractor,
+University Tutors,University Tutors of Seattle Schools,contractor,
+University Tutors of Seattle Schools,University Tutors of Seattle Schools,contractor,
+Teach,Teach For America,nonprofit,E1 truncated - text reads Teach For America
+Teach For America,Teach For America,nonprofit,
+First AME,First AME Church,nonprofit,
+YMCA of Seattle,YMCA of Greater Seattle,nonprofit,
+21st Century Learning,21st Century Learning,unknown,likely the 21st Century Community Learning Centers grant - verify
+Amazon Future Engineer,Amazon Future Engineer,nonprofit,corporate giving program
+Good News Group Inc.,Good News Group Inc.,contractor,
+Sunburst Workforce Advisors,Sunburst Workforce Advisors,contractor,
+ING,ING,contractor,403b provider
+Family Support Worker Program,Family Support Worker Program,not_a_vendor,program name
+Edusoft Assessment Management System,Edusoft,contractor,
+Seattle Community College for the Provision of Career Links Services,Seattle Community College,government,
+# --- second pass: leftovers found in the first vendors_report.md ------------------
+Construction Company,,not_a_vendor,E1/E2 fragment of a final-acceptance title
+Lincoln,,not_a_vendor,fragment - Lincoln High School not a vendor
+Construction Group International,Construction Group International,contractor,real company despite the generic name
+"Construction Services, Inc.",Construction Services Inc.,contractor,real company despite the generic name
+CenterPoint,CenterPoint Education Solutions,contractor,interim benchmark assessments
+Pantheon,Pantheon,contractor,website hosting
+Buell Recreation,Buell Recreation,contractor,playground construction
+Imagine Learning,Imagine Learning,contractor,
+RMA Lighting,RMA Lighting,contractor,
+Saxton Bradley,Saxton Bradley Inc.,contractor,furniture procurement
+"Saxton Bradley, Inc.",Saxton Bradley Inc.,contractor,
+Seattle Central College,Seattle Central College,government,
+Seattle University,Seattle University,nonprofit,private university
+21st Century Learning,21st Century Learning,contractor,personal services contract
+Apple Consulting,Apple Consulting,contractor,special-education related services - distinct from Apple Inc.
+Black Box,Black Box Network Services,contractor,
+Maxim Healthcare,Maxim Healthcare Services,contractor,
+Overlake Specialty School,Overlake Hospital Specialty School,school_placement,
+Ferrell-Penning,Ferrell-Penning Inc.,contractor,
+Dell/Thornburg,Thornburg Computer Services,contractor,joint capture - Dell reseller
+EEU and University of Washington Haring Center,University of Washington Haring Center,government,joint capture
+Emerald Learning Center,Emerald Learning Center,school_placement,
+Brookwood Farms,Brookwood Farms Inc.,contractor,
+Follett School Solutions,Follett School Solutions,contractor,
+Follett Library Book Company,Follett School Solutions,contractor,former name
+YMCA of Seattle and the City of Seattle Parks,YMCA of Greater Seattle,nonprofit,joint capture - City Parks also a party
+King County and Memorandum of Understanding,King County,government,E1 captured the instrument name
+SDOT and Cascade Bicycle Club,Seattle Department of Transportation,government,joint capture - Cascade Bicycle Club also a party
+Seattle Department of Transportation and Cascade Bicycle Club,Seattle Department of Transportation,government,joint capture
+"First Student, Inc. and Zūm Services, Inc.",First Student Inc.,contractor,joint capture - Zum Services also a party
+"Lydig Construction, Inc. and Elcon Corporation, Inc.",Lydig Construction Inc.,contractor,joint capture - Elcon also a party
+"Lydig Construction, Inc. and Seahurst Electric, Inc.",Lydig Construction Inc.,contractor,joint capture - Seahurst Electric also a party
+Seattle Children's Hospital and Fred Hutchinson Cancer Research Center,Seattle Children's Hospital,nonprofit,joint capture - Fred Hutch also a party
+New England Center for Children and Lakemary Center,New England Center for Children,school_placement,joint capture - Lakemary Center also a party
+Pacific Coast and Penny Salsa,Pacific Coast Foods,contractor,joint capture - Penny Salsa also a party; verify
+"KCDA and Musco Lighting, Inc.",Musco Sports Lighting LLC,contractor,purchased through the KCDA cooperative vehicle
+KCDA and Musco Sports Lighting LLC,Musco Sports Lighting LLC,contractor,purchased through the KCDA cooperative vehicle
+"KCDA and Landscape Structures, Inc.",Landscape Structures Inc.,contractor,purchased through the KCDA cooperative vehicle
