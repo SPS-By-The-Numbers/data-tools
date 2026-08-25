@@ -1,5 +1,7 @@
 """Tests for the vendor normalizer (extractors.sps_web.vendors, card F1)."""
 
+import csv
+
 import pytest
 
 from extractors.sps_web import vendors as V
@@ -131,8 +133,10 @@ def test_approved_review_marks_merge_with_method_cluster():
     rows = _rows() + [{"vendor_raw": "Lydig Constructon", "meeting_date": "2020-01-01",
                        "amount": None, "action_type": "new", "era": "modern",
                        "title": "typo"}]
-    marks = {("lydig constructon", "lydig construction"): "y"}
-    groups, proposals = V.build(rows, V.load_aliases(), marks)
+    decisions = {("lydig constructon", "lydig construction"):
+                 {"key_a": "lydig constructon", "key_b": "lydig construction",
+                  "decision": "y", "canonical_a": "", "canonical_b": "", "note": ""}}
+    groups, proposals = V.build(rows, V.load_aliases(), decisions)
     res = V.emit(groups, proposals, rows, write=False)
     by_name = {v["canonical_name"]: v for v in res["vendors"]}
     assert by_name["Lydig Construction Inc."]["n_actions"] == 3
@@ -156,3 +160,105 @@ def test_merges_are_only_proposed_not_applied():
 def test_slugify_is_stable_and_url_safe():
     assert V.slugify("King County Directors' Association") == "king-county-directors-association"
     assert V.slugify("Wayne’s Roofing Inc.") == "waynes-roofing-inc"
+
+
+# --------------------------------------------------------------------------
+# durable merge decisions (vendor_merges.csv)
+# --------------------------------------------------------------------------
+
+def _typo_rows():
+    return _rows() + [{"vendor_raw": "Lydig Constructon", "meeting_date": "2020-01-01",
+                       "amount": None, "action_type": "new", "era": "modern",
+                       "title": "typo"}]
+
+
+def _run(tmp_path, rows, merges, review_marks=None):
+    """One full vendors.py cycle against temp copies of both CSVs."""
+    monkey = {"MERGES_CSV": V.MERGES_CSV, "OUT_REVIEW": V.OUT_REVIEW}
+    review = tmp_path / "vendors_review.csv"
+    if review_marks is not None:
+        with review.open("w", newline="", encoding="utf-8") as fh:
+            w = csv.DictWriter(fh, fieldnames=V.REVIEW_FIELDS)
+            w.writeheader()
+            for (a, b), mark in review_marks.items():
+                w.writerow({f: "" for f in V.REVIEW_FIELDS} |
+                           {"approve": mark, "key_a": a, "key_b": b})
+    stored = V.load_merges(merges)
+    harvested = V.harvest_review_marks(review)
+    decisions = V.merge_decisions(stored, harvested)
+    V.save_merges(decisions, merges)
+    groups, proposals = V.build(rows, V.load_aliases(), decisions)
+    res = V.emit(groups, proposals, rows, write=False)
+    assert monkey  # nothing global was mutated
+    return res, proposals
+
+
+def test_approved_pair_survives_consecutive_runs(tmp_path):
+    """The regression this file exists for: a merge must not evaporate on run 2."""
+    merges = tmp_path / "vendor_merges.csv"
+    rows = _typo_rows()
+
+    # run 1: the pair is proposed, a human marks it y in the worksheet
+    res1, props1 = _run(tmp_path, rows, merges)
+    assert any({p["key_a"], p["key_b"]} == {"lydig constructon", "lydig construction"}
+               for p in props1)
+    res1, props1 = _run(tmp_path, rows, merges,
+                        {("lydig constructon", "lydig construction"): "y"})
+    by1 = {v["canonical_name"]: v for v in res1["vendors"]}
+    assert by1["Lydig Construction Inc."]["n_actions"] == 3
+    assert not props1, "a decided pair must leave the worksheet"
+
+    # run 2: worksheet is empty again -- the decision must still be in force
+    res2, props2 = _run(tmp_path, rows, merges, {})
+    by2 = {v["canonical_name"]: v for v in res2["vendors"]}
+    assert by2["Lydig Construction Inc."]["n_actions"] == 3
+    assert not props2
+
+    # run 3, for good measure
+    res3, props3 = _run(tmp_path, rows, merges, {})
+    assert {v["canonical_name"]: v["n_actions"] for v in res3["vendors"]} == \
+           {v["canonical_name"]: v["n_actions"] for v in res2["vendors"]}
+    assert not props3
+
+
+def test_rejected_pair_is_never_re_proposed(tmp_path):
+    merges = tmp_path / "vendor_merges.csv"
+    rows = _typo_rows()
+    _run(tmp_path, rows, merges, {("lydig constructon", "lydig construction"): "n"})
+    for _ in range(2):
+        res, props = _run(tmp_path, rows, merges, {})
+        assert not props
+        by = {v["canonical_name"]: v for v in res["vendors"]}
+        assert by["Lydig Construction Inc."]["n_actions"] == 2   # not merged
+        assert "Lydig Constructon" in by
+
+
+def test_decisions_are_keyed_unordered(tmp_path):
+    merges = tmp_path / "vendor_merges.csv"
+    rows = _typo_rows()
+    # mark the pair with the keys the other way round
+    _run(tmp_path, rows, merges, {("lydig construction", "lydig constructon"): "y"})
+    res, props = _run(tmp_path, rows, merges, {})
+    assert not props
+    by = {v["canonical_name"]: v for v in res["vendors"]}
+    assert by["Lydig Construction Inc."]["n_actions"] == 3
+
+
+def test_orphaned_key_warns_and_does_not_fail(tmp_path, capsys):
+    merges = tmp_path / "vendor_merges.csv"
+    V.save_merges({("gone a", "gone b"):
+                   {"key_a": "gone a", "key_b": "gone b", "decision": "y",
+                    "canonical_a": "", "canonical_b": "", "note": "stale"}}, merges)
+    res, _ = _run(tmp_path, _rows(), merges, {})
+    assert res["vendors"], "a stale decision must not break the run"
+    assert "no vendor group" in capsys.readouterr().err
+
+
+def test_shipped_merge_table_is_well_formed():
+    decisions = V.load_merges()
+    assert len(decisions) >= 40
+    for (a, b), row in decisions.items():
+        assert a <= b, "pairs are stored sorted"
+        assert row["decision"] in {"y", "n"}
+        assert a == V.canonical_key(a) and b == V.canonical_key(b), \
+            f"{a!r}/{b!r} is not a canonical_key -- did canonical_key() change?"

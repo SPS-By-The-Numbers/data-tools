@@ -298,11 +298,16 @@ missing.
    exact folded-key equality. 100 of 633 distinct raw vendor strings are
    currently mapped through an alias row; 533 map by exact key alone.
 3. Near-duplicate keys the automatic key-fold didn't unify are only
-   *proposed*, in `out_sps_web/contracts/vendors_review.csv` (46 rows as of
-   this run, empty `approve` column) — nothing below a `ratio ≥ 0.92`
-   string-similarity threshold (or `ratio ≥ 0.85` with identical first two
-   tokens) is even proposed. **To apply a proposed merge:** open the CSV,
-   set `approve` to `y`/`yes`/`1` on the row, then rerun `vendors.py` —
+   *proposed*, in `out_sps_web/contracts/vendors_review.csv` (a disposable
+   worksheet holding only *undecided* pairs; 0 as of this run) — nothing
+   below a `ratio ≥ 0.92` string-similarity threshold (or `ratio ≥ 0.85`
+   with identical first two tokens) is even proposed. **To decide a pair:**
+   open the worksheet, set `approve` to `y` (merge) or `n` (never propose
+   again) on the row, then rerun `vendors.py`. The decision is harvested
+   into the committed, hand-maintained `extractors/sps_web/vendor_merges.csv`
+   (`key_a,key_b,decision,…`; 46 decisions: 23 y / 23 n as of 2026-08-25),
+   which is the system of record and is applied on every run — so a mark
+   survives reruns even after the pair stops being proposed. Rerun then —
    approved pairs merge with `method="cluster"` and the mark carries
    forward on the next regeneration. This queue currently sits unreviewed;
    applying it (a human task) would tighten the vendor dimension before any
@@ -560,9 +565,12 @@ sampling; all pass except one WARN (`qa/reconcile_report.md`):
   `term`, `fund`, `procurement_method` are populated only where the item
   text itself happened to print them, not systematically (Phase E3 in
   PLAN.md, explicitly deferred as optional).
-- **87 vendors are unclassified** (`vendor_class="unknown"`) and 46 vendor
-  merges await human review in `vendors_review.csv` — mostly Blackboard-era
-  (2011-2016) names the alias table hasn't caught up with (§6).
+- **87 vendors are unclassified** (`vendor_class="unknown"`) — mostly
+  Blackboard-era (2011-2016) names the alias table hasn't caught up with
+  (§6). All 46 proposed merges have been decided (`vendor_merges.csv`);
+  parent/child government pairs (City of Seattle vs its departments, King
+  County vs Metro/DDD/Public Health, UW vs its centers) were deliberately
+  kept separate.
 - **BigQuery has not been loaded** — the owner's call; `--bq` is a flag
   away once ready (§1, §2).
 
@@ -598,7 +606,7 @@ sampling; all pass except one WARN (`qa/reconcile_report.md`):
   reads the fetched bytes and the SharePoint-resolved filename) is the
   authority — always use `kind`, not `kind_guess`, downstream of Phase C.
 - **Don't merge two vendor strings just because they look similar.** Only
-  `vendor_aliases.csv` rows and human-approved `vendors_review.csv` rows are
+  `vendor_aliases.csv` rows and human-approved `vendor_merges.csv` pairs are
   ever merged; a Jaccard/ratio similarity alone is a *proposal*, not a
   merge.
 
