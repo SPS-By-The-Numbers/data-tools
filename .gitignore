@@ -188,3 +188,4 @@ SEA_Analysis/
 *.log
 
 *.sw[op]
+tools/**/__pycache__/
