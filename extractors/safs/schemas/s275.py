@@ -2,30 +2,6 @@ from .common import AUDIT_FIELDS, SCHOOL_YEAR_DISTRICT_FIELDS
 
 
 """Fields for deduping on upsert and tracking changes"""
-def with_recno_in_logical_key(fields):
-    """UPSERT_AUDIT_FIELDS with s275_recno promoted into the logical key.
-
-    Only `assignment` needs this. A person's time is routinely reported across
-    several rows that are identical on every attribute -- same building,
-    program, activity, duty and FTE -- and differ only by recno, which is a
-    per-employee sequence number. Those are real, separate assignment records
-    whose FTE must sum. Leaving recno out of the key made them collide and be
-    discarded, under-counting FTE by 2.8% districtwide for Seattle 2024-25 and
-    by 23% for central administrators, whose time splits across the most rows.
-    """
-    out = []
-    for f in fields:
-        if f["name"] == "s275_recno":
-            f = dict(f, is_logical_key=True,
-                     doc=("Record number in the S-275: a per-employee sequence "
-                          "number, so (report_employee_id, s275_recno) "
-                          "identifies one reported assignment row. Part of the "
-                          "logical key -- rows identical on every other column "
-                          "are separate records, not duplicates."))
-        out.append(f)
-    return out
-
-
 UPSERT_AUDIT_FIELDS = [
     {
         "name": "s275_recno",
@@ -526,7 +502,24 @@ ASSIGNMENT_SCHEMA = {
             "is_logical_key": True,
             "doc": ("Does s275 consider this to be the \"major\" assignment")
         },
-    ] + with_recno_in_logical_key(UPSERT_AUDIT_FIELDS),
+        # Spelled out rather than taking UPSERT_AUDIT_FIELDS, because here
+        # s275_recno is part of the logical key rather than an audit column.
+        # A person's time is routinely reported across several rows identical
+        # on every attribute above -- same building, program, activity, duty
+        # and FTE -- differing only by recno. Those are separate reported
+        # assignments whose FTE must sum, so recno has to be in the key or
+        # they collide and all but one is discarded.
+        {
+            "name": "s275_recno",
+            "field_type": "int",
+            "is_logical_key": True,
+            "doc": ("Record number in the S-275: a per-employee sequence "
+                    "number, so (report_employee_id, s275_recno) identifies "
+                    "one reported assignment row. Part of the logical key -- "
+                    "rows identical on every other column are separate "
+                    "records, not duplicates.")
+        },
+    ],
 }
 
 PRIVATE_ASSIGNMENT_COMP_BASE_SCHEMA = {
