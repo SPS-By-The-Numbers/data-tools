@@ -407,7 +407,11 @@ def _generate_temp_canonical_assignment_table(session):
                         fte_in_assignment,
                         pct100_fte_in_assignment,
                         hours_per_year_in_assignment,
-                        is_major)
+                        is_major,
+                        -- recno is part of the key: rows identical on every
+                        -- other column are separate reported assignments, not
+                        -- duplicates, and their FTE must sum.
+                        s275_recno)
         )
         """))
 
@@ -435,7 +439,9 @@ def _generate_temp_canonical_assignment_table(session):
                 t.s275_final_id,
                 CAST(t.recno as INT) s275_recno,
 
-                -- Pick the last record.
+                -- Collapse only true re-loads of the same record. recno is
+                -- in the partition, so genuinely distinct assignment rows
+                -- that match on every other column survive.
                 ROW_NUMBER() OVER(
                     PARTITION BY
                         re.report_employee_id,
@@ -450,7 +456,8 @@ def _generate_temp_canonical_assignment_table(session):
                         t.assfte,
                         t.asspct,
                         t.asshpy,
-                        (t.major = '1')
+                        (t.major = '1'),
+                        CAST(t.recno as int)
 
                     ORDER BY CAST(t.recno as int) DESC) AS rn
             FROM s275_final t
@@ -624,7 +631,8 @@ def _generate_private_assignment(session):
            a.fte_in_assignment = c.fte_in_assignment AND
            a.pct100_fte_in_assignment = c.pct100_fte_in_assignment AND
            a.hours_per_year_in_assignment = c.hours_per_year_in_assignment AND
-           a.is_major = c.is_major
+           a.is_major = c.is_major AND
+           a.s275_recno = c.s275_recno
            )
         """))
 
